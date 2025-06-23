@@ -1,0 +1,30 @@
+services:
+  frontend-app:
+    build:
+      context: .. # repo root
+      dockerfile: docker/Dockerfile
+      args:
+        NODE_VERSION: 20 # keep in sync with Dockerfile default
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+        NEXT_PUBLIC_GITHUB_CLIENT_ID: ${NEXT_PUBLIC_GITHUB_CLIENT_ID:-}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
+        NEXT_PUBLIC_DOCKER_BACKEND_URL: ${NEXT_PUBLIC_DOCKER_BACKEND_URL:-}
+        ENV: ${ENV:-dev}
+    container_name: scholar-ai-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1" # NODE_ENV already set inside image
+      ENV: ${ENV:-dev} # Read from .env file
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
+      NEXT_PUBLIC_DOCKER_BACKEND_URL: ${NEXT_PUBLIC_DOCKER_BACKEND_URL:-}
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+      NEXT_PUBLIC_GITHUB_CLIENT_ID: ${NEXT_PUBLIC_GITHUB_CLIENT_ID:-}
+    restart: unless-stopped
+    networks:
+      - scholar_network_alias
+
+networks:
+  scholar_network_alias:
+    name: docker_scholar-network
+    external: true 
