@@ -1,42 +1,92 @@
+/**
+ * ----------------------------------------------------------------------------
+ * GLOBAL STYLESHEET
+ * ----------------------------------------------------------------------------
+ * This file contains the global CSS for the application. It's the single
+ * source of truth for base styles, theme variables, and custom utility
+ * classes. It uses Tailwind CSS and follows the layer-based organization.
+ *
+ * The structure is as follows:
+ * 1. Tailwind Directives: Imports Tailwind's base, components, and utilities.
+ * 2. Base Layer:
+ *    - CSS Variables: Defines the color palette and other theme-related
+ *      variables for both light and dark modes, compatible with shadcn/ui.
+ *    - Global Styles: Basic styles applied to the body and all elements.
+ * 3. Utilities Layer:
+ *    - Custom scrollbars, animations, gradients, and visual effects.
+ *    - Component-specific overrides, such as for the PDF viewer.
+ * ----------------------------------------------------------------------------
+ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * ----------------------------------------------------------------------------
+ * 1. BASE LAYER - THEME & GLOBAL STYLES
+ * ----------------------------------------------------------------------------
+ * This layer defines the foundational styles and theme variables for the
+ * entire application.
+ */
 @layer base {
+
+  /**
+   * --------------------------------------------------------------------------
+   * CSS Variables for Theming (shadcn/ui compatible)
+   * --------------------------------------------------------------------------
+   * Defines the color scheme and other design tokens for the application.
+   * These variables are used throughout the app for consistent theming.
+   *
+   * The variables are defined for the light theme by default (:root) and
+   * overridden for the dark theme (.dark).
+   */
   :root {
+    /* Base colors */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
+    /* Card component colors */
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
 
+    /* Popover component colors */
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
+    /* Primary color scheme */
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
 
+    /* Secondary color scheme */
     --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 84% 4.9%;
 
+    /* Muted colors for less prominent elements */
     --muted: 210 40% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
+    /* Accent colors for highlights and focus states */
     --accent: 210 40% 96%;
     --accent-foreground: 222.2 84% 4.9%;
 
+    /* Destructive colors for actions like delete */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
+    /* Border, input, and ring colors */
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
 
+    /* Border radius for components */
     --radius: 0.75rem;
 
+    /* Custom layout colors */
     --sidebar: 240 5% 96%;
     --panel: 240 6% 90%;
 
+    /* Chart colors for data visualization */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -44,38 +94,52 @@
     --chart-5: 27 87% 67%;
   }
 
+  /**
+   * Dark theme overrides for the CSS variables.
+   */
   .dark {
+    /* Base colors */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
+    /* Card component colors */
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
 
+    /* Popover component colors */
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
+    /* Primary color scheme */
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 84% 4.9%;
 
+    /* Secondary color scheme */
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
 
+    /* Muted colors for less prominent elements */
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
+    /* Accent colors for highlights and focus states */
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
 
+    /* Destructive colors for actions like delete */
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
+    /* Border, input, and ring colors */
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 94.1%;
 
+    /* Custom layout colors */
     --sidebar: 240 6% 10%;
     --panel: 240 5% 8%;
 
+    /* Chart colors for data visualization */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -84,31 +148,60 @@
   }
 }
 
+/**
+ * Global element styles.
+ */
 @layer base {
+
+  /**
+   * Applies the border color from our theme to all elements.
+   * This ensures consistency in borders across the application.
+   */
   * {
     @apply border-border;
   }
 
+  /**
+   * Applies base background and text colors to the body.
+   * This sets the default look and feel of the application.
+   */
   body {
     @apply bg-background text-foreground;
   }
 }
 
+/**
+ * ----------------------------------------------------------------------------
+ * 2. UTILITIES LAYER - CUSTOM HELPERS & COMPONENT STYLES
+ * ----------------------------------------------------------------------------
+ * This layer contains custom utility classes and specific component overrides.
+ */
+
 /* Custom themed scrollbar styles */
 @layer utilities {
 
-  /* Webkit browsers (Chrome, Safari, Edge) */
+  /**
+   * --------------------------------------------------------------------------
+   * Custom Themed Scrollbar
+   * --------------------------------------------------------------------------
+   * A highly stylized, futuristic scrollbar that matches the app's theme.
+   * Includes hover and active states for better user feedback.
+   */
+
+  /* For Webkit browsers like Chrome, Safari, and Edge */
   ::-webkit-scrollbar {
     width: 12px;
     height: 12px;
   }
 
+  /* The track (the background of the scrollbar) */
   ::-webkit-scrollbar-track {
     background: rgba(15, 23, 42, 0.8);
     border-radius: 10px;
     backdrop-filter: blur(8px);
   }
 
+  /* The thumb (the draggable part of the scrollbar) */
   ::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg,
         rgba(99, 102, 241, 0.8) 0%,
@@ -122,6 +215,7 @@
     transition: all 0.3s ease;
   }
 
+  /* Scrollbar thumb on hover */
   ::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(180deg,
         rgba(99, 102, 241, 1) 0%,
@@ -134,6 +228,7 @@
     transform: scaleY(1.1);
   }
 
+  /* Scrollbar thumb when active (being clicked/dragged) */
   ::-webkit-scrollbar-thumb:active {
     background: linear-gradient(180deg,
         rgba(79, 70, 229, 1) 0%,
@@ -144,17 +239,20 @@
       inset 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 
+  /* The corner where horizontal and vertical scrollbars meet */
   ::-webkit-scrollbar-corner {
     background: rgba(15, 23, 42, 0.8);
   }
 
-  /* Firefox */
+  /* For Firefox */
   html {
     scrollbar-width: thin;
     scrollbar-color: rgba(99, 102, 241, 0.8) rgba(15, 23, 42, 0.8);
   }
 
-  /* Enhanced scrollbar for dark theme */
+  /**
+   * Enhanced scrollbar styles specifically for the dark theme.
+   */
   .dark ::-webkit-scrollbar-track {
     background: rgba(15, 23, 42, 0.9);
     border: 1px solid rgba(99, 102, 241, 0.1);
@@ -184,7 +282,14 @@
       inset 0 -1px 0 rgba(0, 0, 0, 0.3);
   }
 
-  /* Custom scrollbar classes for specific elements */
+  /**
+   * --------------------------------------------------------------------------
+   * Scrollbar Utility Classes
+   * --------------------------------------------------------------------------
+   * Reusable classes for applying different scrollbar styles.
+   */
+
+  /* A thinner version of the custom scrollbar */
   .scrollbar-thin::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -198,6 +303,7 @@
     border: 1px solid rgba(15, 23, 42, 0.5);
   }
 
+  /* Hides the scrollbar completely */
   .scrollbar-hidden {
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -207,6 +313,7 @@
     display: none;
   }
 
+  /* A more subtle scrollbar using theme colors */
   .scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -226,18 +333,24 @@
     background: hsl(var(--foreground));
   }
 
-  /* For Firefox */
+  /* Firefox equivalent for the subtle scrollbar */
   .scrollbar {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted-foreground)) transparent;
   }
 
-  /* Custom gradient utilities */
+  /**
+   * --------------------------------------------------------------------------
+   * Custom Gradients & Animations
+   * --------------------------------------------------------------------------
+   */
+
+  /* Utility for a radial gradient background */
   .bg-gradient-radial {
     background: radial-gradient(ellipse at center, var(--tw-gradient-stops));
   }
 
-  /* Custom animations */
+  /* Animation keyframes */
   @keyframes gradient {
 
     0%,
@@ -286,6 +399,7 @@
     }
   }
 
+  /* Animation utility classes */
   .animate-gradient {
     animation: gradient 3s ease infinite;
   }
@@ -302,6 +416,12 @@
     animation: shimmer 2s infinite;
   }
 
+  /**
+   * --------------------------------------------------------------------------
+   * Background Patterns & Effects
+   * --------------------------------------------------------------------------
+   */
+
   /* Custom gradients */
   .bg-gradient-radial {
     background-image: radial-gradient(circle, var(--tw-gradient-stops));
@@ -311,7 +431,7 @@
     background-image: conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops));
   }
 
-  /* Grid pattern */
+  /* A subtle grid pattern background */
   .bg-grid-pattern {
     background-image:
       linear-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px),
@@ -319,12 +439,12 @@
     background-size: 20px 20px;
   }
 
-  /* Noise texture */
+  /* A noise texture overlay for a vintage/textured feel */
   .bg-noise {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
   }
 
-  /* Glass morphism effect */
+  /* Glass morphism effect for frosted-glass UI elements */
   .glass {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
@@ -336,7 +456,13 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  /* Scroll-based animations */
+  /**
+   * --------------------------------------------------------------------------
+   * Interactive & Dynamic Utilities
+   * --------------------------------------------------------------------------
+   */
+
+  /* Fade-in animation on scroll */
   .scroll-fade-in {
     opacity: 0;
     transform: translateY(30px);
@@ -348,7 +474,7 @@
     transform: translateY(0);
   }
 
-  /* Custom cursor effects */
+  /* Custom cursor with a glowing effect */
   .cursor-glow {
     cursor: none;
   }
@@ -368,7 +494,7 @@
     transition: all 0.1s ease;
   }
 
-  /* Typewriter effect */
+  /* Animated typewriter effect for text */
   .typewriter {
     overflow: hidden;
     border-right: 0.15em solid;
@@ -400,7 +526,7 @@
     }
   }
 
-  /* Particle effects */
+  /* Floating particle background effect */
   .particles {
     position: absolute;
     top: 0;
@@ -439,7 +565,7 @@
     }
   }
 
-  /* Neon glow text */
+  /* Neon glow effect for text */
   .neon-text {
     text-shadow:
       0 0 5px rgba(99, 102, 241, 0.5),
@@ -448,14 +574,20 @@
       0 0 20px rgba(99, 102, 241, 0.5);
   }
 
-  /* Responsive utilities */
+  /**
+   * --------------------------------------------------------------------------
+   * Layout & General Utilities
+   * --------------------------------------------------------------------------
+   */
+
+  /* A container with a narrower max-width for content */
   .container-narrow {
     max-width: 768px;
     margin: 0 auto;
     padding: 0 1rem;
   }
 
-  /* Custom scrollbar */
+  /* Simple custom scrollbar for specific elements */
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
   }
@@ -474,7 +606,7 @@
     background: rgba(99, 102, 241, 0.7);
   }
 
-  /* Backdrop blur utilities */
+  /* A set of backdrop-filter blur utilities */
   .backdrop-blur-xs {
     backdrop-filter: blur(2px);
   }
@@ -503,44 +635,67 @@
     backdrop-filter: blur(40px);
   }
 
-  /* PDF Viewer specific styles */
+  /**
+   * --------------------------------------------------------------------------
+   * PDF Viewer Component Styles (`react-pdf-viewer`)
+   * --------------------------------------------------------------------------
+   * Custom styles to integrate the `react-pdf-viewer` library seamlessly
+   * with the application's theme and layout.
+   */
+
+  /* Main container for the PDF viewer */
   .pdf-viewer-container {
     position: relative;
     width: 100%;
     height: 100%;
   }
 
+  /* The core viewer area that contains the pages */
   .pdf-viewer-container .rpv-core__viewer {
-    height: 100% !important;
-    overflow: auto !important;
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted-foreground)) transparent;
+    height: auto !important;
+    overflow: visible !important;
   }
 
+  /* Themed scrollbar for Webkit browsers */
   .pdf-viewer-container .rpv-core__viewer::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    display: none;
   }
 
+  .dark .pdf-viewer-container .rpv-core__viewer::-webkit-scrollbar-track,
   .pdf-viewer-container .rpv-core__viewer::-webkit-scrollbar-track {
-    background: hsl(var(--muted));
-    border-radius: 4px;
+    background: transparent;
   }
 
+  .dark .pdf-viewer-container .rpv-core__viewer::-webkit-scrollbar-thumb,
   .pdf-viewer-container .rpv-core__viewer::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground));
-    border-radius: 4px;
+    background: transparent;
   }
 
-  .pdf-viewer-container .rpv-core__viewer::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--foreground));
-  }
-
+  /* Ensures the inner container of pages takes up at least the full height */
   .pdf-viewer-container .rpv-core__inner-pages {
     height: auto !important;
     min-height: 100%;
   }
 
+  /* Hide all scrollbars in the PDF viewer */
+  .pdf-viewer-container .rpv-core__inner-pages,
+  .pdf-viewer-container .rpv-core__inner-pages *,
+  .pdf-viewer-container .rpv-core__page-container,
+  .pdf-viewer-container .rpv-core__page-container * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  .pdf-viewer-container .rpv-core__inner-pages::-webkit-scrollbar,
+  .pdf-viewer-container .rpv-core__inner-pages *::-webkit-scrollbar,
+  .pdf-viewer-container .rpv-core__page-container::-webkit-scrollbar,
+  .pdf-viewer-container .rpv-core__page-container *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  /* Styling for individual page layers */
   .pdf-viewer-container .rpv-core__page-layer {
     margin: 8px auto !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -548,12 +703,13 @@
     overflow: hidden;
   }
 
-  /* Ensure PDF pages are properly sized and scrollable */
+  /* Layout for vertical scroll mode (standard document view) */
   .pdf-viewer-container[data-scroll-mode="vertical"] .rpv-core__inner-pages {
     display: block !important;
     padding: 16px;
   }
 
+  /* Layout for horizontal scroll mode (gallery/slide view) */
   .pdf-viewer-container[data-scroll-mode="horizontal"] .rpv-core__inner-pages {
     display: flex !important;
     flex-direction: row !important;
@@ -567,16 +723,17 @@
     margin: 0 !important;
   }
 
-  /* Override any conflicting styles */
+  /* General override to ensure consistent scrollbar behavior inside the viewer */
   .pdf-viewer-container * {
     scrollbar-width: thin !important;
   }
 
+  /* Ensure the body of the viewer doesn't have its own conflicting overflow */
   .pdf-viewer-container .rpv-core__viewer-body {
     overflow: visible !important;
   }
 
-  /* Dark theme adjustments for PDF viewer */
+  /* Dark theme adjustments for the PDF viewer */
   .dark .pdf-viewer-container .rpv-core__page-layer {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
@@ -585,34 +742,36 @@
     background: hsl(var(--card));
   }
 
-  /* Prevent zoom on trackpad/mouse wheel - only allow PDF content to zoom */
+  /* Controls touch behavior to allow panning and prevent page zoom */
   .pdf-viewer-container {
     touch-action: pan-x pan-y;
     -ms-touch-action: pan-x pan-y;
   }
 
+  /* Allows pinch-to-zoom on the PDF content itself */
   .pdf-viewer-container .rpv-core__viewer {
     touch-action: pan-x pan-y pinch-zoom;
     -ms-touch-action: pan-x pan-y pinch-zoom;
   }
 
-  /* Ensure search highlighting works properly */
+  /* Styling for search result highlights within the PDF */
   .pdf-viewer-container .rpv-search__highlight {
     background-color: rgba(255, 255, 0, 0.4) !important;
     border-radius: 2px;
   }
 
+  /* Styling for the currently active search result */
   .pdf-viewer-container .rpv-search__highlight.rpv-search__highlight--current {
     background-color: rgba(255, 165, 0, 0.6) !important;
     outline: 2px solid rgba(255, 165, 0, 0.8);
   }
 
-  /* Smooth transitions for better UX */
+  /* Adds a smooth transition for a better user experience on zoom/layout changes */
   .pdf-viewer-container .rpv-core__page-layer {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
 
-  /* Footer control styling */
+  /* Glass morphism effect for the custom PDF footer controls */
   .pdf-footer-controls {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);

@@ -326,8 +326,6 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
     }
   }
 
-
-
   // Handle zoom
   const handleZoomIn = () => {
     const newScale = Math.min(scale * 1.2, 3.0)
@@ -505,7 +503,7 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
       )}
 
       {/* Document Viewer */}
-      <div className="flex-1 bg-background">
+      <div className="flex-1 bg-background overflow-auto">
         {isLoading ? (
           <div className="flex items-center justify-center h-full w-full">
             <div className="text-center">
@@ -528,8 +526,7 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
         ) : processedUrl ? (
           <div
             ref={containerRef}
-            className="flex-1 pdf-viewer-container"
-            style={{ height: 'calc(100vh - 12rem)', overflow: 'auto' }}
+            className="pdf-viewer-container"
           >
             <Worker workerUrl="/pdfjs/pdf.worker.min.js">
               <Viewer

@@ -39,7 +39,7 @@ export function PdfViewerModal({ paper, isOpen, onClose }: PdfViewerModalProps) 
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className={`bg-background border border-primary/20 rounded-lg overflow-hidden shadow-2xl ${isFullscreen
+                className={`bg-background border border-primary/20 rounded-lg shadow-2xl flex flex-col ${isFullscreen
                     ? "w-full h-full rounded-none"
                     : "w-full h-full max-w-7xl max-h-[95vh]"
                     }`}
