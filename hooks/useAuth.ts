@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getAuthToken, getUserData, isAuthenticated, clearAuthData } from '@/lib/api'
+import { getAuthToken, getUserData, isAuthenticated, clearAuthData } from '@/lib/api/auth'
 
 export interface User {
     id: string
@@ -64,12 +64,14 @@ export const useAuth = () => {
     }, [])
 
     const updateAuthState = (token: string, user: User) => {
+        console.log("useAuth: Updating auth state with:", { token: token ? "present" : "missing", user })
         setAuthState({
             isAuthenticated: true,
             user,
             token,
             loading: false
         })
+        console.log("useAuth: Auth state updated successfully")
     }
 
     const clearAuth = () => {

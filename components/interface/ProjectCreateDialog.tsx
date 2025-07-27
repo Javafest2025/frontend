@@ -18,6 +18,7 @@ import {
     searchSuggestions
 } from "@/constants/research-data"
 import { Loader2, Sparkles, Brain, Target, Hash, FolderPlus, X } from "lucide-react"
+import { cn } from "@/lib/utils/cn"
 
 interface ProjectCreateDialogProps {
     isOpen: boolean
@@ -114,8 +115,13 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                             initial={{ y: -20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ duration: 0.4, delay: 0.1 }}
-                            className="relative z-10 border-b border-primary/20 bg-background/80 backdrop-blur-xl"
-                            style={{ boxShadow: '0 2px 15px rgba(99, 102, 241, 0.1), 0 4px 25px rgba(139, 92, 246, 0.06)' }}
+                            className="relative z-10 border-b border-border bg-background/80 backdrop-blur-xl"
+                            style={{
+                                boxShadow: `
+                                    0 2px 15px hsl(var(--primary) / 0.1),
+                                    0 4px 25px hsl(var(--accent) / 0.06)
+                                `
+                            }}
                         >
                             <div className="max-w-6xl mx-auto px-6 py-4">
                                 <div className="flex items-center justify-between">
@@ -124,7 +130,7 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                             <FolderPlus className="h-5 w-5 text-primary" />
                                         </div>
                                         <div>
-                                            <h1 className="text-xl font-bold bg-gradient-to-r from-primary via-blue-500 to-purple-500 bg-clip-text text-transparent">
+                                            <h1 className="text-xl font-bold text-gradient-primary">
                                                 Create New Project
                                             </h1>
                                             <p className="text-sm text-muted-foreground">
@@ -137,8 +143,13 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                         size="icon"
                                         onClick={handleClose}
                                         disabled={isLoading}
-                                        className="h-9 w-9 rounded-lg bg-background/40 backdrop-blur-xl border border-primary/20 hover:bg-red-500/10 hover:text-red-500"
-                                        style={{ boxShadow: '0 0 8px rgba(99, 102, 241, 0.08), 0 0 16px rgba(139, 92, 246, 0.04)' }}
+                                        className="h-9 w-9 rounded-lg bg-background/40 backdrop-blur-xl border border-border hover:bg-destructive/10 hover:text-destructive transition-all duration-300"
+                                        style={{
+                                            boxShadow: `
+                                                0 0 8px hsl(var(--primary) / 0.08),
+                                                0 0 16px hsl(var(--accent) / 0.04)
+                                            `
+                                        }}
                                     >
                                         <X className="h-4 w-4" />
                                     </Button>
@@ -158,7 +169,14 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                     <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8">
                                         {/* Left Column */}
                                         <div className="space-y-8 flex flex-col">
-                                            <Card className="bg-background/40 backdrop-blur-xl border-primary/20 shadow-lg" style={{ boxShadow: '0 0 20px rgba(99, 102, 241, 0.1), 0 0 40px rgba(139, 92, 246, 0.06)' }}>
+                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg transition-all duration-300 hover:shadow-primary/5"
+                                                style={{
+                                                    boxShadow: `
+                                                        0 0 20px hsl(var(--primary) / 0.1),
+                                                        0 0 40px hsl(var(--accent) / 0.06)
+                                                    `
+                                                }}
+                                            >
                                                 <CardHeader>
                                                     <CardTitle className="text-base flex items-center gap-2">
                                                         <div className="w-2 h-2 rounded-full bg-primary" />
@@ -174,18 +192,25 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                         })}
                                                         placeholder="Enter a descriptive name for your research project"
                                                         disabled={isLoading}
-                                                        className="bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-lg p-0"
+                                                        className="bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-lg p-0 placeholder:text-muted-foreground"
                                                     />
                                                     {errors.name && (
-                                                        <p className="text-sm text-red-500 flex items-center gap-2 mt-2">
-                                                            <span className="w-1 h-1 rounded-full bg-red-500" />
+                                                        <p className="text-sm text-destructive flex items-center gap-2 mt-2">
+                                                            <span className="w-1 h-1 rounded-full bg-destructive" />
                                                             {errors.name.message}
                                                         </p>
                                                     )}
                                                 </CardContent>
                                             </Card>
 
-                                            <Card className="bg-background/40 backdrop-blur-xl border-primary/20 shadow-lg flex-1 flex flex-col" style={{ boxShadow: '0 0 20px rgba(99, 102, 241, 0.1), 0 0 40px rgba(139, 92, 246, 0.06)' }}>
+                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-primary/5"
+                                                style={{
+                                                    boxShadow: `
+                                                        0 0 20px hsl(var(--primary) / 0.1),
+                                                        0 0 40px hsl(var(--accent) / 0.06)
+                                                    `
+                                                }}
+                                            >
                                                 <CardHeader>
                                                     <CardTitle className="text-base flex items-center gap-2">
                                                         <div className="w-2 h-2 rounded-full bg-blue-500" />
@@ -199,12 +224,12 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                             maxLength: { value: 5000, message: "Description must not exceed 5000 characters" }
                                                         })}
                                                         placeholder="Describe your research objectives, methodology, and expected outcomes..."
-                                                        className="bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none flex-1 w-full p-0"
+                                                        className="bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none flex-1 w-full p-0 placeholder:text-muted-foreground"
                                                         disabled={isLoading}
                                                     />
                                                     {errors.description && (
-                                                        <p className="text-sm text-red-500 flex items-center gap-2 mt-2">
-                                                            <span className="w-1 h-1 rounded-full bg-red-500" />
+                                                        <p className="text-sm text-destructive flex items-center gap-2 mt-2">
+                                                            <span className="w-1 h-1 rounded-full bg-destructive" />
                                                             {errors.description.message}
                                                         </p>
                                                     )}
@@ -214,7 +239,14 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
 
                                         {/* Right Column */}
                                         <div className="space-y-8 flex flex-col">
-                                            <Card className="bg-background/40 backdrop-blur-xl border-primary/20 shadow-lg" style={{ boxShadow: '0 0 20px rgba(99, 102, 241, 0.1), 0 0 40px rgba(139, 92, 246, 0.06)' }}>
+                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg transition-all duration-300 hover:shadow-primary/5"
+                                                style={{
+                                                    boxShadow: `
+                                                        0 0 20px hsl(var(--primary) / 0.1),
+                                                        0 0 40px hsl(var(--accent) / 0.06)
+                                                    `
+                                                }}
+                                            >
                                                 <CardHeader>
                                                     <CardTitle className="text-base flex items-center justify-between gap-2">
                                                         <div className="flex items-center gap-2">
@@ -246,7 +278,14 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                 </CardContent>
                                             </Card>
 
-                                            <Card className="bg-background/40 backdrop-blur-xl border-primary/20 shadow-lg flex-1 flex flex-col" style={{ boxShadow: '0 0 20px rgba(99, 102, 241, 0.1), 0 0 40px rgba(139, 92, 246, 0.06)' }}>
+                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-primary/5"
+                                                style={{
+                                                    boxShadow: `
+                                                        0 0 20px hsl(var(--primary) / 0.1),
+                                                        0 0 40px hsl(var(--accent) / 0.06)
+                                                    `
+                                                }}
+                                            >
                                                 <CardHeader>
                                                     <CardTitle className="text-base flex items-center justify-between gap-2">
                                                         <div className="flex items-center gap-2">
@@ -280,7 +319,14 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                 </CardContent>
                                             </Card>
 
-                                            <Card className="bg-background/40 backdrop-blur-xl border-primary/20 shadow-lg flex-1 flex flex-col" style={{ boxShadow: '0 0 20px rgba(99, 102, 241, 0.1), 0 0 40px rgba(139, 92, 246, 0.06)' }}>
+                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-primary/5"
+                                                style={{
+                                                    boxShadow: `
+                                                        0 0 20px hsl(var(--primary) / 0.1),
+                                                        0 0 40px hsl(var(--accent) / 0.06)
+                                                    `
+                                                }}
+                                            >
                                                 <CardHeader>
                                                     <CardTitle className="text-base flex items-center justify-between gap-2">
                                                         <div className="flex items-center gap-2">
@@ -314,32 +360,46 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                         </div>
                                     </div>
 
-
                                     {error && (
-                                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl"
+                                        >
                                             <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full bg-red-500" />
-                                                <p className="text-sm text-red-400 font-medium">{error}</p>
+                                                <div className="w-2 h-2 rounded-full bg-destructive" />
+                                                <p className="text-sm text-destructive font-medium">{error}</p>
                                             </div>
-                                        </div>
+                                        </motion.div>
                                     )}
 
-                                    <div className="flex flex-col sm:flex-row gap-4 pt-6 mt-auto border-t border-primary/20">
+                                    <div className="flex flex-col sm:flex-row gap-4 pt-6 mt-auto border-t border-border">
                                         <Button
                                             type="button"
                                             variant="outline"
                                             onClick={handleClose}
                                             disabled={isLoading}
-                                            className="flex-1 h-11 bg-background/40 backdrop-blur-xl border-primary/20"
-                                            style={{ boxShadow: '0 0 10px rgba(99, 102, 241, 0.08), 0 0 20px rgba(139, 92, 246, 0.04)' }}
+                                            className="flex-1 h-11 bg-background/40 backdrop-blur-xl border-border hover:bg-accent transition-all duration-300"
+                                            style={{
+                                                boxShadow: `
+                                                    0 0 10px hsl(var(--primary) / 0.08),
+                                                    0 0 20px hsl(var(--accent) / 0.04)
+                                                `
+                                            }}
                                         >
                                             Cancel
                                         </Button>
                                         <Button
                                             type="submit"
                                             disabled={isLoading}
-                                            className="flex-1 h-11 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 text-white border-0"
-                                            style={{ boxShadow: '0 0 15px rgba(99, 102, 241, 0.4), 0 0 30px rgba(139, 92, 246, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)' }}
+                                            className="flex-1 h-11 gradient-primary-to-accent text-primary-foreground border-0 transition-all duration-300 hover:scale-[1.02]"
+                                            style={{
+                                                boxShadow: `
+                                                    0 0 15px hsl(var(--primary) / 0.4),
+                                                    0 0 30px hsl(var(--accent) / 0.2),
+                                                    inset 0 1px 0 hsl(var(--primary-foreground) / 0.1)
+                                                `
+                                            }}
                                         >
                                             {isLoading ? (
                                                 <>

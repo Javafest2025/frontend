@@ -15,7 +15,7 @@ export function InputField({
 }: InputFieldProps) {
   return (
     <div className="mb-4">
-      <label htmlFor={id} className="block text-primary/60 font-['Segoe_UI'] text-sm pl-8 mb-2 font-medium">
+      <label htmlFor={id} className="block text-white font-['Segoe_UI'] text-sm pl-8 mb-2 font-medium">
         {label}
       </label>
       <input
@@ -26,8 +26,8 @@ export function InputField({
         value={value}
         onChange={onChange}
         required={required}
-        className="w-full h-16 border border-primary/30 rounded-2xl px-8 text-white/95 text-xl
-                 placeholder:text-primary/50 focus:outline-none focus:border-primary/60 font-['Segoe_UI']
+        className="w-full h-16 border border-primary/30 rounded-2xl px-8 text-white text-xl
+                 placeholder:text-white/80 focus:outline-none focus:border-primary/60 font-['Segoe_UI']
                  [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
                  autofill:bg-none dark:autofill:bg-none
                  [-webkit-background-clip:text] [background-clip:text]

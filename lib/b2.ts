@@ -23,15 +23,18 @@ export const downloadPdfViaServer = async (pdfUrl: string, filename: string): Pr
         console.log('🔽 Starting server-side B2 download for:', filename);
         console.log('🔗 PDF URL:', pdfUrl);
 
-        const response = await fetch('/api/b2/download', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                pdfUrl: pdfUrl,
-                filename: filename
-            })
+        // Extract file ID from the URL if it's a B2 URL
+        let fileId: string;
+        try {
+            fileId = extractFileIdFromUrl(pdfUrl);
+        } catch (error) {
+            console.error('Failed to extract file ID from URL:', error);
+            throw new Error('Invalid B2 URL format');
+        }
+
+        // Make GET request with fileId as query parameter
+        const response = await fetch(`/api/b2/download?fileId=${encodeURIComponent(fileId)}`, {
+            method: 'GET',
         });
 
         if (!response.ok) {

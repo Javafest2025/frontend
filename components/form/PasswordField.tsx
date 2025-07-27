@@ -17,7 +17,7 @@ export function PasswordField({
 }: PasswordFieldProps) {
   return (
     <div className="mb-4">
-      <label htmlFor={id} className="block text-primary/60 font-['Segoe_UI'] text-sm pl-8 mb-2 font-medium">
+      <label htmlFor={id} className="block text-white font-['Segoe_UI'] text-sm pl-8 mb-2 font-medium">
         {label}
       </label>
       <div className="relative">
@@ -29,8 +29,8 @@ export function PasswordField({
           value={value}
           onChange={onChange}
           required={required}
-          className="w-full h-16 border border-primary/30 rounded-2xl px-8 pr-14 text-white/95 text-xl
-                   placeholder:text-primary/50 focus:outline-none focus:border-primary/60 font-['Segoe_UI']
+          className="w-full h-16 border border-primary/30 rounded-2xl px-8 pr-14 text-white text-xl
+                   placeholder:text-white/80 focus:outline-none focus:border-primary/60 font-['Segoe_UI']
                    backdrop-blur-md shadow-lg"
           style={{
             background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.10) 50%, rgba(168, 85, 247, 0.15) 100%)',

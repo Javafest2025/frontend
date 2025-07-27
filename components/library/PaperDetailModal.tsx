@@ -34,23 +34,31 @@ import {
     Star,
     Link,
     Info,
-    Loader2
+    Loader2,
+    AlertTriangle,
+    Lightbulb,
+    ListChecks
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { downloadPdfWithAuth } from "@/lib/api"
+import { downloadPdfWithAuth } from "@/lib/api/pdf"
 import type { Paper } from "@/types/websearch"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
+
 
 interface PaperDetailModalProps {
     paper: Paper | null
     isOpen: boolean
     onClose: () => void
     onViewPdf?: (paper: Paper) => void
+    projectId?: string
 }
 
-export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf }: PaperDetailModalProps) {
+export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId }: PaperDetailModalProps) {
+    const router = useRouter()
     const [copiedField, setCopiedField] = useState<string | null>(null)
     const [isDownloading, setIsDownloading] = useState(false)
+
 
     if (!isOpen || !paper) return null
 
@@ -122,6 +130,35 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf }: PaperDet
             console.error('Failed to copy to clipboard:', error)
         }
     }
+
+    const handleSummarize = () => {
+        // Navigate to the dedicated summary page with paper data in URL params
+        if (projectId && paper) {
+            const searchParams = new URLSearchParams({
+                title: paper.title,
+                authors: paper.authors?.map(a => a.name).join(', ') || '',
+                publicationDate: paper.publicationDate || '',
+                citationCount: (paper.citationCount || 0).toString(),
+                referenceCount: (paper.referenceCount || 0).toString(),
+                influentialCitationCount: (paper.influentialCitationCount || 0).toString(),
+                abstract: paper.abstractText || '',
+                source: paper.source || '',
+                venueName: paper.venueName || '',
+                publisher: paper.publisher || '',
+                doi: paper.doi || '',
+                pdfUrl: paper.pdfContentUrl || paper.pdfUrl || '',
+                isOpenAccess: (paper.isOpenAccess || false).toString()
+            })
+            router.push(`/interface/projects/${projectId}/library/${paper.id}/summary?${searchParams.toString()}`)
+        }
+    }
+
+    const handleViewPdf = async (paper: Paper) => {
+        // Continue with the original onViewPdf logic
+        if (onViewPdf) onViewPdf(paper);
+    }
+
+
 
     return (
         <div className="fixed inset-0 bg-background z-50 overflow-hidden">
@@ -254,7 +291,7 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf }: PaperDet
                     >
                         {(paper.pdfUrl || paper.pdfContentUrl) && onViewPdf && (
                             <Button
-                                onClick={() => onViewPdf(paper)}
+                                onClick={() => handleViewPdf(paper)}
                                 size="lg"
                                 className="bg-gradient-to-r from-primary to-purple-600 text-white hover:from-primary/90 hover:to-purple-600/90 shadow-lg hover:shadow-xl transition-all duration-300 px-8 py-3"
                             >
@@ -262,6 +299,16 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf }: PaperDet
                                 View PDF
                             </Button>
                         )}
+
+                        {/* Summarize Button */}
+                        <Button
+                            size="lg"
+                            className="bg-gradient-to-r from-green-500 to-blue-600 text-white hover:from-green-600/90 hover:to-blue-700/90 shadow-lg hover:shadow-xl transition-all duration-300 px-8 py-3"
+                            onClick={handleSummarize}
+                        >
+                            <Zap className="mr-3 h-5 w-5" />
+                            View Summary
+                        </Button>
 
                         {paper.pdfContentUrl && (
                             <Button
@@ -311,6 +358,8 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf }: PaperDet
                         </Button>
                     </motion.div>
 
+
+
                     {/* Three Column Layout */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {/* Left Column - Abstract */}
@@ -331,9 +380,9 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf }: PaperDet
                                 </CardHeader>
                                 <CardContent className="pt-0">
                                     {paper.abstractText ? (
-                                        <p className="text-foreground/90 leading-relaxed text-base">
+                                        <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap leading-relaxed">
                                             {paper.abstractText}
-                                        </p>
+                                        </div>
                                     ) : (
                                         <div className="text-center py-12">
                                             <FileText className="h-16 w-16 text-muted-foreground/20 mx-auto mb-4" />
@@ -622,6 +671,10 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf }: PaperDet
                             </Card>
                         </motion.div>
                     )}
+
+
+
+
                 </div>
             </ScrollArea>
         </div>

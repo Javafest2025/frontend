@@ -1,0 +1,50 @@
+name: Deploy Frontend to VM
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Setup SSH key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VM_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H 4.247.29.26 >> ~/.ssh/known_hosts
+
+    - name: Deploy Frontend
+      run: |
+        ssh seed@4.247.29.26 << 'EOF'
+        set -e
+
+        echo " Deploying Frontend..."
+        cd /opt/scholarai/ScholarAI-Frontend
+
+        echo " Updating ScholarAI-Frontend..."
+        git pull origin main
+
+        echo "Stopping Frontend..."
+        ./scripts/docker.sh stop || true
+
+        echo "Building and starting Frontend..."
+        ./scripts/docker.sh build
+        ./scripts/docker.sh start
+
+        echo "Frontend deployment completed!"
+        EOF
+
+    - name: Health Check
+      run: |
+        sleep 30
+        echo " Running health check for Frontend..."
+        if curl -f http://4.247.29.26:3000; then
+          echo "Frontend is responding"
+        else
+          echo "Frontend health check failed"
+          exit 1
+        fi

@@ -1,77 +1,88 @@
-# syntax=docker/dockerfile:1.5      # enables BuildKit mount syntax
+# syntax=docker/dockerfile:1.5
 
-# ---------- 1️⃣ Base image ----------
-ARG NODE_VERSION=20                # bump easily in one place
-FROM node:${NODE_VERSION}-alpine AS base
+################################################################################
+# 1️⃣ Builder: Debian-slim — install native libs, JS deps & build Next.js
+ARG NODE_VERSION=20
+FROM node:${NODE_VERSION}-slim AS builder
 
-# glibc compatibility for some native addons
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# ---------- 2️⃣ Dependencies ----------
-FROM base AS deps
-WORKDIR /app
+# 1. Install the C libraries that canvas needs
+RUN apt-get update && apt-get install -y \
+      build-essential \
+      libcairo2-dev \
+      libjpeg-dev \
+      libpango1.0-dev \
+      libgif-dev \
+      librsvg2-dev \
+      libpng-dev \
+      pkg-config \
+      python3 \
+    && rm -rf /var/lib/apt/lists/*
 
-# copy lock-file(s) only, keeping Docker layer cache effective
-COPY package.json package-lock.json* pnpm-lock.yaml* ./
+# 2. Copy your package files
+COPY package.json package-lock.json ./
 
-# use BuildKit cache to speed up installs
-RUN --mount=type=cache,target=/root/.cache \
-    if [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --no-frozen-lockfile; \
-    elif [ -f package-lock.json ]; then npm ci; \
-    else echo "Lockfile not found." && exit 1; fi
+# 3. Install JS deps (npm ci will use package-lock.json)
+RUN npm ci
 
-# ---------- 3️⃣ Build ----------
-FROM base AS builder
-WORKDIR /app
+# 4. Force-rebuild canvas from source so build/Release/canvas.node is created
+RUN npm rebuild canvas --build-from-source
 
-# Accept build arguments for environment variables
+# 5. Build-time env vars for Next.js
 ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
 ARG NEXT_PUBLIC_GITHUB_CLIENT_ID
 ARG NEXT_PUBLIC_API_BASE_URL
 ARG NEXT_PUBLIC_DOCKER_BACKEND_URL
 ARG ENV
+ARG NEXT_PUBLIC_ENV
 
-# Set environment variables for the build
-ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
-ENV NEXT_PUBLIC_GITHUB_CLIENT_ID=$NEXT_PUBLIC_GITHUB_CLIENT_ID
-ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
-ENV NEXT_PUBLIC_DOCKER_BACKEND_URL=$NEXT_PUBLIC_DOCKER_BACKEND_URL
-ENV ENV=$ENV
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID \
+    NEXT_PUBLIC_GITHUB_CLIENT_ID=$NEXT_PUBLIC_GITHUB_CLIENT_ID \
+    NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
+    NEXT_PUBLIC_DOCKER_BACKEND_URL=$NEXT_PUBLIC_DOCKER_BACKEND_URL \
+    ENV=$ENV \
+    NEXT_PUBLIC_ENV=$NEXT_PUBLIC_ENV \
+    NEXT_TELEMETRY_DISABLED=1
 
-COPY --from=deps /app/node_modules ./node_modules
+# 6. Debug: Show environment at build time
+RUN echo "✅ Environment Variables in Build:" && \
+    echo "NEXT_PUBLIC_ENV=$NEXT_PUBLIC_ENV" && \
+    echo "ENV=$ENV" && \
+    echo "NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL" && \
+    echo "NEXT_PUBLIC_DOCKER_BACKEND_URL=$NEXT_PUBLIC_DOCKER_BACKEND_URL"
+
+# 7. Copy the rest of your source code & build Next.js app
 COPY . .
+RUN npm run build
 
-ENV NEXT_TELEMETRY_DISABLED=1
+################################################################################
+# 2️⃣ Runner: Alpine — only the standalone output & glibc shim
+FROM node:${NODE_VERSION}-alpine AS runner
 
-RUN \
-    if [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
-    elif [ -f package-lock.json ]; then npm run build; \
-    else echo "Lockfile not found." && exit 1; fi
-
-# ---------- 4️⃣ Runtime ----------
-FROM base AS runner
 WORKDIR /app
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
 
-# non-root user for safety
+# Provide glibc compatibility for any native binaries
+RUN apk add --no-cache libc6-compat
+
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+
+# Drop root privileges
 RUN addgroup --system --gid 1001 nodejs \
-    && adduser  --system --uid 1001 nextjs
-
-# copy public assets + standalone build output
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
+ && adduser  --system --uid 1001 nextjs
 USER nextjs
 
-EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
+# Copy only the standalone output needed for production
+COPY --from=builder /app/public            ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./ 
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static     ./.next/static
 
-# simple health-check for Docker/K8s
+EXPOSE 3000
+
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s \
-    CMD wget -qO- http://0.0.0.0:3000/ || exit 1
+  CMD wget -qO- http://0.0.0.0:3000/ || exit 1
 
 CMD ["node", "server.js"]

@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils"
 import type { Paper } from "@/types/websearch"
 import { useState, useEffect } from "react"
-import { generatePdfThumbnail, downloadPdfWithAuth } from "@/lib/api"
+import { generatePdfThumbnail, downloadPdfWithAuth } from "@/lib/api/pdf"
 
 interface PaperCardProps {
     paper: Paper
@@ -133,7 +133,7 @@ The methodology employed in this study combines quantitative and qualitative app
             className="group"
         >
             <Card
-                className="bg-background/50 backdrop-blur-xl border border-primary/10 hover:border-primary/20 hover:bg-primary/5 transition-all duration-300 cursor-pointer overflow-hidden"
+                className="bg-background/50 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg shadow-primary/5 hover:shadow-primary/10"
                 style={{
                     boxShadow: '0 0 20px rgba(99, 102, 241, 0.05), inset 0 0 20px rgba(99, 102, 241, 0.02)'
                 }}

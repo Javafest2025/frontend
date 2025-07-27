@@ -1,0 +1,529 @@
+{
+  "database_schema": {
+    "description": "Database tables required for Todo Management System",
+    "tables": {
+      "todos": {
+        "description": "Main todo table storing all task information",
+        "sql": "CREATE TABLE todos (\n    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),\n    user_id VARCHAR(36) NOT NULL,\n    title VARCHAR(255) NOT NULL,\n    description TEXT,\n    status ENUM('pending', 'in_progress', 'completed', 'cancelled') NOT NULL DEFAULT 'pending',\n    priority ENUM('low', 'medium', 'high', 'urgent') NOT NULL DEFAULT 'medium',\n    category ENUM('research', 'writing', 'review', 'analysis', 'meeting', 'deadline', 'personal', 'collaboration') NOT NULL DEFAULT 'research',\n    due_date DATETIME,\n    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n    completed_at DATETIME,\n    estimated_time INT, -- in minutes\n    actual_time INT, -- in minutes\n    related_project_id VARCHAR(36),\n    related_paper_id VARCHAR(36),\n    INDEX idx_user_id (user_id),\n    INDEX idx_status (status),\n    INDEX idx_priority (priority),\n    INDEX idx_category (category),\n    INDEX idx_due_date (due_date),\n    INDEX idx_created_at (created_at),\n    FOREIGN KEY (user_id) REFERENCES user_accounts(id) ON DELETE CASCADE\n);",
+        "fields": {
+          "id": "Primary key (UUID)",
+          "user_id": "Foreign key to user_accounts table",
+          "title": "Task title (required)",
+          "description": "Task description (optional)",
+          "status": "Current status (pending, in_progress, completed, cancelled)",
+          "priority": "Task priority (low, medium, high, urgent)",
+          "category": "Task category (research, writing, review, etc.)",
+          "due_date": "Optional due date",
+          "created_at": "Creation timestamp",
+          "updated_at": "Last update timestamp",
+          "completed_at": "Completion timestamp",
+          "estimated_time": "Estimated time in minutes",
+          "actual_time": "Actual time spent in minutes",
+          "related_project_id": "Optional project association",
+          "related_paper_id": "Optional paper association"
+        }
+      },
+      "todo_tags": {
+        "description": "Tags associated with todos (many-to-many relationship)",
+        "sql": "CREATE TABLE todo_tags (\n    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),\n    todo_id VARCHAR(36) NOT NULL,\n    tag VARCHAR(100) NOT NULL,\n    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    INDEX idx_todo_id (todo_id),\n    INDEX idx_tag (tag),\n    UNIQUE KEY unique_todo_tag (todo_id, tag),\n    FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE\n);",
+        "fields": {
+          "id": "Primary key",
+          "todo_id": "Foreign key to todos table",
+          "tag": "Tag name",
+          "created_at": "Creation timestamp"
+        }
+      },
+      "todo_subtasks": {
+        "description": "Subtasks for todos",
+        "sql": "CREATE TABLE todo_subtasks (\n    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),\n    todo_id VARCHAR(36) NOT NULL,\n    title VARCHAR(255) NOT NULL,\n    completed BOOLEAN NOT NULL DEFAULT FALSE,\n    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    completed_at DATETIME,\n    display_order INT NOT NULL DEFAULT 0,\n    INDEX idx_todo_id (todo_id),\n    INDEX idx_completed (completed),\n    FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE\n);",
+        "fields": {
+          "id": "Primary key",
+          "todo_id": "Foreign key to todos table",
+          "title": "Subtask title",
+          "completed": "Completion status",
+          "created_at": "Creation timestamp",
+          "completed_at": "Completion timestamp",
+          "display_order": "Order for display"
+        }
+      },
+      "todo_reminders": {
+        "description": "Reminders for todos",
+        "sql": "CREATE TABLE todo_reminders (\n    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),\n    todo_id VARCHAR(36) NOT NULL,\n    remind_at DATETIME NOT NULL,\n    message TEXT NOT NULL,\n    sent BOOLEAN NOT NULL DEFAULT FALSE,\n    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    sent_at DATETIME,\n    INDEX idx_todo_id (todo_id),\n    INDEX idx_remind_at (remind_at),\n    INDEX idx_sent (sent),\n    FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE\n);",
+        "fields": {
+          "id": "Primary key",
+          "todo_id": "Foreign key to todos table",
+          "remind_at": "When to send reminder",
+          "message": "Reminder message",
+          "sent": "Whether reminder was sent",
+          "created_at": "Creation timestamp",
+          "sent_at": "When reminder was sent"
+        }
+      },
+      "todo_plans": {
+        "description": "AI-generated plans for multiple todos",
+        "sql": "CREATE TABLE todo_plans (\n    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),\n    user_id VARCHAR(36) NOT NULL,\n    title VARCHAR(255) NOT NULL,\n    description TEXT,\n    estimated_total_time INT NOT NULL, -- in minutes\n    priority_score INT NOT NULL DEFAULT 50, -- 0-100 scale\n    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n    INDEX idx_user_id (user_id),\n    INDEX idx_priority_score (priority_score),\n    INDEX idx_created_at (created_at),\n    FOREIGN KEY (user_id) REFERENCES user_accounts(id) ON DELETE CASCADE\n);",
+        "fields": {
+          "id": "Primary key",
+          "user_id": "Foreign key to user_accounts table",
+          "title": "Plan title",
+          "description": "Plan description",
+          "estimated_total_time": "Total estimated time in minutes",
+          "priority_score": "Overall priority score (0-100)",
+          "created_at": "Creation timestamp",
+          "updated_at": "Last update timestamp"
+        }
+      },
+      "todo_plan_items": {
+        "description": "Association between plans and todos with suggested order",
+        "sql": "CREATE TABLE todo_plan_items (\n    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),\n    plan_id VARCHAR(36) NOT NULL,\n    todo_id VARCHAR(36) NOT NULL,\n    suggested_order INT NOT NULL,\n    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    INDEX idx_plan_id (plan_id),\n    INDEX idx_todo_id (todo_id),\n    INDEX idx_suggested_order (suggested_order),\n    UNIQUE KEY unique_plan_todo (plan_id, todo_id),\n    FOREIGN KEY (plan_id) REFERENCES todo_plans(id) ON DELETE CASCADE,\n    FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE\n);",
+        "fields": {
+          "id": "Primary key",
+          "plan_id": "Foreign key to todo_plans table",
+          "todo_id": "Foreign key to todos table",
+          "suggested_order": "Order in which todo should be executed",
+          "created_at": "Creation timestamp"
+        }
+      }
+    },
+    "triggers": {
+      "update_completed_at": {
+        "description": "Trigger to set completed_at when status changes to completed",
+        "sql": "CREATE TRIGGER update_todo_completed_at\n    BEFORE UPDATE ON todos\n    FOR EACH ROW\nBEGIN\n    IF NEW.status = 'completed' AND OLD.status != 'completed' THEN\n        SET NEW.completed_at = CURRENT_TIMESTAMP;\n    END IF;\n    IF NEW.status != 'completed' AND OLD.status = 'completed' THEN\n        SET NEW.completed_at = NULL;\n    END IF;\nEND;"
+      },
+      "update_subtask_completed_at": {
+        "description": "Trigger to set completed_at for subtasks",
+        "sql": "CREATE TRIGGER update_subtask_completed_at\n    BEFORE UPDATE ON todo_subtasks\n    FOR EACH ROW\nBEGIN\n    IF NEW.completed = TRUE AND OLD.completed = FALSE THEN\n        SET NEW.completed_at = CURRENT_TIMESTAMP;\n    END IF;\n    IF NEW.completed = FALSE AND OLD.completed = TRUE THEN\n        SET NEW.completed_at = NULL;\n    END IF;\nEND;"
+      }
+    }
+  },
+  "api_endpoints": {
+    "description": "REST API endpoints required for Todo Management System",
+    "base_url": "/api/v1/todos",
+    "authentication": "Bearer token required for all endpoints",
+    "endpoints": {
+      "GET /api/v1/todos": {
+        "description": "Get all todos for authenticated user with filtering and sorting",
+        "method": "GET",
+        "query_parameters": {
+          "status": "Filter by status (comma-separated: pending,in_progress,completed,cancelled)",
+          "priority": "Filter by priority (comma-separated: low,medium,high,urgent)",
+          "category": "Filter by category (comma-separated: research,writing,review,etc.)",
+          "search": "Search in title and description",
+          "tags": "Filter by tags (comma-separated)",
+          "project_id": "Filter by related project",
+          "due_date_start": "Filter by due date range start (ISO 8601)",
+          "due_date_end": "Filter by due date range end (ISO 8601)",
+          "sort_field": "Sort field (created_at,due_date,priority,title,status,estimated_time)",
+          "sort_direction": "Sort direction (asc,desc)",
+          "page": "Page number for pagination (default: 1)",
+          "limit": "Items per page (default: 50, max: 100)"
+        },
+        "response": {
+          "success": true,
+          "data": {
+            "todos": "Array of todo objects with all relations",
+            "summary": {
+              "total": "Total number of todos",
+              "by_status": {
+                "pending": "Number of pending todos",
+                "in_progress": "Number of in progress todos",
+                "completed": "Number of completed todos",
+                "cancelled": "Number of cancelled todos"
+              },
+              "by_priority": {
+                "urgent": "Number of urgent todos",
+                "high": "Number of high priority todos",
+                "medium": "Number of medium priority todos",
+                "low": "Number of low priority todos"
+              },
+              "overdue": "Number of overdue todos",
+              "due_today": "Number of todos due today",
+              "due_this_week": "Number of todos due this week"
+            },
+            "pagination": {
+              "page": "Current page",
+              "limit": "Items per page",
+              "total": "Total number of items",
+              "total_pages": "Total number of pages"
+            }
+          }
+        }
+      },
+      "POST /api/v1/todos": {
+        "description": "Create a new todo",
+        "method": "POST",
+        "request_body": {
+          "title": "string (required) - Todo title",
+          "description": "string (optional) - Todo description",
+          "priority": "string (optional) - Priority level (default: medium)",
+          "category": "string (optional) - Category (default: research)",
+          "due_date": "string (optional) - Due date in ISO 8601 format",
+          "estimated_time": "integer (optional) - Estimated time in minutes",
+          "related_project_id": "string (optional) - Related project ID",
+          "related_paper_id": "string (optional) - Related paper ID",
+          "tags": "array (optional) - Array of tag strings",
+          "subtasks": "array (optional) - Array of subtask objects with title",
+          "reminders": "array (optional) - Array of reminder objects with remind_at and message"
+        },
+        "response": {
+          "success": true,
+          "data": "Created todo object with all relations",
+          "message": "Todo created successfully"
+        }
+      },
+      "GET /api/v1/todos/{todoId}": {
+        "description": "Get a specific todo by ID",
+        "method": "GET",
+        "path_parameters": {
+          "todoId": "Todo ID"
+        },
+        "response": {
+          "success": true,
+          "data": "Todo object with all relations (subtasks, tags, reminders)"
+        }
+      },
+      "PUT /api/v1/todos/{todoId}": {
+        "description": "Update an existing todo",
+        "method": "PUT",
+        "path_parameters": {
+          "todoId": "Todo ID"
+        },
+        "request_body": {
+          "title": "string (optional) - Todo title",
+          "description": "string (optional) - Todo description",
+          "priority": "string (optional) - Priority level",
+          "category": "string (optional) - Category",
+          "due_date": "string (optional) - Due date in ISO 8601 format",
+          "estimated_time": "integer (optional) - Estimated time in minutes",
+          "actual_time": "integer (optional) - Actual time spent in minutes",
+          "related_project_id": "string (optional) - Related project ID",
+          "related_paper_id": "string (optional) - Related paper ID",
+          "tags": "array (optional) - Array of tag strings",
+          "subtasks": "array (optional) - Array of subtask objects",
+          "reminders": "array (optional) - Array of reminder objects"
+        },
+        "response": {
+          "success": true,
+          "data": "Updated todo object with all relations",
+          "message": "Todo updated successfully"
+        }
+      },
+      "PATCH /api/v1/todos/{todoId}/status": {
+        "description": "Update todo status only",
+        "method": "PATCH",
+        "path_parameters": {
+          "todoId": "Todo ID"
+        },
+        "request_body": {
+          "status": "string (required) - New status (pending,in_progress,completed,cancelled)"
+        },
+        "response": {
+          "success": true,
+          "message": "Todo status updated successfully"
+        }
+      },
+      "DELETE /api/v1/todos/{todoId}": {
+        "description": "Delete a todo",
+        "method": "DELETE",
+        "path_parameters": {
+          "todoId": "Todo ID"
+        },
+        "response": {
+          "success": true,
+          "message": "Todo deleted successfully"
+        }
+      },
+      "POST /api/v1/todos/{todoId}/subtasks": {
+        "description": "Add a subtask to a todo",
+        "method": "POST",
+        "path_parameters": {
+          "todoId": "Todo ID"
+        },
+        "request_body": {
+          "title": "string (required) - Subtask title"
+        },
+        "response": {
+          "success": true,
+          "data": "Created subtask object",
+          "message": "Subtask added successfully"
+        }
+      },
+      "PATCH /api/v1/todos/{todoId}/subtasks/{subtaskId}/toggle": {
+        "description": "Toggle subtask completion status",
+        "method": "PATCH",
+        "path_parameters": {
+          "todoId": "Todo ID",
+          "subtaskId": "Subtask ID"
+        },
+        "response": {
+          "success": true,
+          "message": "Subtask toggled successfully"
+        }
+      },
+      "DELETE /api/v1/todos/{todoId}/subtasks/{subtaskId}": {
+        "description": "Delete a subtask",
+        "method": "DELETE",
+        "path_parameters": {
+          "todoId": "Todo ID",
+          "subtaskId": "Subtask ID"
+        },
+        "response": {
+          "success": true,
+          "message": "Subtask deleted successfully"
+        }
+      },
+      "POST /api/v1/todos/generate-plan": {
+        "description": "Generate an AI-optimized plan from selected todos",
+        "method": "POST",
+        "request_body": {
+          "todo_ids": "array (required) - Array of todo IDs to include in plan",
+          "optimization_type": "string (required) - Optimization strategy (time,priority,deadline,balanced)",
+          "include_breaks": "boolean (optional) - Whether to include break time (default: true)",
+          "max_daily_hours": "integer (optional) - Maximum hours per day (default: 8)"
+        },
+        "response": {
+          "success": true,
+          "data": "Generated plan object with suggested order and timing",
+          "message": "Plan generated successfully"
+        }
+      },
+      "GET /api/v1/todos/plans": {
+        "description": "Get all plans for authenticated user",
+        "method": "GET",
+        "query_parameters": {
+          "sort_field": "Sort field (created_at,updated_at,priority_score,estimated_total_time)",
+          "sort_direction": "Sort direction (asc,desc)",
+          "page": "Page number for pagination",
+          "limit": "Items per page"
+        },
+        "response": {
+          "success": true,
+          "data": "Array of plan objects with associated todos"
+        }
+      },
+      "GET /api/v1/todos/plans/{planId}": {
+        "description": "Get a specific plan by ID",
+        "method": "GET",
+        "path_parameters": {
+          "planId": "Plan ID"
+        },
+        "response": {
+          "success": true,
+          "data": "Plan object with full todo details in suggested order"
+        }
+      },
+      "PUT /api/v1/todos/plans/{planId}": {
+        "description": "Update an existing plan",
+        "method": "PUT",
+        "path_parameters": {
+          "planId": "Plan ID"
+        },
+        "request_body": {
+          "title": "string (optional) - Plan title",
+          "description": "string (optional) - Plan description",
+          "todo_ids": "array (optional) - Updated array of todo IDs",
+          "suggested_order": "array (optional) - Updated suggested order"
+        },
+        "response": {
+          "success": true,
+          "data": "Updated plan object",
+          "message": "Plan updated successfully"
+        }
+      },
+      "DELETE /api/v1/todos/plans/{planId}": {
+        "description": "Delete a plan",
+        "method": "DELETE",
+        "path_parameters": {
+          "planId": "Plan ID"
+        },
+        "response": {
+          "success": true,
+          "message": "Plan deleted successfully"
+        }
+      }
+    }
+  },
+  "dto_classes": {
+    "description": "Java DTO classes for request/response handling",
+    "classes": {
+      "TodoDTO": {
+        "description": "Main todo data transfer object",
+        "fields": {
+          "id": "String",
+          "title": "String",
+          "description": "String",
+          "status": "TodoStatus (enum)",
+          "priority": "TodoPriority (enum)",
+          "category": "TodoCategory (enum)",
+          "dueDate": "LocalDateTime",
+          "createdAt": "LocalDateTime",
+          "updatedAt": "LocalDateTime",
+          "completedAt": "LocalDateTime",
+          "estimatedTime": "Integer",
+          "actualTime": "Integer",
+          "relatedProjectId": "String",
+          "relatedPaperId": "String",
+          "tags": "List<String>",
+          "subtasks": "List<SubtaskDTO>",
+          "reminders": "List<TodoReminderDTO>"
+        }
+      },
+      "TodoCreateRequest": {
+        "description": "Request DTO for creating todos",
+        "fields": {
+          "title": "String (required)",
+          "description": "String",
+          "priority": "TodoPriority",
+          "category": "TodoCategory",
+          "dueDate": "LocalDateTime",
+          "estimatedTime": "Integer",
+          "relatedProjectId": "String",
+          "relatedPaperId": "String",
+          "tags": "List<String>",
+          "subtasks": "List<SubtaskCreateRequest>",
+          "reminders": "List<TodoReminderCreateRequest>"
+        }
+      },
+      "TodoUpdateRequest": {
+        "description": "Request DTO for updating todos",
+        "fields": "Same as TodoCreateRequest but all fields optional"
+      },
+      "TodoStatusUpdateRequest": {
+        "description": "Request DTO for status updates",
+        "fields": {
+          "status": "TodoStatus (required)"
+        }
+      },
+      "SubtaskDTO": {
+        "description": "Subtask data transfer object",
+        "fields": {
+          "id": "String",
+          "title": "String",
+          "completed": "Boolean",
+          "createdAt": "LocalDateTime",
+          "completedAt": "LocalDateTime"
+        }
+      },
+      "SubtaskCreateRequest": {
+        "description": "Request DTO for creating subtasks",
+        "fields": {
+          "title": "String (required)"
+        }
+      },
+      "TodoReminderDTO": {
+        "description": "Todo reminder data transfer object",
+        "fields": {
+          "id": "String",
+          "remindAt": "LocalDateTime",
+          "message": "String",
+          "sent": "Boolean",
+          "sentAt": "LocalDateTime"
+        }
+      },
+      "TodoReminderCreateRequest": {
+        "description": "Request DTO for creating reminders",
+        "fields": {
+          "remindAt": "LocalDateTime (required)",
+          "message": "String (required)"
+        }
+      },
+      "TodoSummaryDTO": {
+        "description": "Summary statistics for todos",
+        "fields": {
+          "total": "Integer",
+          "byStatus": "Map<TodoStatus, Integer>",
+          "byPriority": "Map<TodoPriority, Integer>",
+          "overdue": "Integer",
+          "dueToday": "Integer",
+          "dueThisWeek": "Integer"
+        }
+      },
+      "TodoPlanDTO": {
+        "description": "Todo plan data transfer object",
+        "fields": {
+          "id": "String",
+          "title": "String",
+          "description": "String",
+          "todoIds": "List<String>",
+          "estimatedTotalTime": "Integer",
+          "priorityScore": "Integer",
+          "suggestedOrder": "List<String>",
+          "createdAt": "LocalDateTime",
+          "updatedAt": "LocalDateTime",
+          "todos": "List<TodoDTO> (when expanded)"
+        }
+      },
+      "PlanGenerationRequest": {
+        "description": "Request DTO for generating plans",
+        "fields": {
+          "todoIds": "List<String> (required)",
+          "optimizationType": "String (required) - time|priority|deadline|balanced",
+          "includeBreaks": "Boolean (default: true)",
+          "maxDailyHours": "Integer (default: 8)"
+        }
+      },
+      "TodoListResponse": {
+        "description": "Response DTO for todo list with pagination",
+        "fields": {
+          "todos": "List<TodoDTO>",
+          "summary": "TodoSummaryDTO",
+          "pagination": "PaginationDTO"
+        }
+      },
+      "PaginationDTO": {
+        "description": "Pagination information",
+        "fields": {
+          "page": "Integer",
+          "limit": "Integer",
+          "total": "Long",
+          "totalPages": "Integer"
+        }
+      }
+    }
+  },
+  "enums": {
+    "description": "Java enum classes",
+    "TodoStatus": ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+    "TodoPriority": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+    "TodoCategory": ["RESEARCH", "WRITING", "REVIEW", "ANALYSIS", "MEETING", "DEADLINE", "PERSONAL", "COLLABORATION"],
+    "OptimizationType": ["TIME", "PRIORITY", "DEADLINE", "BALANCED"]
+  },
+  "business_logic": {
+    "description": "Key business logic requirements",
+    "requirements": [
+      "User can only access their own todos and plans",
+      "When todo status changes to 'completed', set completed_at timestamp",
+      "When todo status changes from 'completed' to other, clear completed_at",
+      "Calculate summary statistics in real-time",
+      "Plan generation should use AI/algorithm to optimize based on priority, due dates, and estimated time",
+      "Soft delete todos (mark as cancelled) rather than hard delete to preserve history",
+      "Validate that due_date is not in the past when creating todos",
+      "Send reminders based on todo_reminders table (background job)",
+      "Tags should be case-insensitive and trimmed",
+      "Subtasks completion should not automatically change parent todo status",
+      "Plans should recalculate metrics when associated todos are updated"
+    ]
+  },
+  "security": {
+    "description": "Security considerations",
+    "requirements": [
+      "All endpoints require authentication via Bearer token",
+      "Users can only access their own todos, subtasks, reminders, and plans",
+      "Validate all input data and sanitize for XSS prevention",
+      "Rate limiting on plan generation endpoint (max 10 per hour per user)",
+      "Audit logging for todo status changes and plan generation",
+      "Soft delete for data retention and audit trail"
+    ]
+  },
+  "performance": {
+    "description": "Performance optimization recommendations",
+    "optimizations": [
+      "Database indexes on frequently queried fields (user_id, status, priority, due_date)",
+      "Pagination for todo list endpoints",
+      "Eager loading of related data (subtasks, tags, reminders) in single query",
+      "Caching of todo summary statistics (refresh on todo changes)",
+      "Background job for reminder processing",
+      "Bulk operations for plan creation/updates"
+    ]
+  }
+} 

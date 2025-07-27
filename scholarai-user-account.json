@@ -1,0 +1,154 @@
+{
+  "database_schema": {
+    "tables": [
+      {
+        "table_name": "user_accounts",
+        "description": "Stores user profile information, extending the base authentication user from Supabase's `auth.users` table.",
+        "sql_create_statement": [
+          "-- Enable RLS (Row Level Security) on the table.",
+          "ALTER TABLE public.user_accounts ENABLE ROW LEVEL SECURITY;",
+          "",
+          "-- Create the user_accounts table.",
+          "CREATE TABLE IF NOT EXISTS public.user_accounts (",
+          "  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,",
+          "  updated_at TIMESTAMPTZ DEFAULT NOW(),",
+          "  full_name TEXT,",
+          "  email TEXT UNIQUE, -- Added to sync from auth.users",
+          "  institution TEXT,",
+          "  department TEXT,",
+          "  position TEXT,",
+          "  bio TEXT,",
+          "  profile_image_url TEXT,",
+          "  profile_image_filename TEXT, -- To help with managing storage objects",
+          "  website_url TEXT,",
+          "  google_scholar_url TEXT,",
+          "  linkedin_url TEXT,",
+          "  github_url TEXT,",
+          "  facebook_url TEXT,",
+          "  orcid_id TEXT,",
+          "  address_line_1 TEXT,",
+          "  address_line_2 TEXT,",
+          "  city TEXT,",
+          "  state_province_region TEXT,",
+          "  postal_code TEXT,",
+          "  country TEXT,",
+          "  language_preference TEXT DEFAULT 'en',",
+          "  timezone TEXT DEFAULT 'UTC',",
+          "  created_at TIMESTAMPTZ DEFAULT NOW()",
+          ");",
+          "",
+          "-- Add comments to the columns for clarity.",
+          "COMMENT ON TABLE public.user_accounts IS 'User profile information for ScholarAI.';",
+          "COMMENT ON COLUMN public.user_accounts.id IS 'Links to the corresponding user in auth.users.';",
+          "",
+          "-- Create a policy that allows users to view their own account.",
+          "CREATE POLICY \"Allow individual user read access\" ON public.user_accounts FOR SELECT USING (auth.uid() = id);",
+          "",
+          "-- Create a policy that allows users to update their own account.",
+          "CREATE POLICY \"Allow individual user update access\" ON public.user_accounts FOR UPDATE USING (auth.uid() = id);"
+        ]
+      }
+    ],
+    "triggers": [
+      {
+        "name": "on_new_user_create_profile",
+        "description": "When a new user signs up via Supabase Auth, this trigger automatically creates a corresponding profile entry in the public.user_accounts table.",
+        "sql_create_statement": [
+          "-- 1. Create the function that will be triggered.",
+          "CREATE OR REPLACE FUNCTION public.handle_new_user()",
+          "RETURNS TRIGGER",
+          "LANGUAGE plpgsql",
+          "SECURITY DEFINER",
+          "SET search_path = public",
+          "AS $$",
+          "BEGIN",
+          "  INSERT INTO public.user_accounts (id, email, full_name)",
+          "  VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name');",
+          "  RETURN NEW;",
+          "END;",
+          "$$;",
+          "",
+          "-- 2. Create the trigger that fires the function.",
+          "CREATE TRIGGER on_auth_user_created",
+          "  AFTER INSERT ON auth.users",
+          "  FOR EACH ROW",
+          "  EXECUTE FUNCTION public.handle_new_user();"
+        ],
+        "sql_drop_statement": "DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;"
+      }
+    ]
+  },
+  "api_endpoints": {
+    "description": "A list of RESTful API endpoints required to power the user account features. These endpoints would typically be implemented as serverless functions or on a dedicated backend server.",
+    "base_path": "/api/v1/account",
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/",
+        "description": "Fetches the complete account details for the currently authenticated user.",
+        "authentication": "Required (user's JWT)",
+        "success_response": {
+          "status": 200,
+          "body": "A single UserAccount object."
+        },
+        "error_responses": [
+          { "status": 401, "description": "Unauthorized if the user is not authenticated." },
+          { "status": 404, "description": "Not Found if no account profile exists for the user yet." }
+        ]
+      },
+      {
+        "method": "PATCH",
+        "path": "/",
+        "description": "Updates one or more fields in the user's account details.",
+        "authentication": "Required (user's JWT)",
+        "request_body": {
+          "content_type": "application/json",
+          "schema": "Partial<UserAccountForm> - An object containing only the fields to be updated."
+        },
+        "success_response": {
+          "status": 200,
+          "body": "The fully updated UserAccount object."
+        },
+        "error_responses": [
+          { "status": 400, "description": "Bad Request if the request body has validation errors." },
+          { "status": 401, "description": "Unauthorized if the user is not authenticated." }
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/profile-image",
+        "description": "Uploads a new profile image. The backend should handle file validation (size, type), upload to a storage service (like B2 or S3), and update the `profile_image_url` and `profile_image_filename` in the database.",
+        "authentication": "Required (user's JWT)",
+        "request_body": {
+          "content_type": "multipart/form-data",
+          "schema": "A form field named 'profileImage' containing the image file."
+        },
+        "success_response": {
+          "status": 200,
+          "body": {
+            "profile_image_url": "The new public URL of the uploaded image."
+          }
+        },
+        "error_responses": [
+          { "status": 400, "description": "Bad Request for invalid file type, size, or missing file." },
+          { "status": 401, "description": "Unauthorized." },
+          { "status": 500, "description": "Internal Server Error if the file upload to storage fails." }
+        ]
+      },
+      {
+        "method": "DELETE",
+        "path": "/profile-image",
+        "description": "Deletes the user's current profile image. The backend must delete the file from the storage service and set the `profile_image_url` and `profile_image_filename` fields to NULL in the database.",
+        "authentication": "Required (user's JWT)",
+        "success_response": {
+          "status": 204,
+          "body": "No Content."
+        },
+        "error_responses": [
+          { "status": 401, "description": "Unauthorized." },
+          { "status": 500, "description": "Internal Server Error if file deletion from storage fails." }
+        ]
+      }
+    ]
+  }
+} 

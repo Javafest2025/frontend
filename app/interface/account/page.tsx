@@ -1,9 +1,9 @@
-import { WelcomeScreen } from "@/components/layout/WelcomeScreen"
+import { AccountContent } from "@/components/account/AccountContent"
 
 export default function AccountPage() {
     return (
         <div className="h-full">
-            <WelcomeScreen />
+            <AccountContent />
         </div>
     )
 } 

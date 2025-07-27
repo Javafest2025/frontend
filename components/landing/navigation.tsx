@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Brain, ArrowRight, Menu, X, Sparkles } from "lucide-react"
+import { Brain, ArrowRight, Menu, X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useState, useEffect } from "react"
 import { useNavigationWithLoading } from "@/components/ui/RouteTransition"
@@ -48,161 +48,119 @@ export function Navigation() {
     ]
 
     const handleNavClick = (href: string) => {
+        setIsMobileMenuOpen(false)
         const element = document.querySelector(href)
         if (element) {
-            element.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            })
+            element.scrollIntoView({ behavior: 'smooth' })
         }
-        setIsMobileMenuOpen(false)
     }
 
     return (
         <motion.nav
-            initial={{ y: -100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className={`fixed top-0 w-full z-50 transition-all duration-500 ${isScrolled
-                ? "bg-background/70 backdrop-blur-2xl border-b border-primary/20 shadow-2xl shadow-primary/5"
-                : "bg-transparent"
+            initial={{ y: -100 }}
+            animate={{ y: 0 }}
+            transition={{ duration: 0.6 }}
+            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
+                    ? "bg-background/95 backdrop-blur-xl border-b border-primary/30 shadow-xl"
+                    : "bg-background/90 backdrop-blur-lg border-b border-primary/20 shadow-lg"
                 }`}
         >
-            {/* Animated background gradient */}
-            {isScrolled && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-purple-500/5"
-                />
-            )}
-
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-                <div className="flex h-16 items-center justify-between">
-                    {/* Enhanced Logo */}
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between h-16 sm:h-20">
+                    {/* Logo */}
                     <motion.div
                         whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="flex items-center space-x-3 group cursor-pointer"
-                        onClick={() => handleNavClick('#hero')}
+                        className="flex items-center gap-2 sm:gap-3 group cursor-pointer"
+                        onClick={() => navigateWithLoading("/")}
                     >
-                        <div className="relative">
-                            <motion.div
-                                animate={{
-                                    rotate: [0, 360],
-                                    scale: [1, 1.1, 1]
-                                }}
-                                transition={{
-                                    rotate: { duration: 20, repeat: Infinity, ease: "linear" },
-                                    scale: { duration: 2, repeat: Infinity }
-                                }}
-                                className="absolute inset-0 bg-gradient-to-r from-primary/30 to-purple-500/30 rounded-full blur-md"
-                            />
-                            <Brain className="h-8 w-8 text-primary relative z-10 group-hover:text-purple-400 transition-colors duration-300" />
-                        </div>
-                        <div className="relative">
-                            <span className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent group-hover:from-purple-400 group-hover:via-primary group-hover:to-purple-400 transition-all duration-300">
-                                ScholarAI
-                            </span>
-                            {/* Animated underline */}
-                            <motion.div
-                                className="absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-primary to-purple-500 rounded-full"
-                                initial={{ width: 0 }}
-                                whileHover={{ width: "100%" }}
-                                transition={{ duration: 0.3 }}
-                            />
+                        <div className="flex items-center space-x-3">
+                            <div className="relative">
+                                <Brain className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
+                                <motion.div
+                                    className="absolute inset-0 h-8 w-8 sm:h-10 sm:w-10 bg-primary/20 rounded-full blur-md"
+                                    animate={{ scale: [1, 1.2, 1] }}
+                                    transition={{ duration: 2, repeat: Infinity }}
+                                />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                                    ScholarAI
+                                </span>
+                                <span className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Research Assistant</span>
+                            </div>
                         </div>
                     </motion.div>
 
                     {/* Desktop Navigation */}
-                    <div className="hidden md:flex items-center space-x-1">
-                        {navItems.map((item, index) => (
+                    <div className="hidden md:flex items-center gap-6 lg:gap-8">
+                        {navItems.map((item) => (
                             <motion.button
-                                key={item.href}
-                                initial={{ opacity: 0, y: -20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.1 + 0.3 }}
-                                onClick={() => handleNavClick(item.href)}
-                                className={`relative px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 group ${activeSection === item.id
-                                    ? 'text-primary bg-primary/10 border border-primary/20'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-primary/5'
+                                key={item.id}
+                                whileHover={{ y: -2 }}
+                                className={`text-sm lg:text-base font-medium transition-all duration-300 relative group ${activeSection === item.id
+                                        ? "text-primary"
+                                        : "text-foreground/80 hover:text-foreground"
                                     }`}
+                                onClick={() => handleNavClick(item.href)}
                             >
                                 {item.label}
-
-                                {/* Hover effect background */}
-                                <motion.div
-                                    className="absolute inset-0 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                    layoutId="navbar-hover"
-                                />
-
-                                {/* Active indicator */}
                                 {activeSection === item.id && (
                                     <motion.div
-                                        layoutId="navbar-active"
-                                        className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-xl border border-primary/30"
-                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                        layoutId="activeSection"
+                                        className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-primary to-purple-500 rounded-full"
                                     />
                                 )}
-
-                                {/* Sparkle effect on hover */}
-                                <motion.div
-                                    className="absolute top-0 right-0 opacity-0 group-hover:opacity-100"
-                                    animate={{ rotate: 360 }}
-                                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                                >
-                                    <Sparkles className="h-3 w-3 text-primary/60" />
-                                </motion.div>
+                                <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-primary to-purple-500 rounded-full scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
                             </motion.button>
                         ))}
                     </div>
 
-                    {/* Enhanced Desktop CTA */}
-                    <div className="hidden md:flex items-center space-x-3">
+                    {/* Desktop CTA Buttons */}
+                    <div className="hidden md:flex items-center gap-3">
                         <Button
-                            onClick={() => navigateWithLoading("/login", "Preparing login interface...")}
-                            className="group relative overflow-hidden bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 border-0 shadow-2xl shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-105"
+                            variant="ghost"
+                            size="sm"
+                            className="text-foreground/80 hover:text-foreground hover:bg-primary/10 transition-all duration-300"
+                            onClick={() => navigateWithLoading("/login")}
                         >
-                            <span className="relative z-10 flex items-center">
+                            Sign In
+                        </Button>
+                        <Button
+                            size="sm"
+                            className="group relative overflow-hidden gradient-primary-to-accent text-white border-0 shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-105"
+                            onClick={() => navigateWithLoading("/signup")}
+                        >
+                            <span className="relative z-10 flex items-center justify-center">
                                 Get Started
-                                <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                                <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                             </span>
-
-                            {/* Animated shine effect */}
                             <motion.div
-                                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full"
-                                animate={{ translateX: ["0%", "200%"] }}
-                                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                            />
-
-                            {/* Hover glow */}
-                            <motion.div
-                                className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100"
+                                className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100"
                                 transition={{ duration: 0.3 }}
                             />
                         </Button>
                     </div>
 
-                    {/* Enhanced Mobile Menu Button */}
+                    {/* Mobile Menu Button */}
                     <div className="md:hidden">
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="relative text-muted-foreground hover:text-foreground hover:bg-primary/10 border border-primary/20 hover:border-primary/40 transition-all duration-300"
+                            className="relative text-muted-foreground hover:text-foreground hover:bg-primary/10 border border-primary/20 hover:border-primary/40 transition-all duration-300 h-9 w-9 p-0"
                         >
                             <motion.div
                                 animate={{ rotate: isMobileMenuOpen ? 180 : 0 }}
                                 transition={{ duration: 0.3 }}
                             >
-                                {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                                {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
                             </motion.div>
                         </Button>
                     </div>
                 </div>
             </div>
 
-            {/* Enhanced Mobile Menu */}
+            {/* Mobile Menu */}
             <AnimatePresence>
                 {isMobileMenuOpen && (
                     <motion.div
@@ -216,40 +174,50 @@ export function Navigation() {
                         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5" />
 
                         <div className="container mx-auto px-4 py-6 space-y-4 relative">
-                            {navItems.map((item, index) => (
-                                <motion.button
-                                    key={item.href}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: index * 0.1 }}
-                                    onClick={() => handleNavClick(item.href)}
-                                    className={`block w-full text-left py-3 px-4 rounded-xl transition-all duration-300 ${activeSection === item.id
-                                        ? 'text-primary bg-primary/10 border border-primary/20'
-                                        : 'text-muted-foreground hover:text-foreground hover:bg-primary/5'
-                                        }`}
-                                >
-                                    <div className="flex items-center justify-between">
+                            {/* Mobile Navigation Items */}
+                            <div className="space-y-2">
+                                {navItems.map((item) => (
+                                    <motion.button
+                                        key={item.id}
+                                        whileHover={{ x: 4 }}
+                                        className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-300 ${activeSection === item.id
+                                                ? "bg-primary/10 text-primary border border-primary/20"
+                                                : "text-foreground/80 hover:text-foreground hover:bg-primary/5"
+                                            }`}
+                                        onClick={() => handleNavClick(item.href)}
+                                    >
                                         {item.label}
-                                        {activeSection === item.id && (
-                                            <motion.div
-                                                initial={{ scale: 0 }}
-                                                animate={{ scale: 1 }}
-                                                className="w-2 h-2 bg-primary rounded-full"
-                                            />
-                                        )}
-                                    </div>
-                                </motion.button>
-                            ))}
+                                    </motion.button>
+                                ))}
+                            </div>
 
-                            <div className="pt-4 space-y-3 border-t border-primary/20">
+                            {/* Mobile CTA Buttons */}
+                            <div className="flex flex-col gap-3 pt-4 border-t border-primary/20">
                                 <Button
-                                    onClick={() => navigateWithLoading("/login", "Preparing login interface...")}
-                                    className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 shadow-lg shadow-primary/25"
+                                    variant="ghost"
+                                    className="w-full text-foreground/80 hover:text-foreground hover:bg-primary/10 transition-all duration-300"
+                                    onClick={() => {
+                                        setIsMobileMenuOpen(false)
+                                        navigateWithLoading("/login")
+                                    }}
                                 >
-                                    <span className="flex items-center justify-center">
+                                    Sign In
+                                </Button>
+                                <Button
+                                    className="w-full group relative overflow-hidden gradient-primary-to-accent text-white border-0 shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40"
+                                    onClick={() => {
+                                        setIsMobileMenuOpen(false)
+                                        navigateWithLoading("/signup")
+                                    }}
+                                >
+                                    <span className="relative z-10 flex items-center justify-center">
                                         Get Started
-                                        <ArrowRight className="ml-2 h-4 w-4" />
+                                        <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                                     </span>
+                                    <motion.div
+                                        className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100"
+                                        transition={{ duration: 0.3 }}
+                                    />
                                 </Button>
                             </div>
                         </div>

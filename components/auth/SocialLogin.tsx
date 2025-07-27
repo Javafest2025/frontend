@@ -1,6 +1,6 @@
 import { GoogleIcon } from '@/components/icons/GoogleIcon'
 import { GithubIcon } from '@/components/icons/GithubIcon'
-import { initiateGithubLogin, handleGoogleSocialLogin, type SocialLoginResponse } from '@/lib/api'
+import { initiateGithubLogin, handleGoogleSocialLogin, type SocialLoginResponse } from '@/lib/api/auth'
 import { useEffect, useRef } from 'react'
 
 interface SocialLoginProps {

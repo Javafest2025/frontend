@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -48,40 +49,29 @@ import {
     PlusCircle
 } from "lucide-react"
 
-interface Paper {
-    id: string
-    title: string
-    doi: string
-    publicationDate: string
-    venue: string
-    publisher: string
-    isPeerReviewed: boolean
-    authors: Array<{
-        name: string
-        orcid?: string
-        gsProfileUrl?: string
-        affiliation?: string
-    }>
-    citationCount: number
-    codeRepositoryUrl?: string
-    datasetUrl?: string
-    paperUrl: string
-    pdfAvailable: boolean
-    hasBeenSummarized: boolean
-    hasBeenScored: boolean
-    score?: number
-    tags: string[]
-    status: 'new' | 'processing' | 'ready' | 'failed'
-}
-
 import { projectsApi } from "@/lib/api/projects"
 import { Project } from "@/types/project"
+import { Paper as BasePaper } from "@/types/websearch"
+import { ChatPanel } from "@/components/layout/ChatPanel"
+
+// Extended Paper interface for ProjectWorkspace with additional fields
+interface Paper extends BasePaper {
+    venue?: string
+    isPeerReviewed?: boolean
+    pdfAvailable?: boolean
+    hasBeenSummarized?: boolean
+    hasBeenScored?: boolean
+    score?: number
+    tags?: string[]
+    status?: 'new' | 'processing' | 'ready' | 'failed'
+}
 
 interface ProjectWorkspaceProps {
     projectId: string
 }
 
 export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
+    const router = useRouter()
     const [project, setProject] = useState<Project | null>(null)
     const [papers, setPapers] = useState<Paper[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -94,6 +84,7 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
     const [activeTab, setActiveTab] = useState("library")
     const [isRetrieving, setIsRetrieving] = useState(false)
     const [isChatOpen, setIsChatOpen] = useState(false)
+    const [chatPaperId, setChatPaperId] = useState<string | null>(null)
 
     // Load project data on mount
     useEffect(() => {
@@ -125,9 +116,9 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
         .filter(paper => {
             const matchesSearch = paper.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 paper.authors.some(author => author.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                paper.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+                (paper.tags || []).some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
 
-            const matchesStatus = filterStatus === "all" || paper.status === filterStatus
+            const matchesStatus = filterStatus === "all" || (paper.status || 'new') === filterStatus
 
             return matchesSearch && matchesStatus
         })
@@ -166,7 +157,7 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
 
     const handleScorePapers = async () => {
         // Implement UC-05: Automated Paper Scoring & Sorting
-        const unscored = papers.filter(p => !p.hasBeenScored)
+        const unscored = papers.filter(p => !(p.hasBeenScored || false))
         for (const paper of unscored) {
             setTimeout(() => {
                 setPapers(prev => prev.map(p =>
@@ -184,30 +175,30 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
             setTimeout(() => {
                 setPapers(prev => prev.map(p =>
                     p.id === id
-                        ? { ...p, hasBeenSummarized: true, status: 'ready' as Paper['status'] }
+                        ? { ...p, hasBeenSummarized: true, status: 'ready' as NonNullable<Paper['status']> }
                         : p
                 ))
             }, Math.random() * 3000)
         })
     }
 
-    const getStatusIcon = (status: Paper['status']) => {
-        switch (status) {
-            case 'new': return <PlusCircle className="h-4 w-4 text-blue-500" />
-            case 'processing': return <RefreshCw className="h-4 w-4 text-yellow-500 animate-spin" />
-            case 'ready': return <CheckCircle className="h-4 w-4 text-green-500" />
-            case 'failed': return <MoreVertical className="h-4 w-4 text-red-500" />
-            default: return null
+    const getStatusIcon = (status?: Paper['status']) => {
+        switch (status || 'new') {
+            case 'new': return <PlusCircle className="h-4 w-4 status-new" />
+            case 'processing': return <RefreshCw className="h-4 w-4 status-processing animate-spin" />
+            case 'ready': return <CheckCircle className="h-4 w-4 status-ready" />
+            case 'failed': return <MoreVertical className="h-4 w-4 status-failed" />
+            default: return <PlusCircle className="h-4 w-4 status-new" />
         }
     }
 
-    const getStatusColor = (status: Paper['status']) => {
-        switch (status) {
-            case 'new': return 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-            case 'processing': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
-            case 'ready': return 'bg-green-500/10 text-green-500 border-green-500/20'
-            case 'failed': return 'bg-red-500/10 text-red-500 border-red-500/20'
-            default: return 'bg-gray-500/10 text-gray-500 border-gray-500/20'
+    const getStatusColor = (status?: Paper['status']) => {
+        switch (status || 'new') {
+            case 'new': return 'badge border shadow-sm backdrop-blur-sm status-new'
+            case 'processing': return 'badge border shadow-sm backdrop-blur-sm status-processing'
+            case 'ready': return 'badge border shadow-sm backdrop-blur-sm status-ready'
+            case 'failed': return 'badge border shadow-sm backdrop-blur-sm status-failed'
+            default: return 'badge border shadow-sm backdrop-blur-sm status-new'
         }
     }
 
@@ -280,14 +271,25 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                         </div>
                         <div className="flex gap-2">
                             <Button
-                                onClick={() => setIsChatOpen(!isChatOpen)}
+                                onClick={() => {
+                                    if (selectedPaper) {
+                                        setChatPaperId(selectedPaper.id)
+                                        setIsChatOpen(true)
+                                    } else {
+                                        // If no paper selected, just open chat without paper ID
+                                        setIsChatOpen(!isChatOpen)
+                                    }
+                                }}
                                 variant="outline"
                                 className="bg-background/40 backdrop-blur-xl border-primary/20 hover:bg-primary/5"
                             >
                                 <MessageSquare className="mr-2 h-4 w-4" />
-                                QA Chat
+                                QA Chat {selectedPaper ? `(${selectedPaper.title.substring(0, 20)}...)` : ""}
                             </Button>
-                            <Button className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 text-white">
+                            <Button
+                                className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 text-white"
+                                onClick={() => router.push(`/interface/projects/${projectId}/settings`)}
+                            >
                                 <Settings className="mr-2 h-4 w-4" />
                                 Settings
                             </Button>
@@ -456,15 +458,15 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                                                                 <div className="flex-1 min-w-0">
                                                                     <div className="flex items-center gap-2 mb-2">
                                                                         {getStatusIcon(paper.status)}
-                                                                        <Badge className={`${getStatusColor(paper.status)} text-xs`}>
-                                                                            {paper.status}
+                                                                        <Badge variant="status" className={`${getStatusColor(paper.status)} text-xs`}>
+                                                                            {paper.status || 'new'}
                                                                         </Badge>
-                                                                        {paper.hasBeenScored && paper.score && (
+                                                                        {(paper.hasBeenScored || false) && (paper.score || 0) > 0 && (
                                                                             <Badge className="text-xs bg-gradient-to-r from-primary/20 to-purple-500/20 text-primary border-primary/20">
-                                                                                Score: {paper.score.toFixed(1)}
+                                                                                Score: {(paper.score || 0).toFixed(1)}
                                                                             </Badge>
                                                                         )}
-                                                                        {paper.pdfAvailable && (
+                                                                        {(paper.pdfAvailable || paper.pdfUrl || paper.pdfContentUrl) && (
                                                                             <Badge className="text-xs bg-green-500/10 text-green-500 border-green-500/20">
                                                                                 PDF
                                                                             </Badge>
@@ -474,7 +476,7 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                                                                         {paper.title}
                                                                     </h4>
                                                                     <p className="text-xs text-muted-foreground mb-2">
-                                                                        {paper.authors.map(a => a.name).join(", ")} • {paper.venue} • {new Date(paper.publicationDate).getFullYear()}
+                                                                        {paper.authors.map(a => a.name).join(", ")} • {paper.venueName || paper.venue || 'Unknown Venue'} • {new Date(paper.publicationDate).getFullYear()}
                                                                     </p>
                                                                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                                                         <span className="flex items-center gap-1">
@@ -502,7 +504,7 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                                                                         className="h-8 w-8 p-0 hover:bg-primary/10"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation()
-                                                                            if (paper.pdfAvailable) {
+                                                                            if (paper.pdfAvailable || paper.pdfUrl || paper.pdfContentUrl) {
                                                                                 // Open PDF viewer - UC-04
                                                                                 console.log("Opening PDF for", paper.title)
                                                                             }
@@ -510,7 +512,7 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                                                                     >
                                                                         <Eye className="h-4 w-4" />
                                                                     </Button>
-                                                                    {!paper.hasBeenSummarized && paper.pdfAvailable && (
+                                                                    {!(paper.hasBeenSummarized || false) && (paper.pdfAvailable || paper.pdfUrl || paper.pdfContentUrl) && (
                                                                         <Button
                                                                             size="sm"
                                                                             variant="ghost"
@@ -698,42 +700,11 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
             </div>
 
             {/* QA Chat Panel - UC-08 */}
-            {isChatOpen && (
-                <motion.div
-                    initial={{ opacity: 0, x: 300 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 300 }}
-                    className="fixed right-0 top-0 h-full w-96 bg-background/90 backdrop-blur-xl border-l border-primary/20 shadow-2xl z-50"
-                >
-                    <div className="p-4 border-b border-primary/20">
-                        <div className="flex items-center justify-between">
-                            <h3 className="font-semibold flex items-center gap-2">
-                                <MessageSquare className="h-5 w-5 text-primary" />
-                                Contextual QA Chat
-                            </h3>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setIsChatOpen(false)}
-                                className="h-8 w-8 p-0"
-                            >
-                                ×
-                            </Button>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            Ask questions about your selected papers
-                        </p>
-                    </div>
-                    <div className="flex-1 p-4">
-                        <div className="text-center py-8">
-                            <Bot className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                            <p className="text-sm text-muted-foreground">
-                                Select papers from your library to start asking questions
-                            </p>
-                        </div>
-                    </div>
-                </motion.div>
-            )}
+            <ChatPanel
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+                paperId={chatPaperId || undefined}
+            />
 
             {/* Paper Detail Modal */}
             {selectedPaper && (
@@ -798,7 +769,7 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                                     <div>
                                         <span className="font-medium">Tags:</span>
                                         <div className="flex flex-wrap gap-1 mt-1">
-                                            {selectedPaper.tags.map(tag => (
+                                            {(selectedPaper.tags || []).map(tag => (
                                                 <Badge key={tag} variant="secondary" className="text-xs">
                                                     {tag}
                                                 </Badge>

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { downloadPdfFromB2, isB2Url, extractFileIdFromUrl, downloadPdfViaServer } from "@/lib/b2"
-import { downloadPdfWithAuth } from "@/lib/api"
+import { downloadPdfWithAuth } from "@/lib/api/pdf"
 import { Download, TestTube, CheckCircle, XCircle, AlertCircle } from "lucide-react"
 
 export function B2DownloadTest() {

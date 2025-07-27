@@ -15,25 +15,25 @@ export function Topbar({ onChatToggle }: Props) {
   const title = getPageTitle(pathname)
 
   return (
-    <div className="flex h-14 items-center justify-between border-b px-4">
+    <div className="flex h-14 items-center justify-between border-b border-primary/15 px-4 bg-background/80 backdrop-blur-xl">
       <h1 className="text-xl font-semibold">{title}</h1>
       <div className="flex items-center gap-2">
         {pathname.includes("/interface/library") && (
           <>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="border-primary/20 hover:border-primary/40 hover:bg-primary/5">
               <Upload className="mr-2 h-4 w-4" />
               Upload
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="border-primary/20 hover:border-primary/40 hover:bg-primary/5">
               <Filter className="mr-2 h-4 w-4" />
               Filter
             </Button>
           </>
         )}
-        <Button variant="outline" size="icon" onClick={onChatToggle} aria-label="Toggle chat">
+        <Button variant="outline" size="icon" onClick={onChatToggle} aria-label="Toggle chat" className="border-primary/20 hover:border-primary/40 hover:bg-primary/5">
           <MessageSquare className="h-5 w-5" />
         </Button>
-        <LogoutButton className="px-3 py-2 text-sm border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md">
+        <LogoutButton className="px-3 py-2 text-sm border border-primary/20 bg-background/80 hover:bg-primary/5 hover:border-primary/40 rounded-md backdrop-blur-sm">
           <LogOut className="mr-2 h-4 w-4" />
           Logout
         </LogoutButton>

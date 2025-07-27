@@ -1,8 +1,10 @@
-export type Message = {
+// types/chat.ts
+export interface Message {
   id: string
-  role: "user" | "assistant" | "system"
+  role: 'user' | 'assistant'
   content: string
   context?: string[]
+  timestamp?: Date
 }
 
 export type ChatSession = {

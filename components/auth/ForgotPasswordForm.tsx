@@ -2,48 +2,17 @@
 
 import type React from "react"
 import { useRouter } from "next/navigation"
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
 import { InputField } from "@/components/form/InputField"
 import { PasswordField } from "@/components/form/PasswordField"
-import { sendResetCode, submitNewPassword, clearAuthData } from "@/lib/api"
+import { sendResetCode, submitNewPassword, clearAuthData } from "@/lib/api/auth"
 import { useNavigationWithLoading } from "@/components/ui/RouteTransition"
+import { Brain } from "lucide-react"
 import Link from "next/link"
+import { useToast } from "@/hooks/use-toast"
 
-// Reusing MouseGlitter and styles from other auth forms for consistency
-const MouseGlitter = () => {
-    const [particles, setParticles] = useState<Array<{ x: number; y: number; id: string }>>([])
-    const handleMouseMove = useCallback((e: MouseEvent) => {
-        setParticles(prev => {
-            const newParticles = [...prev, {
-                x: e.clientX,
-                y: e.clientY,
-                id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-            }]
-            return newParticles.slice(-20)
-        })
-    }, [])
-    useEffect(() => {
-        window.addEventListener('mousemove', handleMouseMove)
-        return () => window.removeEventListener('mousemove', handleMouseMove)
-    }, [handleMouseMove])
-    return (
-        <div className="fixed inset-0 pointer-events-none z-50">
-            {particles.map((particle) => (
-                <div
-                    key={particle.id}
-                    className="absolute w-2 h-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-600"
-                    style={{
-                        left: particle.x,
-                        top: particle.y,
-                        transform: 'translate(-50%, -50%)',
-                        animation: 'fadeOut 1s forwards',
-                        boxShadow: '0 0 12px hsl(var(--primary) / 0.6), 0 0 24px hsl(var(--primary) / 0.3)',
-                    }}
-                />
-            ))}
-        </div>
-    )
-}
+
+
 
 export function ForgotPasswordForm() {
     const [step, setStep] = useState<'enterEmail' | 'resetPassword'>('enterEmail')
@@ -56,6 +25,7 @@ export function ForgotPasswordForm() {
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const { navigateWithLoading } = useNavigationWithLoading()
+    const { toast } = useToast()
 
     const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -68,9 +38,18 @@ export function ForgotPasswordForm() {
         try {
             // This API call should trigger the email sending
             await sendResetCode(email)
+            toast({
+                title: "Reset Code Sent!",
+                description: "Please check your email for the reset code.",
+                variant: "success",
+            })
             setStep('resetPassword')
         } catch (error: any) {
-            setErrors(prev => ({ ...prev, form: error.message || "Failed to send reset code. Please try again." }))
+            toast({
+                title: "Failed to Send Reset Code",
+                description: error.message || "Failed to send reset code. Please try again.",
+                variant: "destructive",
+            })
         } finally {
             setIsLoading(false)
         }
@@ -98,33 +77,60 @@ export function ForgotPasswordForm() {
             setErrors(newErrors)
             return
         }
-        
+
         setIsLoading(true)
         try {
             await submitNewPassword(email, code, password)
             // Clear old auth data from local storage
             clearAuthData()
-            // On success, redirect to login with a success message
-            navigateWithLoading("/login?reset=success", "Redirecting to login...")
+            // Show success toaster and redirect to login
+            toast({
+                title: "Password Reset Successfully!",
+                description: "Please log in with your new password.",
+                variant: "success",
+            })
+            // Add a small delay to ensure toaster is shown before redirect
+            setTimeout(() => {
+                navigateWithLoading("/login", "Redirecting to login...")
+            }, 1000)
         } catch (error: any) {
-            setErrors(prev => ({ ...prev, form: error.message || "Failed to reset password. Please check your code and try again." }))
+            toast({
+                title: "Password Reset Failed",
+                description: error.message || "Failed to reset password. Please check your code and try again.",
+                variant: "destructive",
+            })
         } finally {
             setIsLoading(false)
         }
     }
-    
+
     return (
         <div className="w-full min-h-screen flex flex-col px-4 font-['Segoe_UI']">
-            <MouseGlitter />
+            {/* Logo in top left corner */}
+            <div className="absolute top-6 left-6 z-10">
+                <div
+                    className="flex items-center space-x-3 cursor-pointer hover:scale-105 transition-transform duration-200"
+                    onClick={() => navigateWithLoading("/")}
+                >
+                    <div className="relative">
+                        <Brain className="h-8 w-8 text-primary" />
+                        <div className="absolute inset-0 h-8 w-8 bg-primary/20 rounded-full blur-md animate-pulse" />
+                    </div>
+                    <span className="text-xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                        ScholarAI
+                    </span>
+                </div>
+            </div>
+
             <div className="flex-1 flex items-center justify-center">
                 <div className="max-w-[450px] w-full">
-                     <h1 className="text-3xl font-extrabold text-center mb-8 bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent drop-shadow-lg">
+                    <h1 className="text-3xl font-extrabold text-center mb-8 text-white drop-shadow-lg">
                         {step === 'enterEmail' ? "Forgot Password" : "Reset Your Password"}
                     </h1>
                     <div className="rounded-2xl p-8 w-[450px] flex flex-col shadow-2xl backdrop-blur-2xl border border-primary/30 bg-gradient-to-br from-background/20 via-background/10 to-primary/5 hover:shadow-primary/30 transition-shadow duration-300">
                         {step === 'enterEmail' ? (
                             <form onSubmit={handleEmailSubmit} className="flex flex-col flex-grow">
-                                <p className="text-center text-primary/50 text-base mb-6">
+                                <p className="text-center text-white text-base mb-6">
                                     Enter your email and we'll send you a code to reset your password.
                                 </p>
                                 <InputField
@@ -149,7 +155,7 @@ export function ForgotPasswordForm() {
                             </form>
                         ) : (
                             <form onSubmit={handleResetSubmit} className="flex flex-col flex-grow space-y-4">
-                                <p className="text-center text-primary/50 text-base mb-2">
+                                <p className="text-center text-white text-base mb-2">
                                     A reset code was sent to <strong>{email}</strong>. Please enter it below along with your new password.
                                 </p>
                                 <InputField
@@ -198,11 +204,11 @@ export function ForgotPasswordForm() {
                             </form>
                         )}
                     </div>
-                     <p className="text-center text-primary/50 text-base mt-6 font-['Segoe_UI']">
+                    <p className="text-center text-white text-base mt-6 font-['Segoe_UI']">
                         Remember your password?{" "}
                         <Link
                             href="/login"
-                            className="relative inline-block text-primary/80 hover:text-primary transition-colors font-medium cursor-pointer underline decoration-primary/50 hover:decoration-primary underline-offset-2"
+                            className="relative inline-block text-white hover:text-primary transition-colors font-medium cursor-pointer underline decoration-white/50 hover:decoration-primary underline-offset-2"
                         >
                             Log in
                         </Link>

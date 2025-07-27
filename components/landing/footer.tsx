@@ -217,15 +217,15 @@ export function Footer() {
                                 <div className="space-y-3 text-sm text-muted-foreground">
                                     <div className="flex items-center space-x-3">
                                         <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-                                        <span>San Francisco, CA</span>
+                                        <span>ECE Building, BUET</span>
                                     </div>
                                     <div className="flex items-center space-x-3">
                                         <Phone className="h-4 w-4 text-primary flex-shrink-0" />
-                                        <span>+1 (555) 123-4567</span>
+                                        <span>+8801842686804</span>
                                     </div>
                                     <div className="flex items-center space-x-3">
                                         <Mail className="h-4 w-4 text-primary flex-shrink-0" />
-                                        <span>hello@scholarai.com</span>
+                                        <span>trisn.eclipse@gmail.com</span>
                                     </div>
                                 </div>
 

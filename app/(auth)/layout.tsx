@@ -1,5 +1,6 @@
 'use client';
 import VideoBackground from '@/components/background/VideoBackground';
+import { Toaster } from '@/components/ui/toaster';
 
 export default function AuthLayout({
     children,
@@ -9,6 +10,7 @@ export default function AuthLayout({
     return (
         <VideoBackground>
             {children}
+            <Toaster />
         </VideoBackground>
     );
 }

@@ -21,6 +21,7 @@ export function DocumentViewer({ document }: Props) {
           <PDFViewer
             documentUrl={document.url}
             documentName={document.title}
+            paperId={document.id}
           />
         )
       case "md":

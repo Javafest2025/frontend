@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { handleGitHubAuthCallback, type SocialLoginResponse } from '@/lib/api';
+import { handleGitHubAuthCallback, type SocialLoginResponse } from '@/lib/api/auth';
 import { useAuth } from '@/hooks/useAuth';
 
 function CallbackPageContent() {

@@ -34,7 +34,26 @@ export async function GET(request: NextRequest) {
             'academic.oup.com',
             'journals.plos.org',
             'www.biorxiv.org',
-            'www.medrxiv.org'
+            'www.medrxiv.org',
+            // Backblaze B2 domains for uploaded PDFs
+            'f003.backblazeb2.com',
+            'f004.backblazeb2.com',
+            'f005.backblazeb2.com',
+            'f006.backblazeb2.com',
+            'f007.backblazeb2.com',
+            'f008.backblazeb2.com',
+            'f009.backblazeb2.com',
+            'f010.backblazeb2.com',
+            'f011.backblazeb2.com',
+            'f012.backblazeb2.com',
+            'f013.backblazeb2.com',
+            'f014.backblazeb2.com',
+            'f015.backblazeb2.com',
+            'f016.backblazeb2.com',
+            'f017.backblazeb2.com',
+            'f018.backblazeb2.com',
+            'f019.backblazeb2.com',
+            'f020.backblazeb2.com'
         ]
 
         if (!allowedDomains.some(domain => pdfUrl.hostname === domain || pdfUrl.hostname.endsWith('.' + domain))) {
@@ -45,19 +64,36 @@ export async function GET(request: NextRequest) {
 
         console.log('Proxying PDF request to:', url)
 
-        // Fetch the PDF
+        // Check if it's a B2 URL and handle accordingly
+        const isB2Url = pdfUrl.hostname.startsWith('f') && pdfUrl.hostname.endsWith('.backblazeb2.com')
+        
+        // Fetch the PDF with appropriate headers
         const response = await fetch(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
                 'Accept': 'application/pdf,*/*',
                 'Referer': pdfUrl.origin,
+                // Add specific headers for B2 URLs if needed
+                ...(isB2Url && {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                })
             },
         })
 
         if (!response.ok) {
             console.error(`Failed to fetch PDF: ${response.status} ${response.statusText}`)
+            
+            // Special handling for B2 URLs
+            if (isB2Url) {
+                console.error(`B2 URL failed: ${url}`)
+                console.error(`Response headers:`, Object.fromEntries(response.headers.entries()))
+            }
+            
             return NextResponse.json({
-                error: `Failed to fetch PDF: ${response.status} ${response.statusText}`
+                error: `Failed to fetch PDF: ${response.status} ${response.statusText}`,
+                url: url,
+                isB2Url: isB2Url
             }, { status: response.status })
         }
 

@@ -100,17 +100,10 @@ export function StreamingPaperCard({
                     delay: index * 0.05,
                     ease: "easeOut"
                 }}
+                whileHover={{ scale: 1.02 }}
                 className="group"
             >
-                <Card className="bg-background/20 backdrop-blur-xl border border-primary/10 hover:border-primary/30 transition-all duration-300 cursor-pointer relative overflow-hidden">
-                    {/* Enhanced Loading shimmer effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/10 to-transparent animate-pulse duration-2000" />
-                    <motion.div
-                        animate={{ x: ["-100%", "100%"] }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
-                    />
-
+                <Card className="bg-background/20 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 transition-all duration-300 cursor-pointer relative overflow-hidden shadow-lg shadow-primary/5 hover:shadow-primary/10">
                     <CardContent className="p-4">
                         <div className="space-y-3">
                             {/* Loading title with stagger */}
@@ -120,8 +113,8 @@ export function StreamingPaperCard({
                                 animate={{ opacity: isVisible ? 1 : 0 }}
                                 transition={{ delay: index * 0.1 }}
                             >
-                                <Skeleton className="h-4 w-full bg-primary/15 animate-pulse" />
-                                <Skeleton className="h-4 w-3/4 bg-primary/15 animate-pulse" style={{ animationDelay: "0.2s" }} />
+                                <Skeleton className="h-4 w-full bg-primary/15" />
+                                <Skeleton className="h-4 w-3/4 bg-primary/15" style={{ animationDelay: "0.2s" }} />
                             </motion.div>
 
                             {/* Loading authors with stagger */}
@@ -131,8 +124,8 @@ export function StreamingPaperCard({
                                 animate={{ opacity: isVisible ? 1 : 0 }}
                                 transition={{ delay: index * 0.1 + 0.2 }}
                             >
-                                <Skeleton className="h-3 w-16 bg-primary/15 animate-pulse" style={{ animationDelay: "0.4s" }} />
-                                <Skeleton className="h-3 w-20 bg-primary/15 animate-pulse" style={{ animationDelay: "0.6s" }} />
+                                <Skeleton className="h-3 w-16 bg-primary/15" style={{ animationDelay: "0.4s" }} />
+                                <Skeleton className="h-3 w-20 bg-primary/15" style={{ animationDelay: "0.6s" }} />
                             </motion.div>
 
                             {/* Loading metadata with stagger */}
@@ -142,10 +135,10 @@ export function StreamingPaperCard({
                                 animate={{ opacity: isVisible ? 1 : 0 }}
                                 transition={{ delay: index * 0.1 + 0.4 }}
                             >
-                                <Skeleton className="h-6 w-12 rounded-full bg-primary/15 animate-pulse" style={{ animationDelay: "0.8s" }} />
+                                <Skeleton className="h-6 w-12 rounded-full bg-primary/15" style={{ animationDelay: "0.8s" }} />
                                 <div className="flex gap-1">
-                                    <Skeleton className="h-8 w-8 rounded bg-primary/15 animate-pulse" style={{ animationDelay: "1s" }} />
-                                    <Skeleton className="h-8 w-8 rounded bg-primary/15 animate-pulse" style={{ animationDelay: "1.2s" }} />
+                                    <Skeleton className="h-8 w-8 rounded bg-primary/15" style={{ animationDelay: "1s" }} />
+                                    <Skeleton className="h-8 w-8 rounded bg-primary/15" style={{ animationDelay: "1.2s" }} />
                                 </div>
                             </motion.div>
                         </div>
@@ -179,29 +172,17 @@ export function StreamingPaperCard({
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.6, delay: index * 0.1 }}
+            whileHover={{ scale: 1.02 }}
             className="group"
         >
             <Card
                 className={cn(
-                    "bg-background/40 backdrop-blur-xl border border-primary/10 hover:border-primary/30 transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-primary/10 relative overflow-hidden",
+                    "bg-background/40 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-primary/10 relative overflow-hidden",
                     !isContentLoaded && "opacity-60",
                     isContentLoaded && "opacity-100"
                 )}
                 onClick={handleCardClick}
             >
-                {/* Content loading shimmer */}
-                <AnimatePresence>
-                    {!isContentLoaded && (
-                        <motion.div
-                            initial={{ x: "-100%" }}
-                            animate={{ x: "200%" }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent z-10"
-                        />
-                    )}
-                </AnimatePresence>
-
                 <CardContent className="p-4">
                     <div className="space-y-3">
                         {/* Title */}
@@ -255,7 +236,7 @@ export function StreamingPaperCard({
                                         Open Access
                                     </Badge>
                                 )}
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-xs border-primary/20">
                                     {paper.citationCount} citations
                                 </Badge>
                             </div>
@@ -265,7 +246,7 @@ export function StreamingPaperCard({
                                     size="sm"
                                     variant="ghost"
                                     onClick={handleCardClick}
-                                    className="h-8 w-8 p-0 hover:bg-primary/10"
+                                    className="h-8 w-8 p-0 hover:bg-primary/10 border border-primary/10"
                                 >
                                     <Eye className="h-3 w-3" />
                                 </Button>
@@ -274,7 +255,7 @@ export function StreamingPaperCard({
                                         size="sm"
                                         variant="ghost"
                                         onClick={handleViewPdf}
-                                        className="h-8 w-8 p-0 hover:bg-primary/10"
+                                        className="h-8 w-8 p-0 hover:bg-primary/10 border border-primary/10"
                                     >
                                         <FileText className="h-3 w-3" />
                                     </Button>

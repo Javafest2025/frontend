@@ -16,6 +16,10 @@ interface PdfViewerModalProps {
 export function PdfViewerModal({ paper, isOpen, onClose }: PdfViewerModalProps) {
     const [isFullscreen, setIsFullscreen] = useState(false)
 
+    // Debug: Log the paper object to see if it has an id
+    console.log("PdfViewerModal paper object:", paper)
+    console.log("Paper ID:", paper?.id)
+
     // Get PDF URL from either pdfUrl or pdfContentUrl
     const pdfUrl = paper?.pdfUrl || paper?.pdfContentUrl
 
@@ -45,9 +49,9 @@ export function PdfViewerModal({ paper, isOpen, onClose }: PdfViewerModalProps) 
                     }`}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/20">
                     <div className="flex-1 min-w-0">
-                        <h2 className="text-lg font-semibold line-clamp-1 pr-4">
+                        <h2 className="text-base font-semibold line-clamp-1 pr-4">
                             {paper.title}
                         </h2>
                         <p className="text-sm text-muted-foreground">
@@ -83,6 +87,7 @@ export function PdfViewerModal({ paper, isOpen, onClose }: PdfViewerModalProps) 
                     <PDFViewer
                         documentUrl={pdfUrl}
                         documentName={paper.title}
+                        paperId={paper.id}
                     />
                 </div>
             </motion.div>
