@@ -182,7 +182,7 @@ export function HomeGuide() {
         if (user?.fullName) {
             return user.fullName
         }
-        return "User"
+        return "Scholar"
     }
 
     return (
@@ -207,7 +207,7 @@ export function HomeGuide() {
                     </div>
 
                     <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gradient-primary mb-3 sm:mb-4">
-                        Hi {getGreeting()}! 👋
+                        Hi {getGreeting()!}! 
                     </h1>
 
                     <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">

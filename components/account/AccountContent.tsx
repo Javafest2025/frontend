@@ -439,50 +439,10 @@ export function AccountContent() {
             <Card className="bg-background/40 backdrop-blur-xl border border-primary/10 shadow-lg">
               <CardContent className="p-6">
                 <div className="flex flex-col items-center text-center">
-                  {/* Profile Image */}
+                  {/* Scholar Hat Icon */}
                   <div className="relative mb-4">
-                    <Avatar className="h-24 w-24">
-                      <AvatarImage
-                        src={accountData?.profileImageUrl}
-                        alt={accountData?.fullName || userData?.email || "Profile"}
-                      />
-                      <AvatarFallback className="text-lg bg-gradient-to-br from-primary/20 to-purple-500/20">
-                        {accountData?.fullName
-                          ? accountData.fullName.split(' ').map(n => n[0]).join('').toUpperCase()
-                          : userData?.email?.[0].toUpperCase() || 'U'
-                        }
-                      </AvatarFallback>
-                    </Avatar>
-
-                    {/* Upload/Delete Controls */}
-                    <div className="absolute -bottom-2 -right-2 flex gap-1">
-                      <label className="cursor-pointer">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                        />
-                        <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-full hover:bg-primary/90 transition-colors">
-                          {isUploadingImage ? (
-                            <Loader2 className="h-4 w-4 text-white animate-spin" />
-                          ) : (
-                            <Camera className="h-4 w-4 text-white" />
-                          )}
-                        </div>
-                      </label>
-
-                      {accountData?.profileImageUrl && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="w-8 h-8 p-0"
-                          onClick={handleImageDelete}
-                          disabled={isUploadingImage}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                    <div className="flex items-center justify-center w-24 h-24 bg-gradient-to-br from-primary/20 to-purple-500/20 rounded-full border-2 border-primary/30">
+                      <GraduationCap className="h-12 w-12 text-primary" />
                     </div>
                   </div>
 

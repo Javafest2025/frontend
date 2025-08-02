@@ -123,6 +123,8 @@ export function LoginForm() {
             }
             else {
                 console.error('Login failed:', response)
+                // Set password error for form validation
+                setErrors(prev => ({ ...prev, password: response.message || "Invalid email or password" }))
                 toast({
                     title: "Login Failed",
                     description: response.message || "Invalid email or password. Please check your credentials and try again.",
@@ -131,6 +133,8 @@ export function LoginForm() {
             }
         } catch (error) {
             console.error("Login error:", error)
+            // Set password error for network errors
+            setErrors(prev => ({ ...prev, password: "An error occurred. Please check your internet connection and try again." }))
             toast({
                 title: "Login Failed",
                 description: "An error occurred. Please check your internet connection and try again.",

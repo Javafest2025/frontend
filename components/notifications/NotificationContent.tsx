@@ -30,16 +30,13 @@ import {
 } from "lucide-react"
 import { notificationsApi } from "@/lib/api/notifications"
 import { Notification, NotificationSummary, AcademicNotification, GeneralNotification } from "@/types/notification"
-import { ACADEMIC_CATEGORIES, GENERAL_CATEGORIES, PRIORITY_CONFIG, MOCK_ACADEMIC_NOTIFICATIONS, MOCK_GENERAL_NOTIFICATIONS } from "@/constants/notifications"
+import { GENERAL_CATEGORIES, PRIORITY_CONFIG, MOCK_GENERAL_NOTIFICATIONS } from "@/constants/notifications"
 import { cn } from "@/lib/utils/cn"
 import { format, formatDistance } from "date-fns"
-
-type NotificationTab = 'academic' | 'general'
 
 export function NotificationContent() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [summary, setSummary] = useState<NotificationSummary | null>(null)
-  const [activeTab, setActiveTab] = useState<NotificationTab>('academic')
   const [isLoading, setIsLoading] = useState(true)
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([])
   const [showUnreadOnly, setShowUnreadOnly] = useState(false)
@@ -49,15 +46,11 @@ export function NotificationContent() {
     const loadNotifications = async () => {
       try {
         // For now, using mock data - replace with API call when backend is ready
-        const mockData = [
-          ...MOCK_ACADEMIC_NOTIFICATIONS,
-          ...MOCK_GENERAL_NOTIFICATIONS
-        ]
+        const mockData = MOCK_GENERAL_NOTIFICATIONS
 
         setNotifications(mockData)
 
         // Calculate summary from mock data
-        const academicNotifications = mockData.filter(n => n.type === 'academic')
         const generalNotifications = mockData.filter(n => n.type === 'general')
 
         const mockSummary: NotificationSummary = {
@@ -65,9 +58,9 @@ export function NotificationContent() {
           unread: mockData.filter(n => n.status === 'unread').length,
           by_type: {
             academic: {
-              total: academicNotifications.length,
-              unread: academicNotifications.filter(n => n.status === 'unread').length,
-              urgent: academicNotifications.filter(n => n.priority === 'urgent').length
+              total: 0,
+              unread: 0,
+              urgent: 0
             },
             general: {
               total: generalNotifications.length,
@@ -87,7 +80,7 @@ export function NotificationContent() {
 
         // Uncomment when API is ready:
         // const result = await notificationsApi.getNotifications()
-        // setNotifications(result.notifications)
+        // setNotifications(result.notifications.filter(n => n.type === 'general'))
         // setSummary(result.summary)
       } catch (error) {
         console.error("Failed to load notifications:", error)
@@ -119,9 +112,9 @@ export function NotificationContent() {
           unread: prev!.unread - 1,
           by_type: {
             ...prev!.by_type,
-            [activeTab]: {
-              ...prev!.by_type[activeTab],
-              unread: prev!.by_type[activeTab].unread - 1
+            general: {
+              ...prev!.by_type.general,
+              unread: prev!.by_type.general.unread - 1
             }
           }
         }))
@@ -166,9 +159,8 @@ export function NotificationContent() {
   // Get filtered notifications
   const getFilteredNotifications = () => {
     const filtered = notifications.filter(n => {
-      const typeMatch = n.type === activeTab
       const statusMatch = showUnreadOnly ? n.status === 'unread' : true
-      return typeMatch && statusMatch
+      return statusMatch
     })
 
     return filtered.sort((a, b) => {
@@ -187,15 +179,9 @@ export function NotificationContent() {
 
   // Get notification icon and styling
   const getNotificationStyling = (notification: Notification) => {
-    if (notification.type === 'academic') {
-      const category = ACADEMIC_CATEGORIES[notification.category as keyof typeof ACADEMIC_CATEGORIES]
-      const priority = PRIORITY_CONFIG[notification.priority]
-      return { category, priority }
-    } else {
-      const category = GENERAL_CATEGORIES[notification.category as keyof typeof GENERAL_CATEGORIES]
-      const priority = PRIORITY_CONFIG[notification.priority]
-      return { category, priority }
-    }
+    const category = GENERAL_CATEGORIES[notification.category as keyof typeof GENERAL_CATEGORIES]
+    const priority = PRIORITY_CONFIG[notification.priority]
+    return { category, priority }
   }
 
   // Handle notification click
@@ -245,7 +231,7 @@ export function NotificationContent() {
                 Notifications
               </h1>
               <p className="text-muted-foreground mt-1">
-                Stay updated with academic deadlines and system alerts
+                System notifications and alerts
               </p>
             </div>
 
@@ -253,64 +239,24 @@ export function NotificationContent() {
             {summary && (
               <div className="flex items-center gap-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{summary.unread}</div>
+                  <div className="text-2xl font-bold text-primary">{summary.by_type.general.unread}</div>
                   <div className="text-xs text-muted-foreground">Unread</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-500">{summary.by_priority.urgent}</div>
+                  <div className="text-2xl font-bold text-orange-500">{summary.by_type.general.urgent}</div>
                   <div className="text-xs text-muted-foreground">Urgent</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-muted-foreground">{summary.total}</div>
+                  <div className="text-2xl font-bold text-muted-foreground">{summary.by_type.general.total}</div>
                   <div className="text-xs text-muted-foreground">Total</div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Tab Navigation */}
-          <div className="flex items-center justify-between mt-6">
-            <div className="flex gap-2">
-              <Button
-                variant={activeTab === 'academic' ? 'default' : 'outline'}
-                onClick={() => setActiveTab('academic')}
-                className={cn(
-                  "flex items-center gap-2",
-                  activeTab === 'academic'
-                    ? "gradient-primary-to-accent text-white"
-                    : "border-primary/20 hover:bg-primary/5"
-                )}
-              >
-                <GraduationCap className="h-4 w-4" />
-                Academic & Research
-                {summary && summary.by_type.academic.unread > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {summary.by_type.academic.unread}
-                  </Badge>
-                )}
-              </Button>
+          {/* Action Buttons */}
+          <div className="flex items-center justify-end mt-6">
 
-              <Button
-                variant={activeTab === 'general' ? 'default' : 'outline'}
-                onClick={() => setActiveTab('general')}
-                className={cn(
-                  "flex items-center gap-2",
-                  activeTab === 'general'
-                    ? "gradient-primary-to-accent text-white"
-                    : "border-primary/20 hover:bg-primary/5"
-                )}
-              >
-                <Settings className="h-4 w-4" />
-                General & System
-                {summary && summary.by_type.general.unread > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {summary.by_type.general.unread}
-                  </Badge>
-                )}
-              </Button>
-            </div>
-
-            {/* Action Buttons */}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -344,7 +290,6 @@ export function NotificationContent() {
       <div className="relative z-10 container mx-auto px-6 py-6">
         <AnimatePresence mode="wait">
           <motion.div
-            key={activeTab}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
@@ -358,8 +303,8 @@ export function NotificationContent() {
                   <h3 className="text-xl font-semibold mb-2">No Notifications</h3>
                   <p className="text-muted-foreground">
                     {showUnreadOnly
-                      ? `No unread ${activeTab} notifications at the moment.`
-                      : `No ${activeTab} notifications to show.`
+                      ? "No unread notifications at the moment."
+                      : "No notifications to show."
                     }
                   </p>
                 </CardContent>
@@ -451,26 +396,8 @@ export function NotificationContent() {
                               {notification.message}
                             </p>
 
-                            {/* Academic-specific info */}
-                            {notification.type === 'academic' && (
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
-                                {(notification as AcademicNotification).venue && (
-                                  <div className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    {(notification as AcademicNotification).venue}
-                                  </div>
-                                )}
-                                {(notification as AcademicNotification).submission_deadline && (
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    Due: {format(new Date((notification as AcademicNotification).submission_deadline!), 'MMM dd, yyyy')}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
                             {/* General-specific info */}
-                            {notification.type === 'general' && (notification as GeneralNotification).user_action_required && (
+                            {(notification as GeneralNotification).user_action_required && (
                               <div className="flex items-center gap-1 text-xs text-orange-500 mb-3">
                                 <AlertTriangle className="h-3 w-3" />
                                 Action Required

@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
+import { Textarea } from "@/components/ui/textarea"
 import {
     Select,
     SelectContent,
@@ -73,7 +74,8 @@ import {
     List,
     Trash2,
     Play,
-    RefreshCw
+    RefreshCw,
+    Settings2
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils/cn"
@@ -109,6 +111,14 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
     const [selectedItem, setSelectedItem] = useState<ReadingListItem | null>(null)
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
     const [showFilters, setShowFilters] = useState(false)
+    const [showNoteDialog, setShowNoteDialog] = useState(false)
+    const [noteItemId, setNoteItemId] = useState<string>("")
+    const [noteText, setNoteText] = useState("")
+    const [showProgressDialog, setShowProgressDialog] = useState(false)
+    const [progressItemId, setProgressItemId] = useState<string>("")
+    const [progressValue, setProgressValue] = useState(0)
+    const [showEditDialog, setShowEditDialog] = useState(false)
+    const [editItem, setEditItem] = useState<ReadingListItem | null>(null)
 
     // Load reading list data
     useEffect(() => {
@@ -162,6 +172,48 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
         }
     }
 
+    // Function to enrich reading list items with paper details from library
+    const enrichReadingListWithPaperDetails = useCallback(async (readingListItems: ReadingListItem[], projectId: string) => {
+        try {
+            // If we already have library papers loaded, use them
+            if (libraryPapers.length > 0) {
+                return readingListItems.map(item => {
+                    const paperFromLibrary = libraryPapers.find(p => p.id === item.paperId)
+                    return {
+                        ...item,
+                        paper: item.paper || paperFromLibrary
+                    }
+                })
+            }
+
+            // Otherwise, fetch library papers to get the details
+            const response = await getProjectLibrary(projectId)
+            if (response.data.papers) {
+                const processedPapers: Paper[] = (response.data.papers as any[]).map((p: any) => ({
+                    ...p,
+                    abstractText: p.abstractText ?? p.abstract ?? null,
+                }))
+
+                // Update library papers state
+                setLibraryPapers(processedPapers)
+
+                // Enrich reading list items with paper details
+                return readingListItems.map(item => {
+                    const paperFromLibrary = processedPapers.find(p => p.id === item.paperId)
+                    return {
+                        ...item,
+                        paper: item.paper || paperFromLibrary
+                    }
+                })
+            }
+
+            return readingListItems
+        } catch (error) {
+            console.error('Error enriching reading list with paper details:', error)
+            return readingListItems
+        }
+    }, [libraryPapers])
+
     const loadReadingList = async (projectId: string) => {
         try {
             console.log('🔍 Loading reading list for project:', projectId)
@@ -183,7 +235,11 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
 
             // Ensure response is always an array
             const readingListData = Array.isArray(response) ? response : []
-            setReadingList(readingListData)
+
+            // Enrich reading list items with paper details from library
+            const enrichedReadingList = await enrichReadingListWithPaperDetails(readingListData, projectId)
+
+            setReadingList(enrichedReadingList)
         } catch (error) {
             console.error('❌ Error loading reading list:', error)
             // Set empty array on error to prevent crashes
@@ -219,6 +275,26 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
             await loadReadingList(projectId)
         }
     }, [projectId, activeTab, searchQuery, sortBy, sortDirection, filterPriority, filterDifficulty, filterRelevance])
+
+    // Function to refresh paper details for items missing them
+    const refreshPaperDetails = useCallback(async () => {
+        if (projectId) {
+            const itemsMissingPaperDetails = readingList.filter(item => !item.paper)
+            if (itemsMissingPaperDetails.length > 0) {
+                console.log(`🔄 Refreshing paper details for ${itemsMissingPaperDetails.length} items`)
+                await loadReadingList(projectId)
+                toast({
+                    title: "Success",
+                    description: `Refreshed paper details for ${itemsMissingPaperDetails.length} items`,
+                })
+            } else {
+                toast({
+                    title: "Info",
+                    description: "All paper details are up to date",
+                })
+            }
+        }
+    }, [projectId, readingList, toast])
 
     // Reload data when filters change (for server-side filtering)
     useEffect(() => {
@@ -447,6 +523,54 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
         }
     }
 
+    const handleUpdateItem = async (itemId: string, updateData: any) => {
+        try {
+            // Make actual API call to update item
+            await projectsApi.updateReadingListItem(projectId, itemId, updateData)
+
+            console.log('Successfully updated item:', itemId, updateData)
+
+            // Reload the reading list to get updated data
+            await loadReadingList(projectId)
+
+            toast({
+                title: "Success",
+                description: "Item updated successfully!",
+            })
+        } catch (error) {
+            console.error('Error updating item:', error)
+            toast({
+                title: "Error",
+                description: "Failed to update item. Please try again.",
+                variant: "destructive"
+            })
+        }
+    }
+
+    const handleSkipItem = async (itemId: string) => {
+        try {
+            // Make actual API call to skip item
+            await projectsApi.updateReadingListItemStatus(projectId, itemId, 'SKIPPED')
+
+            console.log('Successfully skipped item:', itemId)
+
+            // Reload the reading list to get updated data
+            await loadReadingList(projectId)
+
+            toast({
+                title: "Success",
+                description: "Paper marked as skipped!",
+            })
+        } catch (error) {
+            console.error('Error skipping item:', error)
+            toast({
+                title: "Error",
+                description: "Failed to skip paper. Please try again.",
+                variant: "destructive"
+            })
+        }
+    }
+
     const handleLoadRecommendations = async () => {
         try {
             console.log('Loading reading list recommendations...')
@@ -520,6 +644,11 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
     const getStatusCount = (status: string) => {
         if (!Array.isArray(readingList)) return 0
         return readingList.filter(item => item.status === status).length
+    }
+
+    const getItemsMissingPaperDetails = () => {
+        if (!Array.isArray(readingList)) return 0
+        return readingList.filter(item => !item.paper).length
     }
 
     // Helper function to map frontend tab values to backend status enum values
@@ -668,12 +797,32 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                         <CardTitle className="flex items-center gap-2">
                                             <BookOpen className="h-5 w-5 text-primary" />
                                             Reading List
+                                            {getItemsMissingPaperDetails() > 0 && (
+                                                <Badge variant="destructive" className="ml-2 text-xs">
+                                                    {getItemsMissingPaperDetails()} missing details
+                                                </Badge>
+                                            )}
                                         </CardTitle>
                                         <CardDescription>
                                             Manage your research paper reading progress
+                                            {getItemsMissingPaperDetails() > 0 && (
+                                                <span className="text-orange-500 ml-1">
+                                                    • Some papers need details refreshed
+                                                </span>
+                                            )}
                                         </CardDescription>
                                     </div>
                                     <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={refreshPaperDetails}
+                                            className="bg-background/40 border-border hover:bg-accent"
+                                            title="Refresh paper details"
+                                        >
+                                            <RefreshCw className="mr-2 h-4 w-4" />
+                                            Refresh
+                                        </Button>
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -817,7 +966,12 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                                                                     <div className="flex-1 min-w-0">
                                                                                         <div className="flex items-center gap-2 mb-2">
                                                                                             <h3 className="font-semibold text-foreground truncate">
-                                                                                                {item.paper?.title || `Paper ${item.paperId.slice(0, 8)}...`}
+                                                                                                {item.paper?.title || (
+                                                                                                    <span className="flex items-center gap-2">
+                                                                                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                                                                                        <span className="text-muted-foreground">Loading paper details...</span>
+                                                                                                    </span>
+                                                                                                )}
                                                                                             </h3>
                                                                                             <Badge
                                                                                                 variant="outline"
@@ -850,7 +1004,17 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                                                                         </div>
 
                                                                                         <p className="text-sm text-muted-foreground mb-2">
-                                                                                            {item.paper?.authors?.map(author => author.name).join(', ') || 'Authors not available'}
+                                                                                            {item.paper?.authors?.length > 0
+                                                                                                ? item.paper.authors.map(author => author.name).join(', ')
+                                                                                                : item.paper
+                                                                                                    ? 'Authors not available'
+                                                                                                    : (
+                                                                                                        <span className="flex items-center gap-2">
+                                                                                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                                                                                            <span>Loading authors...</span>
+                                                                                                        </span>
+                                                                                                    )
+                                                                                            }
                                                                                         </p>
 
                                                                                         {item.paper?.venueName && (
@@ -905,27 +1069,27 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                                                                                 </div>
                                                                                             )}
                                                                                             {!item.paper && (
-                                                                                                <span>ID: {item.paperId.slice(0, 8)}...</span>
+                                                                                                <span className="text-xs text-muted-foreground">Paper ID: {item.paperId.slice(0, 8)}...</span>
                                                                                             )}
                                                                                         </div>
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
 
-                                                                            <div className="flex items-center gap-2 ml-4">
+                                                                            <div className="flex flex-wrap items-center gap-1 ml-4">
                                                                                 <Button
                                                                                     variant="ghost"
                                                                                     size="sm"
                                                                                     onClick={() => handleToggleBookmark(item.id)}
                                                                                     className={cn(
-                                                                                        "h-8 w-8 p-0",
+                                                                                        "h-7 w-7 p-0",
                                                                                         item.isBookmarked
                                                                                             ? "text-yellow-500 hover:text-yellow-600"
                                                                                             : "hover:text-yellow-500"
                                                                                     )}
                                                                                     title={item.isBookmarked ? "Remove bookmark" : "Add bookmark"}
                                                                                 >
-                                                                                    <Bookmark className={cn("h-4 w-4", item.isBookmarked && "fill-current")} />
+                                                                                    <Bookmark className={cn("h-3 w-3", item.isBookmarked && "fill-current")} />
                                                                                 </Button>
 
                                                                                 <Button
@@ -933,7 +1097,7 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                                                                     size="sm"
                                                                                     onClick={() => handleRateItem(item.id, item.rating ? (item.rating % 5) + 1 : 1)}
                                                                                     className={cn(
-                                                                                        "h-8 w-8 p-0",
+                                                                                        "h-7 w-7 p-0",
                                                                                         item.status === 'COMPLETED'
                                                                                             ? "hover:text-yellow-500"
                                                                                             : "text-muted-foreground cursor-not-allowed"
@@ -945,7 +1109,7 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                                                                     }
                                                                                 >
                                                                                     <Star className={cn(
-                                                                                        "h-4 w-4",
+                                                                                        "h-3 w-3",
                                                                                         item.rating && item.status === 'COMPLETED' && "fill-yellow-500 text-yellow-500"
                                                                                     )} />
                                                                                 </Button>
@@ -953,33 +1117,85 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                                                                 <Button
                                                                                     variant="ghost"
                                                                                     size="sm"
+                                                                                    onClick={() => {
+                                                                                        setNoteItemId(item.id)
+                                                                                        setNoteText(item.notes || "")
+                                                                                        setShowNoteDialog(true)
+                                                                                    }}
+                                                                                    className="h-7 w-7 p-0 hover:bg-purple-500/10 hover:text-purple-500"
+                                                                                    title="Add/edit notes"
+                                                                                >
+                                                                                    <Edit3 className="h-3 w-3" />
+                                                                                </Button>
+
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    onClick={() => {
+                                                                                        setProgressItemId(item.id)
+                                                                                        setProgressValue(item.readingProgress || 0)
+                                                                                        setShowProgressDialog(true)
+                                                                                    }}
+                                                                                    className="h-7 w-7 p-0 hover:bg-blue-500/10 hover:text-blue-500"
+                                                                                    title="Update reading progress"
+                                                                                >
+                                                                                    <Target className="h-3 w-3" />
+                                                                                </Button>
+
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    onClick={() => {
+                                                                                        setEditItem(item)
+                                                                                        setShowEditDialog(true)
+                                                                                    }}
+                                                                                    className="h-7 w-7 p-0 hover:bg-orange-500/10 hover:text-orange-500"
+                                                                                    title="Edit paper details"
+                                                                                >
+                                                                                    <Settings2 className="h-3 w-3" />
+                                                                                </Button>
+
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
                                                                                     onClick={() => handleUpdateStatus(item.id, 'IN_PROGRESS')}
-                                                                                    className="h-8 w-8 p-0 hover:bg-blue-500/10 hover:text-blue-500"
+                                                                                    className="h-7 w-7 p-0 hover:bg-blue-500/10 hover:text-blue-500"
                                                                                     disabled={item.status === 'IN_PROGRESS'}
                                                                                     title="Start reading"
                                                                                 >
-                                                                                    <Play className="h-4 w-4" />
+                                                                                    <Play className="h-3 w-3" />
                                                                                 </Button>
 
                                                                                 <Button
                                                                                     variant="ghost"
                                                                                     size="sm"
                                                                                     onClick={() => handleUpdateStatus(item.id, 'COMPLETED')}
-                                                                                    className="h-8 w-8 p-0 hover:bg-green-500/10 hover:text-green-500"
+                                                                                    className="h-7 w-7 p-0 hover:bg-green-500/10 hover:text-green-500"
                                                                                     disabled={item.status === 'COMPLETED'}
                                                                                     title="Mark as completed"
                                                                                 >
-                                                                                    <CheckCircle className="h-4 w-4" />
+                                                                                    <CheckCircle className="h-3 w-3" />
+                                                                                </Button>
+
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    onClick={() => handleSkipItem(item.id)}
+                                                                                    className="h-7 w-7 p-0 hover:bg-gray-500/10 hover:text-gray-500"
+                                                                                    disabled={item.status === 'SKIPPED'}
+                                                                                    title="Skip paper"
+                                                                                >
+                                                                                    <SkipForward className="h-3 w-3" />
                                                                                 </Button>
 
                                                                                 <Button
                                                                                     variant="ghost"
                                                                                     size="sm"
                                                                                     onClick={() => handleRemoveFromList(item.id)}
-                                                                                    className="h-8 w-8 p-0 hover:bg-red-500/10 hover:text-red-500"
+                                                                                    className="h-7 w-7 p-0 hover:bg-red-500/10 hover:text-red-500"
                                                                                     title="Remove from list"
                                                                                 >
-                                                                                    <Trash2 className="h-4 w-4" />
+                                                                                    <Trash2 className="h-3 w-3" />
                                                                                 </Button>
                                                                             </div>
                                                                         </div>
@@ -1021,9 +1237,13 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                                     <div className="text-xs space-y-1 text-blue-600/80">
                                                         <p>• <strong>Star icon:</strong> Rate papers (only available for completed papers)</p>
                                                         <p>• <strong>Bookmark icon:</strong> Save important papers for later</p>
+                                                        <p>• <strong>Edit icon:</strong> Add/edit personal notes about the paper</p>
+                                                        <p>• <strong>Target icon:</strong> Update reading progress (0-100%)</p>
+                                                        <p>• <strong>Settings icon:</strong> Edit priority, difficulty, and relevance</p>
                                                         <p>• <strong>Play icon:</strong> Mark as "In Progress" to start reading</p>
                                                         <p>• <strong>Check icon:</strong> Mark as "Completed" when finished</p>
-                                                        <p>• <strong>Progress bar:</strong> Track your reading progress</p>
+                                                        <p>• <strong>Skip icon:</strong> Mark as "Skipped" if not relevant</p>
+                                                        <p>• <strong>Trash icon:</strong> Remove from reading list</p>
                                                     </div>
                                                 </div>
                                             )}
@@ -1119,23 +1339,6 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                                 >
                                                     <Plus className="mr-2 h-4 w-4" />
                                                     Add Paper
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="w-full justify-start bg-background/40 border-border hover:bg-accent"
-                                                    onClick={handleLoadRecommendations}
-                                                >
-                                                    <Lightbulb className="mr-2 h-4 w-4" />
-                                                    Get Recommendations
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="w-full justify-start bg-background/40 border-border hover:bg-accent"
-                                                >
-                                                    <BarChart3 className="mr-2 h-4 w-4" />
-                                                    View Analytics
                                                 </Button>
                                             </div>
                                         </div>
@@ -1322,6 +1525,188 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                             </Button>
                         </DialogFooter>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Notes Dialog */}
+            <Dialog open={showNoteDialog} onOpenChange={setShowNoteDialog}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Add/Edit Notes</DialogTitle>
+                        <DialogDescription>
+                            Add personal notes about this paper for your reference.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label htmlFor="note-text" className="text-sm font-medium">
+                                Notes
+                            </label>
+                            <Textarea
+                                id="note-text"
+                                value={noteText}
+                                onChange={(e) => setNoteText(e.target.value)}
+                                placeholder="Add your notes about this paper..."
+                                className="min-h-[120px]"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowNoteDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={async () => {
+                                await handleAddNote(noteItemId, noteText)
+                                setShowNoteDialog(false)
+                                setNoteText("")
+                            }}
+                        >
+                            Save Notes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Progress Dialog */}
+            <Dialog open={showProgressDialog} onOpenChange={setShowProgressDialog}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Update Reading Progress</DialogTitle>
+                        <DialogDescription>
+                            Update your reading progress for this paper (0-100%).
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label htmlFor="progress-value" className="text-sm font-medium">
+                                Progress: {progressValue}%
+                            </label>
+                            <input
+                                id="progress-value"
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={progressValue}
+                                onChange={(e) => setProgressValue(parseInt(e.target.value))}
+                                className="w-full"
+                            />
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>0%</span>
+                                <span>50%</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowProgressDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={async () => {
+                                await handleUpdateProgress(progressItemId, progressValue)
+                                setShowProgressDialog(false)
+                            }}
+                        >
+                            Update Progress
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Item Dialog */}
+            <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Edit Paper Details</DialogTitle>
+                        <DialogDescription>
+                            Update the priority, difficulty, and relevance of this paper.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Priority</label>
+                            <Select
+                                value={editItem?.priority || 'MEDIUM'}
+                                onValueChange={(value) => setEditItem(prev => prev ? { ...prev, priority: value as any } : null)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="LOW">Low</SelectItem>
+                                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                                    <SelectItem value="HIGH">High</SelectItem>
+                                    <SelectItem value="CRITICAL">Critical</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Difficulty</label>
+                            <Select
+                                value={editItem?.difficulty || 'MEDIUM'}
+                                onValueChange={(value) => setEditItem(prev => prev ? { ...prev, difficulty: value as any } : null)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="EASY">Easy</SelectItem>
+                                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                                    <SelectItem value="HARD">Hard</SelectItem>
+                                    <SelectItem value="EXPERT">Expert</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Relevance</label>
+                            <Select
+                                value={editItem?.relevance || 'MEDIUM'}
+                                onValueChange={(value) => setEditItem(prev => prev ? { ...prev, relevance: value as any } : null)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="LOW">Low</SelectItem>
+                                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                                    <SelectItem value="HIGH">High</SelectItem>
+                                    <SelectItem value="CRITICAL">Critical</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Estimated Time (minutes)</label>
+                            <Input
+                                type="number"
+                                value={editItem?.estimatedTime || ''}
+                                onChange={(e) => setEditItem(prev => prev ? { ...prev, estimatedTime: parseInt(e.target.value) || undefined } : null)}
+                                placeholder="30"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={async () => {
+                                if (editItem) {
+                                    const updateData = {
+                                        priority: editItem.priority,
+                                        difficulty: editItem.difficulty,
+                                        relevance: editItem.relevance,
+                                        estimatedTime: editItem.estimatedTime
+                                    }
+                                    await handleUpdateItem(editItem.id, updateData)
+                                    setShowEditDialog(false)
+                                    setEditItem(null)
+                                }
+                            }}
+                        >
+                            Save Changes
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

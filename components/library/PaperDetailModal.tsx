@@ -37,7 +37,8 @@ import {
     Loader2,
     AlertTriangle,
     Lightbulb,
-    ListChecks
+    ListChecks,
+    Target
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { downloadPdfWithAuth } from "@/lib/api/pdf"
@@ -150,6 +151,28 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
                 isOpenAccess: (paper.isOpenAccess || false).toString()
             })
             router.push(`/interface/projects/${projectId}/library/${paper.id}/summary?${searchParams.toString()}`)
+        }
+    }
+
+    const handleGapAnalysis = () => {
+        // Navigate to the dedicated gap analysis page with paper data in URL params
+        if (projectId && paper) {
+            const searchParams = new URLSearchParams({
+                title: paper.title,
+                authors: paper.authors?.map(a => a.name).join(', ') || '',
+                publicationDate: paper.publicationDate || '',
+                citationCount: (paper.citationCount || 0).toString(),
+                referenceCount: (paper.referenceCount || 0).toString(),
+                influentialCitationCount: (paper.influentialCitationCount || 0).toString(),
+                abstract: paper.abstractText || '',
+                source: paper.source || '',
+                venueName: paper.venueName || '',
+                publisher: paper.publisher || '',
+                doi: paper.doi || '',
+                pdfUrl: paper.pdfContentUrl || paper.pdfUrl || '',
+                isOpenAccess: (paper.isOpenAccess || false).toString()
+            })
+            router.push(`/interface/projects/${projectId}/library/${paper.id}/gap-analysis?${searchParams.toString()}`)
         }
     }
 
@@ -339,22 +362,14 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
                             </Button>
                         )}
 
+                        {/* Gap Analysis Button */}
                         <Button
-                            variant="outline"
                             size="lg"
-                            className="border-primary/20 hover:bg-primary/5 hover:border-primary/40 shadow-lg hover:shadow-xl transition-all duration-300 px-8 py-3"
+                            className="bg-gradient-to-r from-orange-500 to-red-600 text-white hover:from-orange-600/90 hover:to-red-700/90 shadow-lg hover:shadow-xl transition-all duration-300 px-8 py-3"
+                            onClick={handleGapAnalysis}
                         >
-                            <Bookmark className="mr-3 h-5 w-5" />
-                            Save
-                        </Button>
-
-                        <Button
-                            variant="outline"
-                            size="lg"
-                            className="border-primary/20 hover:bg-primary/5 hover:border-primary/40 shadow-lg hover:shadow-xl transition-all duration-300 px-8 py-3"
-                        >
-                            <Share2 className="mr-3 h-5 w-5" />
-                            Share
+                            <Target className="mr-3 h-5 w-5" />
+                            Gap Analysis
                         </Button>
                     </motion.div>
 

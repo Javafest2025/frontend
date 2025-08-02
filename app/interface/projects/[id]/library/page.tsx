@@ -306,8 +306,8 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
     }
 
     // Get unique sources and fields for filtering
-    const uniqueSources = [...new Set(getCurrentPapers().map(p => p.source).filter(Boolean))]
-    const uniqueFields = [...new Set(getCurrentPapers().flatMap(p => p.fieldsOfStudy || []).filter(Boolean))]
+    const uniqueSources = Array.from(new Set(getCurrentPapers().map(p => p.source).filter(Boolean)))
+    const uniqueFields = Array.from(new Set(getCurrentPapers().flatMap(p => p.fieldsOfStudy || []).filter(Boolean)))
 
     if (isLoading) {
         return (

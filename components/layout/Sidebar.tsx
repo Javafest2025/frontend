@@ -20,7 +20,8 @@ import {
   Brain,
   Sparkles,
   LogOut,
-  CheckSquare
+  CheckSquare,
+  GraduationCap
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { Button } from "@/components/ui/button"
@@ -57,12 +58,19 @@ const NAV_ITEMS = [
     loadingMessage: "Loading task management..."
   },
   {
-    name: "Notifications",
-    href: "/interface/notifications",
-    icon: Bell,
-    description: "Recent notifications and alerts",
-    loadingMessage: "Loading notifications..."
+    name: "Call4Papper",
+    href: "/interface/papercall",
+    icon: GraduationCap,
+    description: "Academic deadlines and research opportunities",
+    loadingMessage: "Loading academic notifications..."
   },
+  // {
+  //   name: "Notifications",
+  //   href: "/interface/notifications",
+  //   icon: Bell,
+  //   description: "System notifications and alerts",
+  //   loadingMessage: "Loading notifications..."
+  // },
   {
     name: "Settings",
     href: "/interface/settings",
@@ -110,40 +118,44 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
       <button
         onClick={() => handleNavigation(item.href, item.loadingMessage)}
         className={cn(
-          "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border w-full text-left",
-          "hover:bg-primary/10 hover:border-primary/30",
+          "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border-2 w-full text-left",
+          "hover:bg-primary/10 hover:border-primary/50",
           isActive
-            ? "bg-gradient-to-r from-primary/20 to-purple-500/10 text-primary border-primary/30"
-            : "text-foreground/80 hover:text-foreground border-transparent bg-background/20",
+            ? "bg-gradient-to-r from-primary/20 to-purple-500/10 text-primary border-primary/50"
+            : "text-foreground/80 hover:text-foreground border-primary/20 bg-background/20",
           collapsed && "justify-center px-2"
         )}
         style={isActive ? {
           boxShadow: `
-            0 0 20px hsl(var(--accent-1) / 0.2),
-            0 0 40px hsl(var(--accent-2) / 0.1),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2),
-            0 4px 20px hsl(var(--accent-1) / 0.1)
+            0 0 25px hsl(var(--accent-1) / 0.3),
+            0 0 50px hsl(var(--accent-2) / 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3),
+            0 6px 25px hsl(var(--accent-1) / 0.2),
+            0 0 0 1px rgba(99, 102, 241, 0.2)
           `
         } : {
           boxShadow: `
-            0 0 0px hsl(var(--accent-1) / 0),
-            0 2px 8px rgba(0, 0, 0, 0.05)
+            0 0 10px hsl(var(--accent-1) / 0.1),
+            0 2px 8px rgba(0, 0, 0, 0.05),
+            0 0 0 1px rgba(99, 102, 241, 0.05)
           `
         }}
         onMouseEnter={(e) => {
           if (!isActive) {
             e.currentTarget.style.boxShadow = `
-              0 0 15px hsl(var(--accent-1) / 0.15),
-              0 0 30px hsl(var(--accent-2) / 0.08),
-              0 4px 15px hsl(var(--accent-1) / 0.08)
+              0 0 20px hsl(var(--accent-1) / 0.2),
+              0 0 40px hsl(var(--accent-2) / 0.1),
+              0 4px 20px hsl(var(--accent-1) / 0.15),
+              0 0 0 1px rgba(99, 102, 241, 0.15)
             `
           }
         }}
         onMouseLeave={(e) => {
           if (!isActive) {
             e.currentTarget.style.boxShadow = `
-              0 0 0px hsl(var(--accent-1) / 0),
-              0 2px 8px rgba(0, 0, 0, 0.05)
+              0 0 10px hsl(var(--accent-1) / 0.1),
+              0 2px 8px rgba(0, 0, 0, 0.05),
+              0 0 0 1px rgba(99, 102, 241, 0.05)
             `
           }
         }}
@@ -183,16 +195,17 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
 
   return (
     <div className={cn(
-      "flex h-screen flex-col bg-background/60 backdrop-blur-xl border-r border-primary/15 transition-all duration-300 relative z-10",
+      "flex h-screen flex-col bg-background/60 backdrop-blur-xl border-r border-primary/30 transition-all duration-300 relative z-10",
       collapsed ? "w-16" : "w-72",
       className
     )}
       style={{
         boxShadow: `
-            inset -1px 0 0 0 rgba(99, 102, 241, 0.2),
-            4px 0 20px rgba(99, 102, 241, 0.1),
-            8px 0 40px rgba(139, 92, 246, 0.05),
-            0 0 60px rgba(99, 102, 241, 0.03)
+            inset -2px 0 0 0 rgba(99, 102, 241, 0.4),
+            4px 0 20px rgba(99, 102, 241, 0.2),
+            8px 0 40px rgba(139, 92, 246, 0.1),
+            0 0 60px rgba(99, 102, 241, 0.05),
+            0 0 0 1px rgba(99, 102, 241, 0.1)
           `
       }}>
       {/* Background Effects */}
@@ -204,14 +217,15 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
 
       {/* Header */}
       <div className={cn(
-        "flex h-16 items-center justify-between px-4 border-b border-primary/15 relative z-10",
+        "flex h-16 items-center justify-between px-4 border-b border-primary/30 relative z-10",
         collapsed && "px-2"
       )}
         style={{
           boxShadow: `
-              0 1px 0 0 rgba(99, 102, 241, 0.2),
-              0 2px 10px rgba(99, 102, 241, 0.08),
-              0 4px 20px rgba(139, 92, 246, 0.03)
+              0 2px 0 0 rgba(99, 102, 241, 0.4),
+              0 4px 15px rgba(99, 102, 241, 0.15),
+              0 8px 30px rgba(139, 92, 246, 0.08),
+              0 0 0 1px rgba(99, 102, 241, 0.1)
             `
         }}>
         {!collapsed && (
@@ -270,12 +284,13 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
       </nav>
 
       {/* Bottom Section */}
-      <div className="border-t border-primary/15 p-3 space-y-2 relative z-10"
+      <div className="border-t border-primary/30 p-3 space-y-2 relative z-10"
         style={{
           boxShadow: `
-              0 -1px 0 0 rgba(99, 102, 241, 0.2),
-              0 -2px 10px rgba(99, 102, 241, 0.08),
-              0 -4px 20px rgba(139, 92, 246, 0.03)
+              0 -2px 0 0 rgba(99, 102, 241, 0.4),
+              0 -4px 15px rgba(99, 102, 241, 0.15),
+              0 -8px 30px rgba(139, 92, 246, 0.08),
+              0 0 0 1px rgba(99, 102, 241, 0.1)
             `
         }}>
         {!collapsed && (

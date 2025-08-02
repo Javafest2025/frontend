@@ -78,7 +78,7 @@ const PROJECT_NAV_ITEMS = [
     }
 ]
 
-const PROJECT_BOTTOM_ITEMS = []
+const PROJECT_BOTTOM_ITEMS: typeof PROJECT_NAV_ITEMS = []
 
 export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Props) {
     const pathname = usePathname()
@@ -147,40 +147,44 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
             <button
                 onClick={() => handleNavigation(item.href, item.loadingMessage)}
                 className={cn(
-                    "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border w-full text-left",
-                    "hover:bg-primary/10 hover:border-primary/30",
+                    "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border-2 w-full text-left",
+                    "hover:bg-primary/10 hover:border-primary/50",
                     isActive
-                        ? "bg-gradient-to-r from-primary/20 to-purple-500/10 text-primary border-primary/30"
-                        : "text-foreground/80 hover:text-foreground border-transparent bg-background/20",
+                        ? "bg-gradient-to-r from-primary/20 to-purple-500/10 text-primary border-primary/50"
+                        : "text-foreground/80 hover:text-foreground border-primary/20 bg-background/20",
                     collapsed && "justify-center px-2"
                 )}
                 style={isActive ? {
                     boxShadow: `
-                        0 0 20px rgba(99, 102, 241, 0.3),
-                        0 0 40px rgba(139, 92, 246, 0.2),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1),
-                        0 4px 20px rgba(99, 102, 241, 0.15)
+                        0 0 25px rgba(99, 102, 241, 0.4),
+                        0 0 50px rgba(139, 92, 246, 0.2),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+                        0 6px 25px rgba(99, 102, 241, 0.25),
+                        0 0 0 1px rgba(99, 102, 241, 0.2)
                     `
                 } : {
                     boxShadow: `
-                        0 0 0px rgba(99, 102, 241, 0),
-                        0 2px 8px rgba(0, 0, 0, 0.1)
+                        0 0 10px rgba(99, 102, 241, 0.1),
+                        0 2px 8px rgba(0, 0, 0, 0.1),
+                        0 0 0 1px rgba(99, 102, 241, 0.05)
                     `
                 }}
                 onMouseEnter={(e) => {
                     if (!isActive) {
                         e.currentTarget.style.boxShadow = `
-                            0 0 15px rgba(99, 102, 241, 0.2),
-                            0 0 30px rgba(139, 92, 246, 0.1),
-                            0 4px 15px rgba(99, 102, 241, 0.1)
+                            0 0 20px rgba(99, 102, 241, 0.25),
+                            0 0 40px rgba(139, 92, 246, 0.15),
+                            0 4px 20px rgba(99, 102, 241, 0.2),
+                            0 0 0 1px rgba(99, 102, 241, 0.15)
                         `
                     }
                 }}
                 onMouseLeave={(e) => {
                     if (!isActive) {
                         e.currentTarget.style.boxShadow = `
-                            0 0 0px rgba(99, 102, 241, 0),
-                            0 2px 8px rgba(0, 0, 0, 0.1)
+                            0 0 10px rgba(99, 102, 241, 0.1),
+                            0 2px 8px rgba(0, 0, 0, 0.1),
+                            0 0 0 1px rgba(99, 102, 241, 0.05)
                         `
                     }
                 }}
@@ -210,12 +214,7 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
         if (collapsed) {
             return (
                 <EnhancedTooltip
-                    content={
-                        <div>
-                            <p className="font-medium">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">{item.description}</p>
-                        </div>
-                    }
+                    content={`${item.name}: ${item.description}`}
                     side="right"
                 >
                     {content}
@@ -228,16 +227,17 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
 
     return (
         <div className={cn(
-            "flex h-screen flex-col bg-background/60 backdrop-blur-xl border-r border-primary/15 transition-all duration-300 relative overflow-hidden",
+            "flex h-screen flex-col bg-background/60 backdrop-blur-xl border-r border-primary/30 transition-all duration-300 relative overflow-hidden",
             collapsed ? "w-16" : "w-72",
             className
         )}
             style={{
                 boxShadow: `
-                    inset -1px 0 0 0 rgba(99, 102, 241, 0.2),
-                    4px 0 20px rgba(99, 102, 241, 0.1),
-                    8px 0 40px rgba(139, 92, 246, 0.05),
-                    0 0 60px rgba(99, 102, 241, 0.03)
+                    inset -2px 0 0 0 rgba(99, 102, 241, 0.4),
+                    4px 0 20px rgba(99, 102, 241, 0.2),
+                    8px 0 40px rgba(139, 92, 246, 0.1),
+                    0 0 60px rgba(99, 102, 241, 0.05),
+                    0 0 0 1px rgba(99, 102, 241, 0.1)
                 `
             }}>
             {/* Background Effects */}
@@ -249,14 +249,15 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
 
             {/* Header */}
             <div className={cn(
-                "flex h-16 items-center justify-between px-4 border-b border-primary/15 relative z-10",
+                "flex h-16 items-center justify-between px-4 border-b border-primary/30 relative z-10",
                 collapsed && "px-2"
             )}
                 style={{
                     boxShadow: `
-                        0 1px 0 0 rgba(99, 102, 241, 0.2),
-                        0 2px 10px rgba(99, 102, 241, 0.08),
-                        0 4px 20px rgba(139, 92, 246, 0.03)
+                        0 2px 0 0 rgba(99, 102, 241, 0.4),
+                        0 4px 15px rgba(99, 102, 241, 0.15),
+                        0 8px 30px rgba(139, 92, 246, 0.08),
+                        0 0 0 1px rgba(99, 102, 241, 0.1)
                     `
                 }}>
                 {!collapsed && (
@@ -331,12 +332,7 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
 
                 {collapsed ? (
                     <EnhancedTooltip
-                        content={
-                            <div>
-                                <p className="font-medium">Expand Sidebar</p>
-                                <p className="text-xs text-muted-foreground">Show project navigation</p>
-                            </div>
-                        }
+                        content="Expand Sidebar: Show project navigation"
                         side="right"
                     >
                         <Button
@@ -385,22 +381,18 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
             </nav>
 
             {/* Exit Project Button at Bottom */}
-            <div className="p-3 border-t border-primary/15 relative z-10 mt-auto"
+            <div className="p-3 border-t border-primary/30 relative z-10 mt-auto"
                 style={{
                     boxShadow: `
-                        0 -1px 0 0 rgba(99, 102, 241, 0.2),
-                        0 -2px 10px rgba(99, 102, 241, 0.08),
-                        0 -4px 20px rgba(139, 92, 246, 0.03)
+                        0 -2px 0 0 rgba(99, 102, 241, 0.4),
+                        0 -4px 15px rgba(99, 102, 241, 0.15),
+                        0 -8px 30px rgba(139, 92, 246, 0.08),
+                        0 0 0 1px rgba(99, 102, 241, 0.1)
                     `
                 }}>
                 {collapsed ? (
                     <EnhancedTooltip
-                        content={
-                            <div>
-                                <p className="font-medium">Exit Project</p>
-                                <p className="text-xs text-muted-foreground">Return to main interface</p>
-                            </div>
-                        }
+                        content="Exit Project: Return to main interface"
                         side="right"
                     >
                         <Button

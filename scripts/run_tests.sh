@@ -3,6 +3,7 @@
 # Usage:
 #   ./scripts/run_tests.sh unit     # Run only unit tests
 #   ./scripts/run_tests.sh e2e      # Run only e2e tests
+#   ./scripts/run_tests.sh ui       # Run e2e tests in UI mode
 #   ./scripts/run_tests.sh          # Run all tests (unit + e2e)
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -21,6 +22,11 @@ run_e2e_tests() {
   npx playwright test --config tests/e2e/playwright.config.ts "$@"
 }
 
+run_e2e_tests_ui() {
+  echo "Running end-to-end tests in UI mode..."
+  npx playwright test --ui --config tests/e2e/playwright.config.ts "$@"
+}
+
 case "$TEST_TYPE" in
   "unit")
     run_unit_tests "${@:2}"
@@ -28,13 +34,16 @@ case "$TEST_TYPE" in
   "e2e")
     run_e2e_tests "${@:2}"
     ;;
+  "ui")
+    run_e2e_tests_ui "${@:2}"
+    ;;
   "all")
     run_unit_tests
     run_e2e_tests
     ;;
   *)
     echo "Unknown test type: $TEST_TYPE"
-    echo "Usage: ./scripts/run_tests.sh [unit|e2e|all]"
+    echo "Usage: ./scripts/run_tests.sh [unit|e2e|ui|all]"
     exit 1
     ;;
 esac 

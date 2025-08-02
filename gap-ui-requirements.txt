@@ -1,0 +1,29 @@
+when user presses on the gap analysis button from the paper details page don;t directly call the api.
+instead go to the gap analysis page fetch the recent jobs and show them in lists in the rightmost side
+and give an another button to find gaps.
+pressing on it gives a dialogue box for configuring for the submit api 
+{
+  "url": "https://example.com/",
+  "max_papers": 10,
+  "validation_threshold": 2
+}
+url is the pdf content url (the backblaze b2 storage url)-> fixed not shown to the user instead title is shown
+user can enter max paper (default 6)
+for user info on max paper: the number of papers retireved per gap analysis iteration
+user can enter validation threshold (default 1)
+for user info on validation threshold: how many times the gap agent vaidates
+after entering the submit button -> the submit api would be hit.
+then the current job will be added to the job lists in the rightmost side jobs lists, running job one will have cancel button. clicking on it will hit the cancel api.
+then polling for status will be on going. show user info from status
+show an incrementing timer, also show an elegant loading on that current job list.
+Status Flow
+The typical progression of a gap analysis job is:
+pending → Job is submitted and waiting to start
+running → Job is actively processing (with progress messages)
+completed → Job finished successfully (results available)
+failed → Job encountered an error (error details in response)
+after status shows completed.
+elegantly show the information in various presentable ways
+if the response contains gaps then show them using cards. cards will contains only the gap id and description.
+there will vew gap button on the card. clicking on it will enter a new gap page that will contain all the information for the gap.
+

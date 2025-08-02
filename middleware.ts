@@ -4,15 +4,20 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const refreshTokenCookie = request.cookies.get('refreshToken');
-  
+
   // Define public paths that don't require authentication
   const publicPaths = [
     '/', // Landing page
     '/login',
-    '/register', 
+    '/auth/login',
+    '/auth/signup',
+    '/auth/register',
+    '/register',
     '/signup',
     '/forgot-password',
-    '/callback' // Add callback for social auth
+    '/auth/forgot-password',
+    '/callback', // Add callback for social auth
+    '/auth/callback'
   ];
 
   // Allow requests to API routes, Next.js specific paths, and static files
@@ -26,7 +31,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Check if the current path is public
-  const isPublicPath = publicPaths.some(path => 
+  const isPublicPath = publicPaths.some(path =>
     pathname === path || (path !== '/' && pathname.startsWith(path + '/'))
   );
 

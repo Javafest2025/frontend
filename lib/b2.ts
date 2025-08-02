@@ -89,7 +89,6 @@ export const extractFileIdFromUrl = (url: string): string => {
 
         return fileId;
     } catch (error) {
-        console.error('Error extracting file ID from URL:', error);
         throw new Error('Invalid B2 download URL format');
     }
 };
