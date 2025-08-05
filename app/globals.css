@@ -617,4 +617,19 @@
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
   }
+
+  /* Preview content styles */
+  .preview-content {
+    @apply w-full;
+    min-height: 100%;
+  }
+
+  .preview-content * {
+    @apply max-w-none;
+  }
+
+  /* Ensure scroll areas work properly */
+  [data-radix-scroll-area-viewport] {
+    @apply h-full w-full;
+  }
 }

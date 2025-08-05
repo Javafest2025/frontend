@@ -47,6 +47,11 @@ export function Navigation() {
         { href: "#pricing", label: "Pricing", id: "pricing" },
     ]
 
+    const productNavItems = [
+        { href: "/research", label: "Research Dashboard", id: "research" },
+        { href: "/editor", label: "Editor", id: "editor" },
+    ]
+
     const handleNavClick = (href: string) => {
         const element = document.querySelector(href)
         if (element) {
@@ -116,6 +121,25 @@ export function Navigation() {
 
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-1">
+                        {/* Product Links */}
+                        {productNavItems.map((item, index) => (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={`relative px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 group text-muted-foreground hover:text-foreground hover:bg-primary/5`}
+                            >
+                                {item.label}
+                                {/* Hover effect background */}
+                                <motion.div
+                                    className="absolute inset-0 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                                />
+                            </Link>
+                        ))}
+                        
+                        {/* Separator */}
+                        <div className="w-px h-6 bg-border mx-2" />
+                        
+                        {/* Landing Page Navigation */}
                         {navItems.map((item, index) => (
                             <motion.button
                                 key={item.href}

@@ -12,6 +12,8 @@ export function middleware(request: NextRequest) {
     '/register',
     '/signup',
     '/forgot-password',
+    '/editor', // Allow direct access to editor for testing
+    '/research', // Allow direct access to research dashboard for testing
     
     // Add any other public static pages if needed
   ];

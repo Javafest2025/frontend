@@ -1,0 +1,618 @@
+"use client"
+
+import React, { useState, useEffect, useCallback } from 'react'
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { 
+  FileText, 
+  Plus, 
+  Save, 
+  Eye, 
+  MessageSquare, 
+  Settings, 
+  Play,
+  Folder,
+  Search,
+  MoreHorizontal
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { useProjects, useDocuments } from "@/lib/api/ongoing-research"
+import { AIAssistancePanel } from "@/components/AIAssistancePanel"
+
+interface Project {
+  id: string
+  title: string
+  description: string
+  status: string
+  updatedAt: string
+}
+
+interface Document {
+  id: string
+  title: string
+  content: string
+  documentType: string
+  updatedAt: string
+}
+
+export default function OngoingResearchEditor() {
+  const [projects, setProjects] = useState<Project[]>([])
+  const [currentProject, setCurrentProject] = useState<Project | null>(null)
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [currentDocument, setCurrentDocument] = useState<Document | null>(null)
+  const [editorContent, setEditorContent] = useState('')
+  const [compiledContent, setCompiledContent] = useState('')
+  const [isCompiling, setIsCompiling] = useState(false)
+  const [chatMessages, setChatMessages] = useState<Array<{id: string, text: string, sender: 'user' | 'ai'}>>([])
+  const [chatInput, setChatInput] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
+
+  // Get API functions from hooks
+  const projectAPI = useProjects()
+  const documentAPI = useDocuments()
+
+  // Mock data for development
+  useEffect(() => {
+    // Load real projects from API
+    const loadProjects = async () => {
+      try {
+        // For now, use a fixed user ID - in real app this would come from auth
+        const testUserId = '550e8400-e29b-41d4-a716-446655440000'
+        const response = await projectAPI.getProjectsByUserId(testUserId)
+        
+        if (response.data && response.data.length > 0) {
+          setProjects(response.data)
+          setCurrentProject(response.data[0])
+        } else {
+          // Create a default project if none exist
+          const newProject = await projectAPI.createProject({
+            title: 'My First Research Project',
+            description: 'A sample project for ongoing research',
+            userId: testUserId,
+            researchDomain: 'Computer Science'
+          })
+          setProjects([newProject.data])
+          setCurrentProject(newProject.data)
+        }
+      } catch (error) {
+        console.error('Failed to load projects:', error)
+        // Fallback to mock data if API fails
+        const mockProjects: Project[] = [
+          {
+            id: '1',
+            title: 'Deep Learning Research',
+            description: 'Research on neural networks',
+            status: 'IN_PROGRESS',
+            updatedAt: '2025-01-15T10:30:00Z'
+          }
+        ]
+        setProjects(mockProjects)
+        setCurrentProject(mockProjects[0])
+      }
+    }
+    
+    loadProjects()
+  }, []) // Empty dependency array - only run once on mount
+
+  useEffect(() => {
+    if (currentProject && !isInitialized) {
+      const loadDocuments = async () => {
+        try {
+          console.log('Loading documents for project:', currentProject.id)
+          const response = await documentAPI.getDocumentsByProjectId(currentProject.id)
+          
+          if (response.data && response.data.length > 0) {
+            setDocuments(response.data)
+            setCurrentDocument(response.data[0])
+            setEditorContent(response.data[0].content)
+            setIsInitialized(true)
+            console.log('Documents loaded successfully')
+          } else {
+            console.log('No documents found, creating default document')
+            // Create a default document if none exist
+            const newDocument = await documentAPI.createDocument({
+              projectId: currentProject.id,
+              title: 'main.tex',
+              content: `\\documentclass{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage{amsmath}
+\\usepackage{amsfonts}
+\\usepackage{amssymb}
+
+\\title{${currentProject.title}}
+\\author{Research Team}
+\\date{\\today}
+
+\\begin{document}
+
+\\maketitle
+
+\\begin{abstract}
+This paper presents a comprehensive analysis...
+\\end{abstract}
+
+\\section{Introduction}
+Your introduction goes here...
+
+\\section{Methodology}
+Your methodology goes here...
+
+\\section{Results}
+Your results go here...
+
+\\section{Conclusion}
+Your conclusion goes here...
+
+\\end{document}`,
+              documentType: 'LATEX'
+            })
+            setDocuments([newDocument.data])
+            setCurrentDocument(newDocument.data)
+            setEditorContent(newDocument.data.content)
+            setIsInitialized(true)
+          }
+        } catch (error) {
+          console.error('Failed to load documents:', error)
+          // Fallback to basic document
+          const fallbackDoc: Document = {
+            id: 'temp-1',
+            title: 'main.tex',
+            content: `\\documentclass{article}
+\\title{${currentProject.title}}
+\\begin{document}
+\\maketitle
+Your content goes here...
+\\end{document}`,
+            documentType: 'LATEX',
+            updatedAt: new Date().toISOString()
+          }
+          setDocuments([fallbackDoc])
+          setCurrentDocument(fallbackDoc)
+          setEditorContent(fallbackDoc.content)
+          setIsInitialized(true)
+        }
+      }
+      
+      loadDocuments()
+    }
+  }, [currentProject?.id]) // Only depend on project ID, not the whole object
+
+  const handleSave = useCallback(async () => {
+    if (!currentDocument?.id) {
+      console.error('No document selected for saving')
+      return
+    }
+
+    try {
+      await documentAPI.updateDocument({
+        documentId: currentDocument.id,
+        content: editorContent
+      })
+      
+      // Update local document state without affecting editorContent
+      setCurrentDocument(prev => prev ? { ...prev, content: editorContent, updatedAt: new Date().toISOString() } : null)
+      setDocuments(prev => prev.map(doc => 
+        doc.id === currentDocument.id ? { ...doc, content: editorContent, updatedAt: new Date().toISOString() } : doc
+      ))
+      
+      console.log('Document saved successfully')
+    } catch (error) {
+      console.error('Save failed:', error)
+    }
+  }, [currentDocument?.id, editorContent, documentAPI])
+
+  const handleCompile = useCallback(async () => {
+    if (isCompiling) {
+      console.log('Compilation already in progress, skipping...')
+      return
+    }
+    
+    setIsCompiling(true)
+    try {
+      console.log('Starting compilation...')
+      console.log('Editor content length:', editorContent.length)
+      
+      // Try direct compilation with current editor content (no need to save first)
+      console.log('Trying direct LaTeX compilation...')
+      const directResponse = await fetch('http://localhost:8083/api/documents/compile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ latexContent: editorContent })
+      })
+      
+      if (directResponse.ok) {
+        const result = await directResponse.json()
+        console.log('Direct compilation succeeded:', result)
+        console.log('Compiled content type:', typeof result.data)
+        console.log('Compiled content length:', result.data?.length)
+        console.log('First 200 chars of compiled content:', result.data?.substring(0, 200))
+        
+        // Ensure we have valid HTML content
+        if (result.data && typeof result.data === 'string' && result.data.length > 0) {
+          setCompiledContent(result.data)
+        } else {
+          console.error('Invalid compiled content received:', result.data)
+          setCompiledContent(`
+            <div style="padding: 20px; background: white; color: black;">
+              <h1>LaTeX Preview</h1>
+              <p style="color: orange;">Invalid compilation result received</p>
+              <p>Raw result: ${JSON.stringify(result)}</p>
+            </div>
+          `)
+        }
+        return
+      } else {
+        console.error('Direct compilation failed:', directResponse.status, directResponse.statusText)
+      }
+      
+      // Fallback: try document-specific compilation if we have a valid document
+      if (currentDocument?.id) {
+        try {
+          await handleSave()
+          console.log('Document saved successfully')
+          
+          const response = await documentAPI.compileDocument(currentDocument.id)
+          console.log('Document compilation response:', response)
+          setCompiledContent(response.data)
+          return
+        } catch (docError) {
+          console.error('Document compilation failed:', docError)
+        }
+      }
+      
+      throw new Error('Both direct and document compilation failed')
+      
+    } catch (error) {
+      console.error('All compilation methods failed:', error)
+      
+      // Fallback to basic preview
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      setCompiledContent(`
+        <div style="padding: 20px; background: white; color: black;">
+          <h1>LaTeX Preview</h1>
+          <p style="color: red;">Compilation failed: ${errorMessage}</p>
+          <p>Showing raw content:</p>
+          <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-size: 12px;">${editorContent}</pre>
+        </div>
+      `)
+    } finally {
+      setIsCompiling(false)
+    }
+  }, [editorContent, currentDocument?.id, documentAPI, handleSave, isCompiling])
+
+  // Auto-save functionality - DISABLED to prevent network spam
+  /*
+  useEffect(() => {
+    if (!currentDocument?.id || !isEditing) return
+    
+    const autoSaveTimer = setTimeout(() => {
+      if (editorContent !== currentDocument.content) {
+        handleSave()
+      }
+    }, 2000) // Auto-save after 2 seconds of inactivity
+
+    return () => clearTimeout(autoSaveTimer)
+  }, [editorContent, currentDocument?.content, currentDocument?.id, isEditing, handleSave])
+  */
+
+  // Compile when switching to preview tab
+  const handleTabChange = useCallback((value: string) => {
+    if (value === 'preview' && editorContent && !compiledContent) {
+      handleCompile()
+    }
+  }, [editorContent, compiledContent])
+
+  // Remove auto-compile completely to prevent infinite loops
+  // Only compile on manual actions (button click, tab switch)
+
+  const handleChatSend = () => {
+    if (chatInput.trim()) {
+      const newMessage = {
+        id: Date.now().toString(),
+        text: chatInput,
+        sender: 'user' as const
+      }
+      setChatMessages(prev => [...prev, newMessage])
+      
+      // Simulate AI response
+      setTimeout(() => {
+        const aiResponse = {
+          id: (Date.now() + 1).toString(),
+          text: "I can help you with LaTeX editing, citation management, and document structure. What would you like to work on?",
+          sender: 'ai' as const
+        }
+        setChatMessages(prev => [...prev, aiResponse])
+      }, 1000)
+      
+      setChatInput('')
+    }
+  }
+
+  const handleDownloadPDF = async () => {
+    if (!editorContent.trim()) {
+      alert('No content to download')
+      return
+    }
+
+    try {
+      const response = await fetch('http://localhost:8083/api/documents/generate-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          latexContent: editorContent,
+          filename: currentDocument?.title || 'document'
+        })
+      })
+
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${currentDocument?.title || 'document'}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      } else {
+        alert('Failed to generate PDF')
+      }
+    } catch (error) {
+      console.error('PDF generation failed:', error)
+      alert('Failed to generate PDF')
+    }
+  }
+
+  return (
+    <div className="h-screen flex flex-col bg-background">
+      {/* Top Navigation Bar */}
+      <div className="border-b border-border bg-card">
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-lg font-semibold">ScholarAI Research Editor</h1>
+            <Badge variant="secondary">{currentProject?.status}</Badge>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-hidden">
+        <ResizablePanelGroup direction="horizontal" className="h-full">
+          
+          {/* Left Sidebar - Project Explorer */}
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+            <div className="h-full flex flex-col bg-card border-r border-border">
+              <div className="p-3 border-b border-border">
+                <h3 className="font-medium text-sm mb-2">Projects</h3>
+                <div className="space-y-1">
+                  {projects.map((project) => (
+                    <div
+                      key={project.id}
+                      className={cn(
+                        "p-2 rounded-md cursor-pointer text-sm hover:bg-accent",
+                        currentProject?.id === project.id && "bg-accent"
+                      )}
+                      onClick={() => setCurrentProject(project)}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Folder className="h-4 w-4" />
+                        <span className="truncate">{project.title}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex-1 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-sm">Documents</h4>
+                  <Button variant="ghost" size="sm">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <ScrollArea className="h-full">
+                  <div className="space-y-1">
+                    {documents.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className={cn(
+                          "p-2 rounded-md cursor-pointer text-sm hover:bg-accent",
+                          currentDocument?.id === doc.id && "bg-accent"
+                        )}
+                        onClick={() => {
+                          // Only switch document if not currently editing
+                          if (!isEditing) {
+                            setCurrentDocument(doc)
+                            setEditorContent(doc.content)
+                          }
+                        }}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <FileText className="h-4 w-4" />
+                          <span className="truncate">{doc.title}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            </div>
+          </ResizablePanel>
+
+          <ResizableHandle />
+
+          {/* Center - Editor */}
+          <ResizablePanel defaultSize={50} minSize={30}>
+            <div className="h-full flex flex-col">
+              {/* Editor Toolbar */}
+              <div className="border-b border-border bg-card px-4 py-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium">
+                      {currentDocument?.title || 'Untitled'}
+                    </span>
+                    <Badge variant="outline" className="text-xs">
+                      {currentDocument?.documentType || 'LATEX'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleSave}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleCompile}
+                      disabled={isCompiling}
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      {isCompiling ? 'Compiling...' : 'Compile'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Editor Content */}
+              <div className="flex-1 flex">
+                <Tabs defaultValue="editor" className="flex-1 flex flex-col" onValueChange={handleTabChange}>
+                  <TabsList className="w-fit mx-4 mt-2">
+                    <TabsTrigger value="editor">Editor</TabsTrigger>
+                    <TabsTrigger value="preview">Preview</TabsTrigger>
+                    <TabsTrigger value="split">Split</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="editor" className="flex-1 m-0">
+                    <div className="h-full p-4">
+                      <textarea
+                        value={editorContent}
+                        onChange={(e) => {
+                          setEditorContent(e.target.value)
+                          setIsEditing(true)
+                        }}
+                        onBlur={() => setIsEditing(false)}
+                        className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                        placeholder="Start writing your LaTeX document..."
+                      />
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="preview" className="flex-1 m-0">
+                    <div className="h-full border border-border rounded-md m-4 bg-white flex flex-col">
+                      <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0">
+                        <h3 className="text-sm font-medium">Preview</h3>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDownloadPDF()}
+                          disabled={!compiledContent}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Download PDF
+                        </Button>
+                      </div>
+                      <ScrollArea className="flex-1">
+                        {compiledContent ? (
+                          <div 
+                            dangerouslySetInnerHTML={{ __html: compiledContent }} 
+                            className="p-4 max-w-none preview-content"
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full text-muted-foreground">
+                            <div className="text-center">
+                              <Eye className="h-8 w-8 mx-auto mb-2" />
+                              <p>Click "Compile" to see preview</p>
+                            </div>
+                          </div>
+                        )}
+                      </ScrollArea>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="split" className="flex-1 m-0">
+                    <div className="h-full flex gap-4 p-4">
+                      <div className="flex-1">
+                        <textarea
+                          value={editorContent}
+                          onChange={(e) => {
+                            setEditorContent(e.target.value)
+                            setIsEditing(true)
+                          }}
+                          onBlur={() => setIsEditing(false)}
+                          className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                          placeholder="Start writing your LaTeX document..."
+                        />
+                      </div>
+                      <div className="flex-1 border border-border rounded-md bg-white flex flex-col">
+                        <ScrollArea className="flex-1">
+                          {compiledContent ? (
+                            <div 
+                              dangerouslySetInnerHTML={{ __html: compiledContent }} 
+                              className="p-4 max-w-none preview-content"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full text-muted-foreground">
+                              <div className="text-center">
+                                <Eye className="h-8 w-8 mx-auto mb-2" />
+                                <p>Click "Compile" to see preview</p>
+                              </div>
+                            </div>
+                          )}
+                        </ScrollArea>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </div>
+          </ResizablePanel>
+
+          <ResizableHandle />
+
+          {/* Right Sidebar - AI Assistant */}
+          <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
+            <div className="h-full flex flex-col bg-card border-l border-border">
+              <div className="p-3 border-b border-border">
+                <div className="flex items-center space-x-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <h3 className="font-medium text-sm">AI Writing Assistant</h3>
+                </div>
+              </div>
+              
+              <ScrollArea className="flex-1 p-3">
+                <AIAssistancePanel 
+                  content={editorContent}
+                  onApplySuggestion={(suggestion) => {
+                    setEditorContent(prev => prev + '\n\n' + suggestion)
+                  }}
+                />
+              </ScrollArea>
+            </div>
+          </ResizablePanel>
+
+        </ResizablePanelGroup>
+      </div>
+    </div>
+  )
+}

@@ -1,0 +1,19 @@
+nohup: ignoring input
+
+> scholar-ai@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.2.4
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.56.1:3000
+
+ ✓ Starting...
+ ✓ Ready in 2.6s
+ ✓ Compiled /middleware in 314ms (101 modules)
+ ○ Compiling /editor ...
+ ✓ Compiled /editor in 3.2s (767 modules)
+NEXT_PUBLIC_GOOGLE_CLIENT_ID is not set in .env.local. Google Login will not work.
+ GET /editor 200 in 4054ms
+ ✓ Compiled in 861ms (367 modules)
+ ✓ Compiled in 333ms (367 modules)
+^C
