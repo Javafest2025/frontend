@@ -518,7 +518,7 @@ Your content goes here...
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="preview" className="flex-1 m-0 h-full">
+                  <TabsContent value="preview" className="flex-1 m-0" style={{ height: 'calc(100vh - 200px)' }}>
                     <div className="h-full border border-border rounded-md m-4 bg-white flex flex-col">
                       <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0">
                         <h3 className="text-sm font-medium">Preview</h3>
@@ -532,11 +532,12 @@ Your content goes here...
                           Download PDF
                         </Button>
                       </div>
-                      <div className="flex-1 overflow-hidden">
+                      <div className="flex-1 overflow-hidden" style={{ minHeight: '300px' }}>
                         {compiledContent ? (
                           <div 
                             dangerouslySetInnerHTML={{ __html: compiledContent }} 
-                            className="p-4 max-w-none preview-content overflow-y-auto h-full"
+                            className="p-4 max-w-none preview-content overflow-y-auto"
+                            style={{ height: '100%', maxHeight: 'calc(100vh - 300px)' }}
                           />
                         ) : (
                           <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -550,7 +551,7 @@ Your content goes here...
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="split" className="flex-1 m-0 h-full">
+                  <TabsContent value="split" className="flex-1 m-0" style={{ height: 'calc(100vh - 200px)' }}>
                     <div className="h-full flex gap-4 p-4">
                       <div className="flex-1">
                         <textarea
@@ -565,11 +566,12 @@ Your content goes here...
                         />
                       </div>
                       <div className="flex-1 border border-border rounded-md bg-white flex flex-col">
-                        <div className="flex-1 overflow-hidden">
+                        <div className="flex-1 overflow-hidden" style={{ minHeight: '300px' }}>
                           {compiledContent ? (
                             <div 
                               dangerouslySetInnerHTML={{ __html: compiledContent }} 
-                              className="p-4 max-w-none preview-content overflow-y-auto h-full"
+                              className="p-4 max-w-none preview-content overflow-y-auto"
+                              style={{ height: '100%', maxHeight: 'calc(100vh - 300px)' }}
                             />
                           ) : (
                             <div className="flex items-center justify-center h-full text-muted-foreground">
