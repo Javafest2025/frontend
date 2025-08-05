@@ -532,11 +532,11 @@ Your content goes here...
                           Download PDF
                         </Button>
                       </div>
-                      <ScrollArea className="flex-1">
+                      <div className="flex-1 overflow-hidden">
                         {compiledContent ? (
                           <div 
                             dangerouslySetInnerHTML={{ __html: compiledContent }} 
-                            className="p-4 max-w-none preview-content"
+                            className="p-4 max-w-none preview-content overflow-y-auto h-full"
                           />
                         ) : (
                           <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -546,7 +546,7 @@ Your content goes here...
                             </div>
                           </div>
                         )}
-                      </ScrollArea>
+                      </div>
                     </div>
                   </TabsContent>
                   
@@ -565,11 +565,11 @@ Your content goes here...
                         />
                       </div>
                       <div className="flex-1 border border-border rounded-md bg-white flex flex-col">
-                        <ScrollArea className="flex-1">
+                        <div className="flex-1 overflow-hidden">
                           {compiledContent ? (
                             <div 
                               dangerouslySetInnerHTML={{ __html: compiledContent }} 
-                              className="p-4 max-w-none preview-content"
+                              className="p-4 max-w-none preview-content overflow-y-auto h-full"
                             />
                           ) : (
                             <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -579,7 +579,7 @@ Your content goes here...
                               </div>
                             </div>
                           )}
-                        </ScrollArea>
+                        </div>
                       </div>
                     </div>
                   </TabsContent>

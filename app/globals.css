@@ -622,10 +622,36 @@
   .preview-content {
     @apply w-full;
     min-height: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   .preview-content * {
     @apply max-w-none;
+  }
+
+  /* Ensure proper scrolling for preview content */
+  .preview-content.overflow-y-auto {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground)) transparent;
+  }
+
+  .preview-content.overflow-y-auto::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .preview-content.overflow-y-auto::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+
+  .preview-content.overflow-y-auto::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground));
+    border-radius: 4px;
+  }
+
+  .preview-content.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--foreground));
   }
 
   /* Ensure scroll areas work properly */
