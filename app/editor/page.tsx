@@ -376,215 +376,205 @@ Your content goes here...
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Top Navigation Bar */}
-      <div className="border-b border-border bg-card">
-        <div className="flex items-center justify-between px-4 py-2">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-lg font-semibold">ScholarAI Research Editor</h1>
-            <Badge variant="secondary">{currentProject?.status}</Badge>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-          </div>
-        </div>
-      </div>
+             {/* Top Navigation Bar - Merged with Editor Toolbar */}
+       <div className="border-b border-border bg-card px-4 py-2">
+         <div className="flex items-center justify-between">
+           <div className="flex items-center space-x-4">
+             <h1 className="text-lg font-semibold">ScholarAI Research Editor</h1>
+             <Badge variant="secondary">{currentProject?.status}</Badge>
+             <span className="text-sm text-muted-foreground">|</span>
+             <span className="text-sm font-medium">
+               {currentDocument?.title || 'Untitled'}
+             </span>
+             <Badge variant="outline" className="text-xs">
+               {currentDocument?.documentType || 'LATEX'}
+             </Badge>
+           </div>
+           <div className="flex items-center space-x-2">
+             <Button 
+               variant="outline" 
+               size="sm"
+               onClick={handleSave}
+             >
+               <Save className="h-4 w-4 mr-2" />
+               Save
+             </Button>
+             <Button 
+               variant="outline" 
+               size="sm"
+               onClick={handleCompile}
+               disabled={isCompiling}
+             >
+               <Play className="h-4 w-4 mr-2" />
+               {isCompiling ? 'Compiling...' : 'Compile'}
+             </Button>
+             <Button variant="outline" size="sm">
+               <Settings className="h-4 w-4 mr-2" />
+               Settings
+             </Button>
+           </div>
+         </div>
+       </div>
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="h-full">
           
-          {/* Left Sidebar - Project Explorer */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-            <div className="h-full flex flex-col bg-card border-r border-border">
-              <div className="p-3 border-b border-border">
-                <h3 className="font-medium text-sm mb-2">Projects</h3>
-                <div className="space-y-1">
-                  {projects.map((project) => (
-                    <div
-                      key={project.id}
-                      className={cn(
-                        "p-2 rounded-md cursor-pointer text-sm hover:bg-accent",
-                        currentProject?.id === project.id && "bg-accent"
-                      )}
-                      onClick={() => setCurrentProject(project)}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <Folder className="h-4 w-4" />
-                        <span className="truncate">{project.title}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="flex-1 p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-sm">Documents</h4>
-                  <Button variant="ghost" size="sm">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                <ScrollArea className="h-full">
-                  <div className="space-y-1">
-                    {documents.map((doc) => (
-                      <div
-                        key={doc.id}
-                        className={cn(
-                          "p-2 rounded-md cursor-pointer text-sm hover:bg-accent",
-                          currentDocument?.id === doc.id && "bg-accent"
-                        )}
-                        onClick={() => {
-                          // Only switch document if not currently editing
-                          if (!isEditing) {
-                            setCurrentDocument(doc)
-                            setEditorContent(doc.content)
-                          }
-                        }}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <FileText className="h-4 w-4" />
-                          <span className="truncate">{doc.title}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-            </div>
-          </ResizablePanel>
+                     {/* Left Sidebar - Project Explorer */}
+           <ResizablePanel defaultSize={18} minSize={15} maxSize={25}>
+             <div className="h-full flex flex-col bg-card border-r border-border">
+               <div className="p-2 border-b border-border">
+                 <h3 className="font-medium text-sm mb-1">Projects</h3>
+                 <div className="space-y-1">
+                   {projects.map((project) => (
+                     <div
+                       key={project.id}
+                       className={cn(
+                         "p-1.5 rounded-md cursor-pointer text-sm hover:bg-accent",
+                         currentProject?.id === project.id && "bg-accent"
+                       )}
+                       onClick={() => setCurrentProject(project)}
+                     >
+                       <div className="flex items-center space-x-2">
+                         <Folder className="h-4 w-4" />
+                         <span className="truncate">{project.title}</span>
+                       </div>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+               
+               <div className="flex-1 p-2">
+                 <div className="flex items-center justify-between mb-1">
+                   <h4 className="font-medium text-sm">Documents</h4>
+                   <Button variant="ghost" size="sm">
+                     <Plus className="h-4 w-4" />
+                   </Button>
+                 </div>
+                 <ScrollArea className="h-full">
+                   <div className="space-y-1">
+                     {documents.map((doc) => (
+                       <div
+                         key={doc.id}
+                         className={cn(
+                           "p-1.5 rounded-md cursor-pointer text-sm hover:bg-accent",
+                           currentDocument?.id === doc.id && "bg-accent"
+                         )}
+                         onClick={() => {
+                           // Only switch document if not currently editing
+                           if (!isEditing) {
+                             setCurrentDocument(doc)
+                             setEditorContent(doc.content)
+                           }
+                         }}
+                       >
+                         <div className="flex items-center space-x-2">
+                           <FileText className="h-4 w-4" />
+                           <span className="truncate">{doc.title}</span>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 </ScrollArea>
+               </div>
+             </div>
+           </ResizablePanel>
 
           <ResizableHandle />
 
-          {/* Center - Editor */}
-          <ResizablePanel defaultSize={50} minSize={30}>
-            <div className="h-full flex flex-col">
-              {/* Editor Toolbar */}
-              <div className="border-b border-border bg-card px-4 py-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium">
-                      {currentDocument?.title || 'Untitled'}
-                    </span>
-                    <Badge variant="outline" className="text-xs">
-                      {currentDocument?.documentType || 'LATEX'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleSave}
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      Save
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleCompile}
-                      disabled={isCompiling}
-                    >
-                      <Play className="h-4 w-4 mr-2" />
-                      {isCompiling ? 'Compiling...' : 'Compile'}
-                    </Button>
-                  </div>
-                </div>
-              </div>
+                     {/* Center - Editor */}
+           <ResizablePanel defaultSize={50} minSize={30}>
+             <div className="h-full flex flex-col">
 
-              {/* Editor Content */}
-              <div className="flex-1 flex">
-                <Tabs defaultValue="editor" className="flex-1 flex flex-col h-full" onValueChange={handleTabChange}>
-                  <TabsList className="w-fit mx-4 mt-2 flex-shrink-0">
-                    <TabsTrigger value="editor">Editor</TabsTrigger>
-                    <TabsTrigger value="preview">Preview</TabsTrigger>
-                    <TabsTrigger value="split">Split</TabsTrigger>
-                  </TabsList>
+                             {/* Editor Content */}
+               <div className="flex-1 flex">
+                 <Tabs defaultValue="editor" className="flex-1 flex flex-col" onValueChange={handleTabChange}>
+                   <TabsList className="w-fit mx-4 mt-1 flex-shrink-0">
+                     <TabsTrigger value="editor">Editor</TabsTrigger>
+                     <TabsTrigger value="preview">Preview</TabsTrigger>
+                     <TabsTrigger value="split">Split</TabsTrigger>
+                   </TabsList>
                   
-                  <TabsContent value="editor" className="flex-1 m-0">
-                    <div className="h-full p-4">
-                      <textarea
-                        value={editorContent}
-                        onChange={(e) => {
-                          setEditorContent(e.target.value)
-                          setIsEditing(true)
-                        }}
-                        onBlur={() => setIsEditing(false)}
-                        className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                        placeholder="Start writing your LaTeX document..."
-                      />
-                    </div>
-                  </TabsContent>
+                                     <TabsContent value="editor" className="flex-1 m-0">
+                     <div className="h-full p-2">
+                       <textarea
+                         value={editorContent}
+                         onChange={(e) => {
+                           setEditorContent(e.target.value)
+                           setIsEditing(true)
+                         }}
+                         onBlur={() => setIsEditing(false)}
+                         className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                         placeholder="Start writing your LaTeX document..."
+                       />
+                     </div>
+                   </TabsContent>
                   
-                  <TabsContent value="preview" className="flex-1 m-0" style={{ height: 'calc(100vh - 200px)' }}>
-                    <div className="h-full border border-border rounded-md m-4 bg-white flex flex-col">
-                      <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0">
-                        <h3 className="text-sm font-medium">Preview</h3>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleDownloadPDF()}
-                          disabled={!compiledContent}
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Download PDF
-                        </Button>
-                      </div>
-                      <div className="flex-1 overflow-hidden" style={{ minHeight: '300px' }}>
-                        {compiledContent ? (
-                          <div 
-                            dangerouslySetInnerHTML={{ __html: compiledContent }} 
-                            className="p-4 max-w-none preview-content overflow-y-auto"
-                            style={{ height: '100%', maxHeight: 'calc(100vh - 300px)' }}
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center h-full text-muted-foreground">
-                            <div className="text-center">
-                              <Eye className="h-8 w-8 mx-auto mb-2" />
-                              <p>Click "Compile" to see preview</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </TabsContent>
+                                     <TabsContent value="preview" className="flex-1 m-0">
+                     <div className="border border-border rounded-md m-2 bg-white" style={{ height: 'calc(100vh - 180px)' }}>
+                       <div className="flex items-center justify-between p-2 border-b border-border">
+                         <h3 className="text-sm font-medium">Preview</h3>
+                         <Button 
+                           variant="outline" 
+                           size="sm"
+                           onClick={() => handleDownloadPDF()}
+                           disabled={!compiledContent}
+                         >
+                           <FileText className="h-4 w-4 mr-2" />
+                           Download PDF
+                         </Button>
+                       </div>
+                       <div style={{ height: 'calc(100vh - 240px)', overflow: 'auto' }}>
+                         {compiledContent ? (
+                           <div 
+                             dangerouslySetInnerHTML={{ __html: compiledContent }} 
+                             className="p-4 max-w-none preview-content"
+                           />
+                         ) : (
+                           <div className="flex items-center justify-center h-full text-muted-foreground">
+                             <div className="text-center">
+                               <Eye className="h-8 w-8 mx-auto mb-2" />
+                               <p>Click "Compile" to see preview</p>
+                             </div>
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   </TabsContent>
                   
-                  <TabsContent value="split" className="flex-1 m-0" style={{ height: 'calc(100vh - 200px)' }}>
-                    <div className="h-full flex gap-4 p-4">
-                      <div className="flex-1">
-                        <textarea
-                          value={editorContent}
-                          onChange={(e) => {
-                            setEditorContent(e.target.value)
-                            setIsEditing(true)
-                          }}
-                          onBlur={() => setIsEditing(false)}
-                          className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                          placeholder="Start writing your LaTeX document..."
-                        />
-                      </div>
-                      <div className="flex-1 border border-border rounded-md bg-white flex flex-col">
-                        <div className="flex-1 overflow-hidden" style={{ minHeight: '300px' }}>
-                          {compiledContent ? (
-                            <div 
-                              dangerouslySetInnerHTML={{ __html: compiledContent }} 
-                              className="p-4 max-w-none preview-content overflow-y-auto"
-                              style={{ height: '100%', maxHeight: 'calc(100vh - 300px)' }}
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center h-full text-muted-foreground">
-                              <div className="text-center">
-                                <Eye className="h-8 w-8 mx-auto mb-2" />
-                                <p>Click "Compile" to see preview</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
+                                     <TabsContent value="split" className="flex-1 m-0">
+                     <div className="flex gap-2 p-2" style={{ height: 'calc(100vh - 180px)' }}>
+                       <div className="flex-1">
+                         <textarea
+                           value={editorContent}
+                           onChange={(e) => {
+                             setEditorContent(e.target.value)
+                             setIsEditing(true)
+                           }}
+                           onBlur={() => setIsEditing(false)}
+                           className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                           placeholder="Start writing your LaTeX document..."
+                         />
+                       </div>
+                       <div className="flex-1 border border-border rounded-md bg-white">
+                         <div style={{ height: 'calc(100vh - 240px)', overflow: 'auto' }}>
+                           {compiledContent ? (
+                             <div 
+                               dangerouslySetInnerHTML={{ __html: compiledContent }} 
+                               className="p-4 max-w-none preview-content"
+                             />
+                           ) : (
+                             <div className="flex items-center justify-center h-full text-muted-foreground">
+                               <div className="text-center">
+                                 <Eye className="h-8 w-8 mx-auto mb-2" />
+                                 <p>Click "Compile" to see preview</p>
+                               </div>
+                             </div>
+                           )}
+                         </div>
+                       </div>
+                     </div>
+                   </TabsContent>
                 </Tabs>
               </div>
             </div>
@@ -592,26 +582,26 @@ Your content goes here...
 
           <ResizableHandle />
 
-          {/* Right Sidebar - AI Assistant */}
-          <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
-            <div className="h-full flex flex-col bg-card border-l border-border">
-              <div className="p-3 border-b border-border">
-                <div className="flex items-center space-x-2">
-                  <MessageSquare className="h-4 w-4" />
-                  <h3 className="font-medium text-sm">AI Writing Assistant</h3>
-                </div>
-              </div>
-              
-              <ScrollArea className="flex-1 p-3">
-                <AIAssistancePanel 
-                  content={editorContent}
-                  onApplySuggestion={(suggestion) => {
-                    setEditorContent(prev => prev + '\n\n' + suggestion)
-                  }}
-                />
-              </ScrollArea>
-            </div>
-          </ResizablePanel>
+                     {/* Right Sidebar - AI Assistant */}
+           <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
+             <div className="h-full flex flex-col bg-card border-l border-border">
+               <div className="p-2 border-b border-border">
+                 <div className="flex items-center space-x-2">
+                   <MessageSquare className="h-4 w-4" />
+                   <h3 className="font-medium text-sm">AI Writing Assistant</h3>
+                 </div>
+               </div>
+               
+               <ScrollArea className="flex-1 p-2">
+                 <AIAssistancePanel 
+                   content={editorContent}
+                   onApplySuggestion={(suggestion) => {
+                     setEditorContent(prev => prev + '\n\n' + suggestion)
+                   }}
+                 />
+               </ScrollArea>
+             </div>
+           </ResizablePanel>
 
         </ResizablePanelGroup>
       </div>
