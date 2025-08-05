@@ -658,4 +658,14 @@
   [data-radix-scroll-area-viewport] {
     @apply h-full w-full;
   }
+
+  /* Debug styles for preview content */
+  .preview-content.overflow-y-auto {
+    min-height: 200px; /* Ensure minimum height for testing */
+  }
+
+  /* Force height on TabsContent */
+  [data-state="active"][data-orientation="horizontal"] {
+    height: 100% !important;
+  }
 }

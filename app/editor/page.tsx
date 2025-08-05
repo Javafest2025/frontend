@@ -496,8 +496,8 @@ Your content goes here...
 
               {/* Editor Content */}
               <div className="flex-1 flex">
-                <Tabs defaultValue="editor" className="flex-1 flex flex-col" onValueChange={handleTabChange}>
-                  <TabsList className="w-fit mx-4 mt-2">
+                <Tabs defaultValue="editor" className="flex-1 flex flex-col h-full" onValueChange={handleTabChange}>
+                  <TabsList className="w-fit mx-4 mt-2 flex-shrink-0">
                     <TabsTrigger value="editor">Editor</TabsTrigger>
                     <TabsTrigger value="preview">Preview</TabsTrigger>
                     <TabsTrigger value="split">Split</TabsTrigger>
@@ -518,7 +518,7 @@ Your content goes here...
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="preview" className="flex-1 m-0">
+                  <TabsContent value="preview" className="flex-1 m-0 h-full">
                     <div className="h-full border border-border rounded-md m-4 bg-white flex flex-col">
                       <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0">
                         <h3 className="text-sm font-medium">Preview</h3>
@@ -550,7 +550,7 @@ Your content goes here...
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="split" className="flex-1 m-0">
+                  <TabsContent value="split" className="flex-1 m-0 h-full">
                     <div className="h-full flex gap-4 p-4">
                       <div className="flex-1">
                         <textarea
