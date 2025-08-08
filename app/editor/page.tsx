@@ -19,11 +19,13 @@ import {
   Play,
   Folder,
   Search,
-  MoreHorizontal
+  MoreHorizontal,
+  Lightbulb
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useProjects, useDocuments } from "@/lib/api/ongoing-research"
 import { AIAssistancePanel } from "@/components/AIAssistancePanel"
+import { AIChatPanel } from "@/components/AIChatPanel"
 
 interface Project {
   id: string
@@ -53,6 +55,11 @@ export default function OngoingResearchEditor() {
   const [chatInput, setChatInput] = useState('')
   const [isEditing, setIsEditing] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
+  const [selectedText, setSelectedText] = useState<string>('')
+  const [cursorPosition, setCursorPosition] = useState<number | undefined>(undefined)
+
+  const [showAddToChat, setShowAddToChat] = useState(false)
+  const [tempSelectedText, setTempSelectedText] = useState<string>('')
 
   // Get API functions from hooks
   const projectAPI = useProjects()
@@ -221,7 +228,7 @@ Your content goes here...
       
       // Try direct compilation with current editor content (no need to save first)
       console.log('Trying direct LaTeX compilation...')
-      const directResponse = await fetch('http://localhost:8083/api/documents/compile', {
+      const directResponse = await fetch('http://localhost:8082/api/documents/compile', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -311,6 +318,8 @@ Your content goes here...
     }
   }, [editorContent, compiledContent])
 
+
+
   // Remove auto-compile completely to prevent infinite loops
   // Only compile on manual actions (button click, tab switch)
 
@@ -337,6 +346,52 @@ Your content goes here...
     }
   }
 
+  const handleTextSelection = () => {
+    const selection = window.getSelection()
+    if (selection && selection.toString().trim()) {
+      const selectedText = selection.toString().trim()
+      setTempSelectedText(selectedText)
+      setShowAddToChat(true)
+    } else {
+      setTempSelectedText('')
+      setShowAddToChat(false)
+    }
+  }
+
+  const handleAddToChat = () => {
+    setSelectedText(tempSelectedText)
+    setShowAddToChat(false)
+    // Switch to chat tab in the right sidebar
+    setTimeout(() => {
+      const rightSidebarTabs = document.querySelector('[data-radix-tabs-trigger][value="chat"]') as HTMLElement
+      if (rightSidebarTabs) {
+        rightSidebarTabs.click()
+      }
+    }, 100)
+  }
+
+  const handleCancelSelection = () => {
+    setTempSelectedText('')
+    setShowAddToChat(false)
+  }
+
+  const handleCursorPosition = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement
+    setCursorPosition(target.selectionStart)
+  }
+
+  const handleApplySuggestion = (suggestion: string, position?: number) => {
+    if (position !== undefined) {
+      // Insert at specific cursor position
+      const before = editorContent.substring(0, position)
+      const after = editorContent.substring(position)
+      setEditorContent(before + suggestion + after)
+    } else {
+      // Append to end
+      setEditorContent(prev => prev + '\n\n' + suggestion)
+    }
+  }
+
   const handleDownloadPDF = async () => {
     if (!editorContent.trim()) {
       alert('No content to download')
@@ -344,7 +399,7 @@ Your content goes here...
     }
 
     try {
-      const response = await fetch('http://localhost:8083/api/documents/generate-pdf', {
+      const response = await fetch('http://localhost:8082/api/documents/generate-pdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -497,16 +552,39 @@ Your content goes here...
                   
                                      <TabsContent value="editor" className="flex-1 m-0">
                      <div className="h-full p-2">
-                       <textarea
-                         value={editorContent}
-                         onChange={(e) => {
-                           setEditorContent(e.target.value)
-                           setIsEditing(true)
-                         }}
-                         onBlur={() => setIsEditing(false)}
-                         className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                         placeholder="Start writing your LaTeX document..."
-                       />
+                       <div className="relative w-full h-full">
+                         <textarea
+                           value={editorContent}
+                           onChange={(e) => {
+                             setEditorContent(e.target.value)
+                             setIsEditing(true)
+                           }}
+                           onBlur={() => setIsEditing(false)}
+                           onSelect={handleTextSelection}
+                           onMouseUp={handleTextSelection}
+                           onKeyUp={handleTextSelection}
+                           onClick={handleCursorPosition}
+                           onKeyDown={handleCursorPosition}
+                           className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                           placeholder="Start writing your LaTeX document..."
+                         />
+                         {showAddToChat && (
+                           <div className="absolute top-2 right-2 flex space-x-2">
+                             <button
+                               onClick={handleAddToChat}
+                               className="px-3 py-1 bg-primary text-primary-foreground text-xs rounded-md hover:bg-primary/90 transition-colors"
+                             >
+                               Add to Chat
+                             </button>
+                             <button
+                               onClick={handleCancelSelection}
+                               className="px-3 py-1 bg-muted text-muted-foreground text-xs rounded-md hover:bg-muted/80 transition-colors"
+                             >
+                               Cancel
+                             </button>
+                           </div>
+                         )}
+                       </div>
                      </div>
                    </TabsContent>
                   
@@ -544,17 +622,38 @@ Your content goes here...
                   
                                      <TabsContent value="split" className="flex-1 m-0">
                      <div className="flex gap-2 p-2" style={{ height: 'calc(100vh - 180px)' }}>
-                       <div className="flex-1">
-                         <textarea
-                           value={editorContent}
-                           onChange={(e) => {
-                             setEditorContent(e.target.value)
-                             setIsEditing(true)
-                           }}
-                           onBlur={() => setIsEditing(false)}
-                           className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                           placeholder="Start writing your LaTeX document..."
-                         />
+                       <div className="flex-1 relative">
+                                                <textarea
+                         value={editorContent}
+                         onChange={(e) => {
+                           setEditorContent(e.target.value)
+                           setIsEditing(true)
+                         }}
+                         onBlur={() => setIsEditing(false)}
+                         onSelect={handleTextSelection}
+                         onMouseUp={handleTextSelection}
+                         onKeyUp={handleTextSelection}
+                         onClick={handleCursorPosition}
+                         onKeyDown={handleCursorPosition}
+                         className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                         placeholder="Start writing your LaTeX document..."
+                       />
+                         {showAddToChat && (
+                           <div className="absolute top-2 right-2 flex space-x-2">
+                             <button
+                               onClick={handleAddToChat}
+                               className="px-3 py-1 bg-primary text-primary-foreground text-xs rounded-md hover:bg-primary/90 transition-colors"
+                             >
+                               Add to Chat
+                             </button>
+                             <button
+                               onClick={handleCancelSelection}
+                               className="px-3 py-1 bg-muted text-muted-foreground text-xs rounded-md hover:bg-muted/80 transition-colors"
+                             >
+                               Cancel
+                             </button>
+                           </div>
+                         )}
                        </div>
                        <div className="flex-1 border border-border rounded-md bg-white">
                          <div style={{ height: 'calc(100vh - 240px)', overflow: 'auto' }}>
@@ -575,6 +674,8 @@ Your content goes here...
                        </div>
                      </div>
                    </TabsContent>
+                  
+
                 </Tabs>
               </div>
             </div>
@@ -582,24 +683,41 @@ Your content goes here...
 
           <ResizableHandle />
 
-                     {/* Right Sidebar - AI Assistant */}
+                     {/* Right Sidebar - AI Tools */}
            <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
              <div className="h-full flex flex-col bg-card border-l border-border">
-               <div className="p-2 border-b border-border">
-                 <div className="flex items-center space-x-2">
-                   <MessageSquare className="h-4 w-4" />
-                   <h3 className="font-medium text-sm">AI Writing Assistant</h3>
-                 </div>
-               </div>
-               
-               <ScrollArea className="flex-1 p-2">
-                 <AIAssistancePanel 
-                   content={editorContent}
-                   onApplySuggestion={(suggestion) => {
-                     setEditorContent(prev => prev + '\n\n' + suggestion)
-                   }}
-                 />
-               </ScrollArea>
+               <Tabs defaultValue="chat" className="h-full flex flex-col">
+                 <TabsList className="w-full rounded-none border-b">
+                   <TabsTrigger value="chat" className="flex-1">💬 AI Chat</TabsTrigger>
+                   <TabsTrigger value="tools" className="flex-1">🛠️ AI Tools</TabsTrigger>
+                 </TabsList>
+                 
+                 <TabsContent value="chat" className="flex-1 m-0 p-0 h-full">
+                   <AIChatPanel
+                     content={editorContent}
+                     selectedText={selectedText}
+                     cursorPosition={cursorPosition}
+                     onApplySuggestion={handleApplySuggestion}
+                   />
+                 </TabsContent>
+                 
+                 <TabsContent value="tools" className="flex-1 m-0">
+                   <div className="p-2">
+                     <div className="flex items-center space-x-2 mb-2">
+                       <Lightbulb className="h-4 w-4" />
+                       <h3 className="font-medium text-sm">AI Writing Tools</h3>
+                     </div>
+                     <ScrollArea className="h-full">
+                       <AIAssistancePanel 
+                         content={editorContent}
+                         onApplySuggestion={(suggestion) => {
+                           setEditorContent(prev => prev + '\n\n' + suggestion)
+                         }}
+                       />
+                     </ScrollArea>
+                   </div>
+                 </TabsContent>
+               </Tabs>
              </div>
            </ResizablePanel>
 

@@ -1,5 +1,5 @@
 // API service for ongoing research service
-const API_BASE_URL = process.env.NEXT_PUBLIC_ONGOING_RESEARCH_API_URL || 'http://localhost:8083/api'
+const API_BASE_URL = process.env.NEXT_PUBLIC_ONGOING_RESEARCH_API_URL || 'http://localhost:8082/api'
 
 export interface Project {
   id: string
@@ -70,6 +70,12 @@ export interface AISuggestionsRequest {
 export interface AIComplianceRequest {
   content: string
   venue?: string
+}
+
+export interface AIChatRequest {
+  selectedText?: string
+  userRequest: string
+  fullDocument?: string
 }
 
 export interface APIResponse<T> {
@@ -202,6 +208,13 @@ class OngoingResearchAPI {
       body: JSON.stringify(request),
     })
   }
+
+  async processChatRequest(request: AIChatRequest): Promise<APIResponse<string>> {
+    return this.fetchAPI<string>('/ai-assistance/chat', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+  }
 }
 
 export const ongoingResearchAPI = new OngoingResearchAPI()
@@ -234,5 +247,6 @@ export const useAIAssistance = () => {
     checkCompliance: ongoingResearchAPI.checkCompliance.bind(ongoingResearchAPI),
     validateCitations: ongoingResearchAPI.validateCitations.bind(ongoingResearchAPI),
     generateCorrections: ongoingResearchAPI.generateCorrections.bind(ongoingResearchAPI),
+    processChatRequest: ongoingResearchAPI.processChatRequest.bind(ongoingResearchAPI),
   }
 }
