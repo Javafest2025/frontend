@@ -68,6 +68,9 @@ export function ForgotPasswordForm() {
         if (!code) {
             newErrors.code = "Reset code is required"
             valid = false
+        } else if (code.length !== 6) {
+            newErrors.code = "Please enter the complete 6-digit code"
+            valid = false
         }
         if (password.length < 8) {
             newErrors.password = "Password must be at least 8 characters"
@@ -203,18 +206,6 @@ export function ForgotPasswordForm() {
                                             value={code}
                                             onChange={setCode}
                                             maxLength={6}
-                                            placeholder=""
-                                            render={({ slots }) => (
-                                                <InputOTPGroup>
-                                                    {slots.map((slot, index) => (
-                                                        <InputOTPSlot
-                                                            key={index}
-                                                            index={index}
-                                                            {...slot}
-                                                        />
-                                                    ))}
-                                                </InputOTPGroup>
-                                            )}
                                         />
                                     </div>
                                     {errors.code && (
@@ -259,7 +250,7 @@ export function ForgotPasswordForm() {
                                 {errors.form && <p className="text-red-400 text-sm mt-1">{errors.form}</p>}
                                 <button
                                     type="submit"
-                                    disabled={isLoading}
+                                    disabled={isLoading || code.length !== 6 || password.length < 8 || password !== confirmPassword}
                                     className="w-full h-[60px] px-4 rounded-2xl font-['Segoe_UI'] font-semibold text-lg text-white shadow-lg shadow-primary/25 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 border border-primary/40 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center mt-6"
                                 >
                                     {isLoading ? "Resetting..." : "Reset Password"}
