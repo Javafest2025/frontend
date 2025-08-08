@@ -104,7 +104,7 @@ export function Footer() {
     }
 
     return (
-        <footer className="relative overflow-hidden bg-gradient-to-b from-black/30 to-black border-t border-primary/30" ref={ref}>
+        <footer className="relative overflow-hidden bg-gradient-to-b from-muted/30 to-background border-t border-primary/30" ref={ref}>
             {/* Background Pattern */}
             <div className="absolute inset-0 opacity-5">
                 <div className="absolute inset-0 bg-grid-pattern" />
@@ -118,7 +118,7 @@ export function Footer() {
                     transition={{ duration: 0.8 }}
                     className="py-16"
                 >
-                    <Card className="max-w-4xl mx-auto border-primary/30 bg-gradient-to-br from-black/20 to-black/10 overflow-hidden backdrop-blur-md">
+                    <Card className="max-w-4xl mx-auto border-primary/30 bg-gradient-to-br from-background/20 to-muted/10 overflow-hidden backdrop-blur-md">
                         <CardContent className="p-8 lg:p-12">
                             <div className="text-center">
                                 <motion.div
@@ -132,11 +132,11 @@ export function Footer() {
                                     </div>
                                 </motion.div>
 
-                                <h3 className="text-2xl lg:text-3xl font-bold text-white mb-4">
+                                <h3 className="text-2xl lg:text-3xl font-bold text-foreground mb-4">
                                     Stay Updated with Research Insights
                                 </h3>
 
-                                <p className="text-white/80 mb-8 max-w-2xl mx-auto leading-relaxed">
+                                <p className="text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
                                     Get the latest updates on AI research tools, new integrations, and exclusive
                                     insights from the academic community delivered to your inbox.
                                 </p>
@@ -169,7 +169,7 @@ export function Footer() {
                                             )}
                                         </Button>
                                     </div>
-                                    <p className="text-xs text-white/60 mt-3">
+                                    <p className="text-xs text-muted-foreground mt-3">
                                         No spam, unsubscribe at any time. We respect your privacy.
                                     </p>
                                 </form>
@@ -208,13 +208,13 @@ export function Footer() {
                                     </span>
                                 </div>
 
-                                <p className="text-white/70 leading-relaxed">
+                                <p className="text-muted-foreground leading-relaxed">
                                     Accelerating research with AI-powered tools that help academics discover,
                                     analyze, and synthesize knowledge faster than ever before.
                                 </p>
 
                                 {/* Contact Info */}
-                                <div className="space-y-3 text-sm text-white/70">
+                                <div className="space-y-3 text-sm text-muted-foreground">
                                     <div className="flex items-center space-x-3">
                                         <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
                                         <span>ECE Building, BUET</span>
@@ -241,7 +241,7 @@ export function Footer() {
                                                 animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
                                                 transition={{ duration: 0.4, delay: index * 0.1 + 0.8 }}
                                                 whileHover={{ scale: 1.1 }}
-                                                className={`p-3 rounded-xl bg-black/20 border border-primary/30 ${social.color} ${social.bgColor} transition-all duration-300 hover:border-primary/50 group backdrop-blur-md`}
+                                                className={`p-3 rounded-xl bg-background/20 border border-primary/30 ${social.color} ${social.bgColor} transition-all duration-300 hover:border-primary/50 group backdrop-blur-md`}
                                                 aria-label={social.label}
                                             >
                                                 <Icon className="h-5 w-5" />
@@ -261,7 +261,7 @@ export function Footer() {
                                 transition={{ duration: 0.6, delay: categoryIndex * 0.1 + 0.8 }}
                                 className="space-y-4"
                             >
-                                <h4 className="text-sm font-semibold uppercase tracking-wider text-white">
+                                <h4 className="text-sm font-semibold uppercase tracking-wider text-foreground">
                                     {category.charAt(0).toUpperCase() + category.slice(1)}
                                 </h4>
                                 <ul className="space-y-3">
@@ -274,7 +274,7 @@ export function Footer() {
                                         >
                                             <Link
                                                 href={link.href}
-                                                className="text-sm text-white/70 hover:text-primary transition-colors duration-200 flex items-center group"
+                                                className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200 flex items-center group"
                                             >
                                                 {link.label}
                                                 <ArrowRight className="ml-1 h-3 w-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
@@ -295,7 +295,7 @@ export function Footer() {
                     className="border-t border-border/50 py-8"
                 >
                     <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
-                        <div className="flex items-center space-x-6 text-sm text-white/60">
+                        <div className="flex items-center space-x-6 text-sm text-muted-foreground">
                             <span>© 2024 ScholarAI. All rights reserved.</span>
                             <span className="hidden md:block">•</span>
                             <span className="hidden md:block">Accelerating research with AI</span>

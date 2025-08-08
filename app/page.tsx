@@ -10,7 +10,7 @@ import VideoBackground from "@/components/background/VideoBackground"
 export default function Home() {
   return (
     <VideoBackground>
-      <div className="min-h-screen bg-black">
+      <div className="min-h-screen bg-background">
         <Navigation />
         <main>
           <HeroSection />

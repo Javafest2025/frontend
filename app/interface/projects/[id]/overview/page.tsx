@@ -33,7 +33,7 @@ import {
 } from "lucide-react"
 import { projectsApi } from "@/lib/api/projects"
 import { getProjectLibraryStats } from "@/lib/api/library"
-import { accountApi } from "@/lib/api/account"
+import { accountApi } from "@/lib/api/user-service"
 import { Project } from "@/types/project"
 import { UserAccount } from "@/types/account"
 

@@ -1,5 +1,5 @@
 import { getApiUrl } from "@/lib/config/api-config"
-import { authenticatedFetch } from "./auth"
+import { authenticatedFetch } from "./user-service"
 import { Notification, NotificationFilters, NotificationSummary, NotificationSettings } from "@/types/notification"
 
 export const notificationsApi = {
@@ -7,7 +7,7 @@ export const notificationsApi = {
   getNotifications: async (filters?: NotificationFilters): Promise<{ notifications: Notification[], summary: NotificationSummary }> => {
     try {
       const queryParams = new URLSearchParams()
-      
+
       if (filters) {
         Object.entries(filters).forEach(([key, value]) => {
           if (value !== undefined) {
@@ -23,11 +23,11 @@ export const notificationsApi = {
 
       const url = `${getApiUrl("/api/v1/notifications")}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
       const response = await authenticatedFetch(url)
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch notifications: ${response.statusText}`)
       }
-      
+
       const data = await response.json()
       return {
         notifications: data.data.notifications || [],
@@ -51,18 +51,18 @@ export const notificationsApi = {
   },
 
   // Mark notification as read
-  markAsRead: async (notificationId: string): Promise<{success: boolean, message?: string}> => {
+  markAsRead: async (notificationId: string): Promise<{ success: boolean, message?: string }> => {
     try {
       const response = await authenticatedFetch(getApiUrl(`/api/v1/notifications/${notificationId}/read`), {
         method: "PATCH"
       })
-      
+
       const data = await response.json()
-      
+
       if (!response.ok) {
         throw new Error(data.message || "Failed to mark notification as read")
       }
-      
+
       return { success: true, message: data.message }
     } catch (error) {
       console.error("Mark as read error:", error)
@@ -74,19 +74,19 @@ export const notificationsApi = {
   },
 
   // Mark multiple notifications as read
-  markMultipleAsRead: async (notificationIds: string[]): Promise<{success: boolean, message?: string}> => {
+  markMultipleAsRead: async (notificationIds: string[]): Promise<{ success: boolean, message?: string }> => {
     try {
       const response = await authenticatedFetch(getApiUrl("/api/v1/notifications/bulk-read"), {
         method: "PATCH",
         body: JSON.stringify({ notification_ids: notificationIds })
       })
-      
+
       const data = await response.json()
-      
+
       if (!response.ok) {
         throw new Error(data.message || "Failed to mark notifications as read")
       }
-      
+
       return { success: true, message: data.message }
     } catch (error) {
       console.error("Bulk mark as read error:", error)
@@ -98,18 +98,18 @@ export const notificationsApi = {
   },
 
   // Delete notification
-  deleteNotification: async (notificationId: string): Promise<{success: boolean, message?: string}> => {
+  deleteNotification: async (notificationId: string): Promise<{ success: boolean, message?: string }> => {
     try {
       const response = await authenticatedFetch(getApiUrl(`/api/v1/notifications/${notificationId}`), {
         method: "DELETE"
       })
-      
+
       const data = await response.json()
-      
+
       if (!response.ok) {
         throw new Error(data.message || "Failed to delete notification")
       }
-      
+
       return { success: true, message: data.message }
     } catch (error) {
       console.error("Delete notification error:", error)
@@ -124,11 +124,11 @@ export const notificationsApi = {
   getSettings: async (): Promise<NotificationSettings | null> => {
     try {
       const response = await authenticatedFetch(getApiUrl("/api/v1/notifications/settings"))
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch notification settings: ${response.statusText}`)
       }
-      
+
       const data = await response.json()
       return data.data
     } catch (error) {
@@ -138,19 +138,19 @@ export const notificationsApi = {
   },
 
   // Update notification settings
-  updateSettings: async (settings: Partial<NotificationSettings>): Promise<{success: boolean, data?: NotificationSettings, message?: string}> => {
+  updateSettings: async (settings: Partial<NotificationSettings>): Promise<{ success: boolean, data?: NotificationSettings, message?: string }> => {
     try {
       const response = await authenticatedFetch(getApiUrl("/api/v1/notifications/settings"), {
         method: "PUT",
         body: JSON.stringify(settings)
       })
-      
+
       const data = await response.json()
-      
+
       if (!response.ok) {
         throw new Error(data.message || "Failed to update notification settings")
       }
-      
+
       return {
         success: true,
         data: data.data,

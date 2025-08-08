@@ -1,4 +1,4 @@
-import { getApiUrl } from "@/lib/config/api-config";
+import { getMicroserviceUrl } from "@/lib/config/api-config";
 
 // Authentication utility functions
 export const getAuthToken = (): string | null => {
@@ -38,7 +38,7 @@ export const refreshAccessToken = async (): Promise<string | null> => {
             return null;
         }
 
-        const response = await fetch(getApiUrl("/api/v1/auth/refresh"), {
+        const response = await fetch(getMicroserviceUrl("user-service", "/api/v1/auth/refresh"), {
             method: "POST",
             credentials: "include", // This sends the HttpOnly refresh token cookie
             headers: {
@@ -113,13 +113,41 @@ export const login = async (formData: {
     email: string;
     password: string;
     rememberMe: boolean;
-}) => {
+}): Promise<{ success: boolean; message: string; token?: string; user?: any; requiresEmailVerification?: boolean; email?: string }> => {
     try {
         if (!formData.email || !formData.password) {
             throw new Error("Email and password are required");
         }
 
-        const response = await fetch(getApiUrl("/api/v1/auth/login"), {
+        // First, check if the user's email is confirmed
+        try {
+            console.log("Checking email status for:", formData.email.trim());
+            const emailStatusResponse = await checkEmailStatus(formData.email.trim());
+            console.log("Email status response:", emailStatusResponse);
+            const emailStatus = emailStatusResponse.data;
+            console.log("Email status data:", emailStatus);
+
+            if (emailStatus.userExists && !emailStatus.emailConfirmed) {
+                console.log("Email not confirmed, redirecting to verification");
+                // User exists but email is not confirmed
+                return {
+                    success: false,
+                    message: "Please verify your email before logging in.",
+                    requiresEmailVerification: true,
+                    email: formData.email.trim(),
+                };
+            } else {
+                console.log("Email status check passed, proceeding with login");
+            }
+        } catch (emailStatusError) {
+            console.warn("Failed to check email status:", emailStatusError);
+            // Continue with login attempt even if email status check fails
+        }
+
+        const loginUrl = getMicroserviceUrl("user-service", "/api/v1/auth/login");
+        console.log("Login URL:", loginUrl);
+
+        const response = await fetch(loginUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -129,7 +157,6 @@ export const login = async (formData: {
                 email: formData.email.trim(),
                 password: formData.password.trim(),
             }),
-            credentials: "include", // Include cookies for refresh token
         });
 
         // Check if response is JSON
@@ -157,14 +184,21 @@ export const login = async (formData: {
                 throw new Error(data.message || `Login failed (${response.status})`);
             }
         } else {
-            console.log("response:", data);
+            console.log("Login response:", data);
+            console.log("Response data structure:", {
+                hasData: !!data.data,
+                accessToken: !!data.data?.accessToken,
+                userId: !!data.data?.userId,
+                email: data.data?.email,
+                role: data.data?.role
+            });
         }
 
         const token = data.data?.accessToken;
         const user = {
             id: data.data?.userId,
             email: data.data?.email,
-            roles: data.data?.roles,
+            roles: data.data?.role ? [data.data.role] : [],
         };
 
         if (!token) {
@@ -179,8 +213,12 @@ export const login = async (formData: {
         };
     } catch (error) {
         console.error("Login API error:", error);
+        console.error("Error type:", typeof error);
+        console.error("Error message:", error instanceof Error ? error.message : "Unknown error");
+        console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
 
         if (error instanceof TypeError && error.message.includes("fetch")) {
+            console.error("Network fetch error detected");
             return {
                 success: false,
                 message:
@@ -201,9 +239,10 @@ export const signup = async (formData: {
     password: string;
     confirmPassword: string;
     agreeToTerms: boolean;
-}) => {
+}): Promise<{ success: boolean; message: string; requiresVerification?: boolean }> => {
     try {
-        const response = await fetch(getApiUrl("/api/v1/auth/register"), {
+        console.log("Making registration request to:", getMicroserviceUrl("user-service", "/api/v1/auth/register"));
+        const response = await fetch(getMicroserviceUrl("user-service", "/api/v1/auth/register"), {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -215,16 +254,24 @@ export const signup = async (formData: {
             }),
         });
 
+        console.log("Response received:", response);
+        console.log("Response status:", response.status);
+        console.log("Response ok:", response.ok);
+
         // Check if response is JSON
         const contentType = response.headers.get("content-type");
+        console.log("Response content-type:", contentType);
         const isJson = contentType && contentType.includes("application/json");
+        console.log("Is JSON response:", isJson);
 
         let data;
         if (isJson) {
             data = await response.json();
+            console.log("Parsed JSON data:", data);
         } else {
             // If it's not JSON, get the text content (likely an error page)
             const text = await response.text();
+            console.log("Response text:", text);
             data = { message: text || "Server error" };
         }
 
@@ -243,15 +290,24 @@ export const signup = async (formData: {
             }
         }
 
+        // Verification email is automatically sent by the backend during registration
+
         return {
             success: true,
-            message: data.message || "Registration successful",
+            message: data.message || "Registration successful. Please check your email for verification.",
+            requiresVerification: true,
         };
     } catch (error) {
         console.error("Signup API error:", error);
+        console.error("Error type:", typeof error);
+        if (error instanceof Error) {
+            console.error("Error message:", error.message);
+            console.error("Error stack:", error.stack);
+        }
 
         // Handle network errors
         if (error instanceof TypeError && error.message.includes("fetch")) {
+            console.error("Network error detected");
             return {
                 success: false,
                 message:
@@ -269,7 +325,7 @@ export const signup = async (formData: {
 
 export const logout = async () => {
     try {
-        await fetch(getApiUrl("/api/v1/auth/logout"), {
+        await fetch(getMicroserviceUrl("user-service", "/api/v1/auth/logout"), {
             method: "POST",
             credentials: "include", // include the refresh token cookie
         });
@@ -284,7 +340,7 @@ export const logout = async () => {
 };
 
 export const sendResetCode = async (email: string) => {
-    const res = await fetch(getApiUrl("/api/v1/auth/forgot-password"), {
+    const res = await fetch(getMicroserviceUrl("user-service", "/api/v1/auth/forgot-password"), {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ email }),
@@ -313,7 +369,7 @@ export const submitNewPassword = async (
     code: string,
     newPassword: string
 ) => {
-    const res = await fetch(getApiUrl("/api/v1/auth/reset-password"), {
+    const res = await fetch(getMicroserviceUrl("user-service", "/api/v1/auth/reset-password"), {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ email, code, newPassword }),
@@ -335,6 +391,92 @@ export const submitNewPassword = async (
 
         throw new Error(data.message || "Error resetting password");
     }
+};
+
+// Email verification functions for signup flow
+export const sendEmailVerificationCode = async (email: string) => {
+    const res = await fetch(getMicroserviceUrl("user-service", "/api/v1/auth/resend-email-verification"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+    });
+
+    if (!res.ok) {
+        // Check if response is JSON
+        const contentType = res.headers.get("content-type");
+        const isJson = contentType && contentType.includes("application/json");
+
+        let data;
+        if (isJson) {
+            data = await res.json();
+        } else {
+            // If it's not JSON, get the text content (likely an error page)
+            const text = await res.text();
+            data = { message: text || "Server error" };
+        }
+
+        throw new Error(data.message || "Error sending verification code");
+    }
+};
+
+export const verifyEmailWithCode = async (email: string, code: string) => {
+    const res = await fetch(getMicroserviceUrl("user-service", "/api/v1/auth/confirm-email"), {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json"
+        },
+        body: JSON.stringify({
+            email: email,
+            otp: code
+        }),
+    });
+
+    if (!res.ok) {
+        // Check if response is JSON
+        const contentType = res.headers.get("content-type");
+        const isJson = contentType && contentType.includes("application/json");
+
+        let data;
+        if (isJson) {
+            data = await res.json();
+        } else {
+            // If it's not JSON, get the text content (likely an error page)
+            const text = await res.text();
+            data = { message: text || "Server error" };
+        }
+
+        throw new Error(data.message || "Error verifying email");
+    }
+
+    return res.json();
+};
+
+// Check email confirmation status
+export const checkEmailStatus = async (email: string) => {
+    const res = await fetch(getMicroserviceUrl("user-service", `/api/v1/auth/check-email-status?email=${encodeURIComponent(email)}`), {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+    });
+
+    if (!res.ok) {
+        // Check if response is JSON
+        const contentType = res.headers.get("content-type");
+        const isJson = contentType && contentType.includes("application/json");
+
+        let data;
+        if (isJson) {
+            data = await res.json();
+        } else {
+            // If it's not JSON, get the text content (likely an error page)
+            const text = await res.text();
+            data = { message: text || "Server error" };
+        }
+
+        throw new Error(data.message || "Error checking email status");
+    }
+
+    return res.json();
 };
 
 export interface SocialLoginResponse {
@@ -367,7 +509,7 @@ export const handleGoogleSocialLogin = async (
 ): Promise<SocialLoginResponse> => {
     try {
         const response = await fetch(
-            getApiUrl("/api/v1/auth/social/google-login"),
+            getMicroserviceUrl("user-service", "/api/v1/auth/social/google-login"),
             {
                 method: "POST",
                 headers: {
@@ -427,12 +569,12 @@ export const handleGoogleSocialLogin = async (
 
         // Note: Refresh token is handled via HttpOnly cookies by the backend
         console.log("Google Social Login: Checking for refresh token cookie after login");
-        
+
         // Check if refresh token cookie was set
         const refreshTokenCookie = document.cookie
             .split('; ')
             .find(row => row.startsWith('refreshToken='));
-        
+
         if (refreshTokenCookie) {
             console.log("Google Social Login: Refresh token cookie found");
         } else {
@@ -474,7 +616,7 @@ export const handleGitHubAuthCallback = async (
 ): Promise<SocialLoginResponse> => {
     try {
         const response = await fetch(
-            getApiUrl("/api/v1/auth/social/github-login"),
+            getMicroserviceUrl("user-service", "/api/v1/auth/social/github-login"),
             {
                 method: "POST",
                 headers: {
@@ -534,12 +676,12 @@ export const handleGitHubAuthCallback = async (
 
         // Note: Refresh token is handled via HttpOnly cookies by the backend
         console.log("GitHub Social Login: Checking for refresh token cookie after login");
-        
+
         // Check if refresh token cookie was set
         const refreshTokenCookie = document.cookie
             .split('; ')
             .find(row => row.startsWith('refreshToken='));
-        
+
         if (refreshTokenCookie) {
             console.log("GitHub Social Login: Refresh token cookie found");
         } else {
@@ -574,4 +716,4 @@ export const handleGitHubAuthCallback = async (
                     : "Network error occurred during GitHub callback",
         };
     }
-}; 
+};

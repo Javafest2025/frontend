@@ -36,8 +36,7 @@ import {
   Languages,
   Clock
 } from "lucide-react"
-import { accountApi } from "@/lib/api/account"
-import { getUserData } from "@/lib/api/auth"
+import { accountApi, getUserData } from "@/lib/api/user-service"
 import { UserAccount, UserAccountForm } from "@/types/account"
 import { ACCOUNT_SECTIONS, SOCIAL_LINKS, PROFILE_IMAGE_CONSTRAINTS } from "@/constants/account"
 import { cn } from "@/lib/utils/cn"
@@ -281,7 +280,7 @@ export function AccountContent() {
     try {
       // Optimistically remove the image from UI
       setAccountData(prev => prev ? { ...prev, profileImageUrl: undefined } : null)
-      
+
       const result = await accountApi.deleteProfileImage()
 
       if (result.success) {

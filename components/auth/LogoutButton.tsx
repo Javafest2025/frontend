@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { logout } from '@/lib/api/auth'
+import { logout } from '@/lib/api/user-service'
 import { useAuth } from '@/hooks/useAuth'
 
 interface LogoutButtonProps {

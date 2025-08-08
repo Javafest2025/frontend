@@ -45,13 +45,13 @@ export function HeroSection() {
                             <span className="relative z-10 flex items-center justify-center mr-2">
                                 <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary drop-shadow-glow" />
                             </span>
-                            <span className="relative z-10 font-bold text-xs sm:text-base lg:text-lg tracking-wide bg-gradient-to-r from-primary via-white to-purple-400 bg-clip-text text-transparent drop-shadow-md">
+                            <span className="relative z-10 font-bold text-xs sm:text-base lg:text-lg tracking-wide bg-gradient-to-r from-primary via-foreground to-purple-400 bg-clip-text text-transparent drop-shadow-md">
                                 AI-Powered Research Assistant
                             </span>
                         </div>
                     </motion.div>
 
-                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-white sm:mb-4 lg:mb-6">
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-foreground sm:mb-4 lg:mb-6">
                         <span className="block">{text}</span>
                         <span className="bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent animate-gradient">
                             {text.length === fullText.length && <motion.span
@@ -72,7 +72,7 @@ export function HeroSection() {
                     >
                         <div className="relative">
                             <div className="absolute inset-0 rounded-2xl bg-background/40 backdrop-blur-md border border-primary/10 shadow-lg shadow-primary/5 -z-10" />
-                            <p className="font-sans font-medium text-base sm:text-lg md:text-xl lg:text-2xl leading-relaxed text-white drop-shadow-lg tracking-wide px-4 sm:px-6 md:px-10 py-3 sm:py-4 md:py-6">
+                            <p className="font-sans font-medium text-base sm:text-lg md:text-xl lg:text-2xl leading-relaxed text-foreground drop-shadow-lg tracking-wide px-4 sm:px-6 md:px-10 py-3 sm:py-4 md:py-6">
                                 Transform how you <span className="font-semibold text-primary/90">discover</span>, <span className="font-semibold text-purple-400/90">analyze</span>, and <span className="font-semibold text-blue-400/90">synthesize</span> academic papers with our intelligent AI agents. From automated paper retrieval to gap analysis and contextual Q&amp;A.
                             </p>
                         </div>
@@ -137,7 +137,7 @@ export function HeroSection() {
                                 <div className="relative z-10 text-2xl sm:text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-primary via-blue-400 to-purple-500 bg-clip-text text-transparent drop-shadow-lg tracking-tight mb-1">
                                     {metric.value}
                                 </div>
-                                <div className="relative z-10 text-sm sm:text-base lg:text-lg font-medium text-white/80 tracking-wide">
+                                <div className="relative z-10 text-sm sm:text-base lg:text-lg font-medium text-muted-foreground tracking-wide">
                                     {metric.label}
                                 </div>
                                 <span className="absolute inset-0 rounded-2xl bg-primary/10 blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-300 -z-10" />

@@ -297,6 +297,47 @@
     }
   }
 
+  @keyframes otp-pulse {
+
+    0%,
+    100% {
+      transform: scale(1);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+    }
+
+    50% {
+      transform: scale(1.05);
+      box-shadow: 0 8px 20px rgba(99, 102, 241, 0.2);
+    }
+  }
+
+  @keyframes otp-focus {
+    0% {
+      box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+    }
+
+    70% {
+      box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+    }
+
+    100% {
+      box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+    }
+  }
+
+  @keyframes caret-blink {
+
+    0%,
+    50% {
+      opacity: 1;
+    }
+
+    51%,
+    100% {
+      opacity: 0;
+    }
+  }
+
 
 
   /* Animation utility classes */
@@ -311,6 +352,20 @@
   .animate-glow {
     animation: glow 2s ease-in-out infinite;
   }
+
+  .animate-otp-pulse {
+    animation: otp-pulse 2s ease-in-out infinite;
+  }
+
+  .animate-otp-focus {
+    animation: otp-focus 1s ease-out;
+  }
+
+  .animate-caret-blink {
+    animation: caret-blink 1s infinite;
+  }
+
+
 
 
 

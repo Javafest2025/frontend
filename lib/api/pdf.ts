@@ -1,5 +1,5 @@
 import { getApiUrl } from "@/lib/config/api-config";
-import { authenticatedFetch } from "@/lib/api/auth";
+import { authenticatedFetch } from "@/lib/api/user-service";
 import { getAuthenticatedB2Url, isB2Url } from "@/lib/b2";
 
 /**

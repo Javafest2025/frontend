@@ -1,5 +1,5 @@
 import { getApiUrl } from "@/lib/config/api-config";
-import { authenticatedFetch } from "@/lib/api/auth";
+import { authenticatedFetch } from "@/lib/api/user-service";
 
 // GET /api/v1/papercall/all
 export async function getAllPaperCalls() {

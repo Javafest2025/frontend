@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { InputField } from "@/components/form/InputField"
 import { PasswordField } from "@/components/form/PasswordField"
-import { sendResetCode, submitNewPassword, clearAuthData } from "@/lib/api/auth"
+import { sendResetCode, submitNewPassword, clearAuthData } from "@/lib/api/user-service"
 import { useNavigationWithLoading } from "@/components/ui/RouteTransition"
 import { Brain } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
+import { CountdownTimer } from "@/components/ui/countdown-timer"
 
 
 
@@ -24,6 +26,8 @@ export function ForgotPasswordForm() {
     const [isLoading, setIsLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+    const [showTimer, setShowTimer] = useState(false)
+    const [isResending, setIsResending] = useState(false)
     const { navigateWithLoading } = useNavigationWithLoading()
     const { toast } = useToast()
 
@@ -44,6 +48,7 @@ export function ForgotPasswordForm() {
                 variant: "success",
             })
             setStep('resetPassword')
+            setShowTimer(true) // Start timer when code is sent
         } catch (error: any) {
             toast({
                 title: "Failed to Send Reset Code",
@@ -104,6 +109,36 @@ export function ForgotPasswordForm() {
         }
     }
 
+    const handleResendCode = async () => {
+        setIsResending(true)
+        try {
+            await sendResetCode(email)
+            toast({
+                title: "Reset Code Sent!",
+                description: "A new reset code has been sent to your email.",
+                variant: "success",
+            })
+            setShowTimer(true) // Reset timer when resending
+        } catch (error: any) {
+            toast({
+                title: "Failed to Send Reset Code",
+                description: error.message || "Failed to send reset code. Please try again.",
+                variant: "destructive",
+            })
+        } finally {
+            setIsResending(false)
+        }
+    }
+
+    const handleTimerExpire = () => {
+        setShowTimer(false)
+        toast({
+            title: "Code Expired",
+            description: "The reset code has expired. Please request a new one.",
+            variant: "destructive",
+        })
+    }
+
     return (
         <div className="w-full min-h-screen flex flex-col px-4 font-['Segoe_UI']">
             {/* Logo in top left corner */}
@@ -124,13 +159,13 @@ export function ForgotPasswordForm() {
 
             <div className="flex-1 flex items-center justify-center">
                 <div className="max-w-[450px] w-full">
-                    <h1 className="text-3xl font-extrabold text-center mb-8 text-white drop-shadow-lg">
+                    <h1 className="text-3xl font-extrabold text-center mb-8 text-foreground drop-shadow-lg">
                         {step === 'enterEmail' ? "Forgot Password" : "Reset Your Password"}
                     </h1>
                     <div className="rounded-2xl p-8 w-[450px] flex flex-col shadow-2xl backdrop-blur-2xl border border-primary/30 bg-gradient-to-br from-background/20 via-background/10 to-primary/5 hover:shadow-primary/30 transition-shadow duration-300">
                         {step === 'enterEmail' ? (
                             <form onSubmit={handleEmailSubmit} className="flex flex-col flex-grow">
-                                <p className="text-center text-white text-base mb-6">
+                                <p className="text-center text-foreground text-base mb-6">
                                     Enter your email and we'll send you a code to reset your password.
                                 </p>
                                 <InputField
@@ -155,20 +190,48 @@ export function ForgotPasswordForm() {
                             </form>
                         ) : (
                             <form onSubmit={handleResetSubmit} className="flex flex-col flex-grow space-y-4">
-                                <p className="text-center text-white text-base mb-2">
+                                <p className="text-center text-foreground text-base mb-2">
                                     A reset code was sent to <strong>{email}</strong>. Please enter it below along with your new password.
                                 </p>
-                                <InputField
-                                    id="code"
-                                    name="code"
-                                    label="Reset Code"
-                                    type="text"
-                                    placeholder="123456"
-                                    value={code}
-                                    onChange={(e) => setCode(e.target.value)}
-                                    error={errors.code}
-                                    required
-                                />
+
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-foreground mb-3 text-center">
+                                        Reset Code
+                                    </label>
+                                    <div className="flex justify-center">
+                                        <InputOTP
+                                            value={code}
+                                            onChange={setCode}
+                                            maxLength={6}
+                                            placeholder=""
+                                            render={({ slots }) => (
+                                                <InputOTPGroup>
+                                                    {slots.map((slot, index) => (
+                                                        <InputOTPSlot
+                                                            key={index}
+                                                            index={index}
+                                                            {...slot}
+                                                        />
+                                                    ))}
+                                                </InputOTPGroup>
+                                            )}
+                                        />
+                                    </div>
+                                    {errors.code && (
+                                        <p className="text-red-400 text-sm mt-2 text-center">{errors.code}</p>
+                                    )}
+                                </div>
+
+                                {showTimer && (
+                                    <div className="flex justify-center mb-4">
+                                        <CountdownTimer
+                                            initialMinutes={10}
+                                            onExpire={handleTimerExpire}
+                                            onResend={handleResendCode}
+                                            isResending={isResending}
+                                        />
+                                    </div>
+                                )}
                                 <PasswordField
                                     id="password"
                                     name="password"
@@ -204,11 +267,11 @@ export function ForgotPasswordForm() {
                             </form>
                         )}
                     </div>
-                    <p className="text-center text-white text-base mt-6 font-['Segoe_UI']">
+                    <p className="text-center text-foreground text-base mt-6 font-['Segoe_UI']">
                         Remember your password?{" "}
                         <Link
                             href="/login"
-                            className="relative inline-block text-white hover:text-primary transition-colors font-medium cursor-pointer underline decoration-white/50 hover:decoration-primary underline-offset-2"
+                            className="relative inline-block text-foreground hover:text-primary transition-colors font-medium cursor-pointer underline decoration-foreground/50 hover:decoration-primary underline-offset-2"
                         >
                             Log in
                         </Link>

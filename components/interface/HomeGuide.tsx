@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { getUserData } from "@/lib/api/auth"
+import { getUserData } from "@/lib/api/user-service"
 import {
     BookOpen,
     Plus,
@@ -207,7 +207,7 @@ export function HomeGuide() {
                     </div>
 
                     <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gradient-primary mb-3 sm:mb-4">
-                        Hi {getGreeting()!}! 
+                        Hi {getGreeting()!}!
                     </h1>
 
                     <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">

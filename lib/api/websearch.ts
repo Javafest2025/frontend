@@ -1,7 +1,7 @@
 import type { WebSearchRequest, WebSearchResponse } from "@/types/websearch";
 import type { APIResponse } from "@/types/project";
 import { getApiUrl } from "@/lib/config/api-config";
-import { authenticatedFetch } from "@/lib/api/auth";
+import { authenticatedFetch } from "@/lib/api/user-service";
 
 /**
  * Web Search API Functions

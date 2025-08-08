@@ -1,5 +1,5 @@
 import { getApiUrl } from "@/lib/config/api-config"
-import { authenticatedFetch } from "./auth"
+import { authenticatedFetch } from "./user-service"
 import { Todo, TodoFilters, TodoSortOptions, TodoSummary, TodoForm } from "@/types/todo"
 
 export const todosApi = {
@@ -7,7 +7,7 @@ export const todosApi = {
   getTodos: async (filters?: TodoFilters, sort?: TodoSortOptions): Promise<{ todos: Todo[], summary: TodoSummary | null }> => {
     try {
       const queryParams = new URLSearchParams()
-      
+
       if (filters) {
         Object.entries(filters).forEach(([key, value]) => {
           if (value !== undefined) {
@@ -30,11 +30,11 @@ export const todosApi = {
 
       const url = `${getApiUrl("/api/v1/todo")}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
       const response = await authenticatedFetch(url)
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch todos: ${response.statusText}`)
       }
-      
+
       const data = await response.json()
       return {
         todos: data.data || [],
@@ -53,14 +53,14 @@ export const todosApi = {
   getSummary: async (): Promise<TodoSummary> => {
     try {
       const response = await authenticatedFetch(getApiUrl("/api/v1/todo/summary"))
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch summary: ${response.statusText}`)
       }
-      
+
       const data = await response.json()
       const summaryData = data.data
-      
+
       return {
         total: summaryData.total ?? 0,
         by_status: {
@@ -93,7 +93,7 @@ export const todosApi = {
   },
 
   // Create new todo
-  createTodo: async (todoData: TodoForm): Promise<{success: boolean, data?: Todo, message?: string}> => {
+  createTodo: async (todoData: TodoForm): Promise<{ success: boolean, data?: Todo, message?: string }> => {
     try {
       const requestBody = {
         title: todoData.title,
@@ -105,25 +105,25 @@ export const todosApi = {
         related_project_id: todoData.related_project_id && todoData.related_project_id.trim() ? todoData.related_project_id : null,
         tags: todoData.tags || [],
         subtasks: (todoData.subtasks || []).filter(s => s.title && s.title.trim()).map(s => ({ title: s.title.trim() })),
-        reminders: (todoData.reminders || []).filter(r => r.remind_at && r.message).map(r => ({ 
-          remind_at: r.remind_at, 
-          message: r.message 
+        reminders: (todoData.reminders || []).filter(r => r.remind_at && r.message).map(r => ({
+          remind_at: r.remind_at,
+          message: r.message
         }))
       };
-      
+
       console.log("Creating todo with data:", requestBody);
-      
+
       const response = await authenticatedFetch(getApiUrl("/api/v1/todo"), {
         method: "POST",
         body: JSON.stringify(requestBody)
       })
-      
+
       console.log("Response status:", response.status, response.statusText);
       console.log("Response headers:", Object.fromEntries(response.headers.entries()));
-      
+
       let data: any = {};
       let responseText = '';
-      
+
       // Read response body only once
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
@@ -156,16 +156,16 @@ export const todosApi = {
           responseText = '';
         }
       }
-      
+
       if (!response.ok) {
-        const errorMessage = (data && data.message) || 
-                           (responseText && responseText.trim()) || 
-                           response.statusText || 
-                           `HTTP ${response.status} Error`;
+        const errorMessage = (data && data.message) ||
+          (responseText && responseText.trim()) ||
+          response.statusText ||
+          `HTTP ${response.status} Error`;
         console.error("Request failed with error:", errorMessage);
         throw new Error(errorMessage);
       }
-      
+
       return {
         success: true,
         data: mapBackendTodoToFrontend(data.data),
@@ -181,10 +181,10 @@ export const todosApi = {
   },
 
   // Update todo
-  updateTodo: async (todoId: string, todoData: Partial<TodoForm>): Promise<{success: boolean, data?: Todo, message?: string}> => {
+  updateTodo: async (todoId: string, todoData: Partial<TodoForm>): Promise<{ success: boolean, data?: Todo, message?: string }> => {
     try {
       const updateData: any = {}
-      
+
       if (todoData.title !== undefined) updateData.title = todoData.title
       if (todoData.description !== undefined) updateData.description = todoData.description
       if (todoData.priority !== undefined) updateData.priority = todoData.priority.toUpperCase()
@@ -194,19 +194,19 @@ export const todosApi = {
       if (todoData.related_project_id !== undefined) updateData.related_project_id = todoData.related_project_id
       if (todoData.tags !== undefined) updateData.tags = todoData.tags
       if (todoData.subtasks !== undefined) updateData.subtasks = todoData.subtasks.map(s => ({ title: s.title }))
-      if (todoData.reminders !== undefined) updateData.reminders = todoData.reminders.map(r => ({ 
-        remind_at: r.remind_at, 
-        message: r.message 
+      if (todoData.reminders !== undefined) updateData.reminders = todoData.reminders.map(r => ({
+        remind_at: r.remind_at,
+        message: r.message
       }))
 
       const response = await authenticatedFetch(getApiUrl(`/api/v1/todo/${todoId}`), {
         method: "PATCH",
         body: JSON.stringify(updateData)
       })
-      
+
       let data: any = {};
       let responseText = '';
-      
+
       // Read response body only once
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
@@ -226,12 +226,12 @@ export const todosApi = {
           }
         }
       }
-      
+
       if (!response.ok) {
         const errorMessage = data.message || responseText || response.statusText || "Failed to update todo";
         throw new Error(errorMessage);
       }
-      
+
       return {
         success: true,
         data: mapBackendTodoToFrontend(data.data),
@@ -247,16 +247,16 @@ export const todosApi = {
   },
 
   // Update todo status
-  updateTodoStatus: async (todoId: string, status: Todo['status']): Promise<{success: boolean, message?: string}> => {
+  updateTodoStatus: async (todoId: string, status: Todo['status']): Promise<{ success: boolean, message?: string }> => {
     try {
       const response = await authenticatedFetch(getApiUrl(`/api/v1/todo/${todoId}/status`), {
         method: "PATCH",
         body: JSON.stringify({ status: status.toUpperCase() })
       })
-      
+
       let data: any = {};
       let responseText = '';
-      
+
       // Read response body only once
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
@@ -276,12 +276,12 @@ export const todosApi = {
           }
         }
       }
-      
+
       if (!response.ok) {
         const errorMessage = data.message || responseText || response.statusText || "Failed to update todo status";
         throw new Error(errorMessage);
       }
-      
+
       return { success: true, message: data.message }
     } catch (error) {
       console.error("Update todo status error:", error)
@@ -293,15 +293,15 @@ export const todosApi = {
   },
 
   // Delete todo
-  deleteTodo: async (todoId: string): Promise<{success: boolean, message?: string}> => {
+  deleteTodo: async (todoId: string): Promise<{ success: boolean, message?: string }> => {
     try {
       const response = await authenticatedFetch(getApiUrl(`/api/v1/todo/${todoId}`), {
         method: "DELETE"
       })
-      
+
       let data: any = {};
       let responseText = '';
-      
+
       // Read response body only once
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
@@ -321,12 +321,12 @@ export const todosApi = {
           }
         }
       }
-      
+
       if (!response.ok) {
         const errorMessage = data.message || responseText || response.statusText || "Failed to delete todo";
         throw new Error(errorMessage);
       }
-      
+
       return { success: true, message: data.message }
     } catch (error) {
       console.error("Delete todo error:", error)
@@ -338,15 +338,15 @@ export const todosApi = {
   },
 
   // Add subtask
-  addSubtask: async (todoId: string, title: string): Promise<{success: boolean, message?: string}> => {
+  addSubtask: async (todoId: string, title: string): Promise<{ success: boolean, message?: string }> => {
     try {
       const response = await authenticatedFetch(getApiUrl(`/api/v1/todo/${todoId}/subtask?title=${encodeURIComponent(title)}`), {
         method: "POST"
       })
-      
+
       let data: any = {};
       let responseText = '';
-      
+
       // Read response body only once
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
@@ -366,12 +366,12 @@ export const todosApi = {
           }
         }
       }
-      
+
       if (!response.ok) {
         const errorMessage = data.message || responseText || response.statusText || "Failed to add subtask";
         throw new Error(errorMessage);
       }
-      
+
       return { success: true, message: data.message }
     } catch (error) {
       console.error("Add subtask error:", error)
@@ -383,15 +383,15 @@ export const todosApi = {
   },
 
   // Toggle subtask completion
-  toggleSubtask: async (todoId: string, subtaskId: string): Promise<{success: boolean, message?: string}> => {
+  toggleSubtask: async (todoId: string, subtaskId: string): Promise<{ success: boolean, message?: string }> => {
     try {
       const response = await authenticatedFetch(getApiUrl(`/api/v1/todo/${todoId}/subtask/${subtaskId}/toggle`), {
         method: "PATCH"
       })
-      
+
       let data: any = {};
       let responseText = '';
-      
+
       // Read response body only once
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
@@ -411,12 +411,12 @@ export const todosApi = {
           }
         }
       }
-      
+
       if (!response.ok) {
         const errorMessage = data.message || responseText || response.statusText || "Failed to toggle subtask";
         throw new Error(errorMessage);
       }
-      
+
       return { success: true, message: data.message }
     } catch (error) {
       console.error("Toggle subtask error:", error)

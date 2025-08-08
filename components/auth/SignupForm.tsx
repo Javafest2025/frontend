@@ -8,7 +8,7 @@ import { InputField } from "@/components/form/InputField"
 import { PasswordField } from "@/components/form/PasswordField"
 import { Checkbox } from "@/components/form/Checkbox"
 import { AUTH_CONSTANTS } from "@/constants/auth"
-import { signup } from "@/lib/api/auth"
+import { signup } from "@/lib/api/user-service"
 import type { SignupFormData } from "@/types/auth"
 import SocialLogin from "./SocialLogin"
 import { useNavigationWithLoading } from "@/components/ui/RouteTransition"
@@ -95,16 +95,28 @@ export function SignupForm() {
         try {
             const response = await signup(formData)
             if (response.success) {
-                // Show success toaster and redirect to login page
-                toast({
-                    title: "Account Created Successfully!",
-                    description: "Please log in with your credentials.",
-                    variant: "success",
-                })
-                // Add a small delay to ensure toaster is shown before redirect
-                setTimeout(() => {
-                    navigateWithLoading("/login", "Redirecting to login...")
-                }, 1000)
+                if (response.requiresVerification) {
+                    // Show success toaster and redirect to email verification page
+                    toast({
+                        title: "Account Created Successfully!",
+                        description: "Please check your email for verification.",
+                        variant: "success",
+                    })
+                    // Add a small delay to ensure toaster is shown before redirect
+                    setTimeout(() => {
+                        navigateWithLoading(`/verify-email?email=${encodeURIComponent(formData.email)}`, "Redirecting to email verification...")
+                    }, 1000)
+                } else {
+                    // Fallback to login page if verification is not required
+                    toast({
+                        title: "Account Created Successfully!",
+                        description: "Please log in with your credentials.",
+                        variant: "success",
+                    })
+                    setTimeout(() => {
+                        navigateWithLoading("/login", "Redirecting to login...")
+                    }, 1000)
+                }
             } else {
                 toast({
                     title: "Signup Failed",
@@ -147,7 +159,7 @@ export function SignupForm() {
 
             <div className="flex-1 flex items-center justify-center">
                 <div className="max-w-[450px] w-full">
-                    <h1 className="text-3xl font-extrabold text-center mb-8 text-white drop-shadow-lg">
+                    <h1 className="text-3xl font-extrabold text-center mb-8 text-foreground drop-shadow-lg">
                         Sign up
                     </h1>
 
@@ -195,7 +207,7 @@ export function SignupForm() {
                                     toggleShowPassword={toggleShowConfirmPassword}
                                 />
 
-                                <div className="flex items-center justify-between text-base text-white mb-4">
+                                <div className="flex items-center justify-between text-base text-foreground mb-4">
                                     <Checkbox
                                         id="agreeToTerms"
                                         name="agreeToTerms"
@@ -247,18 +259,18 @@ export function SignupForm() {
 
                     <div className="mt-8 text-center">
                         <div className="flex items-center justify-center gap-3 mb-6">
-                            <div className="h-[1px] bg-white/30 w-40"></div>
-                            <span className="text-white text-base font-['Segoe_UI'] whitespace-nowrap">or connect with</span>
-                            <div className="h-[1px] bg-white/30 w-40"></div>
+                            <div className="h-[1px] bg-foreground/30 w-40"></div>
+                            <span className="text-foreground text-base font-['Segoe_UI'] whitespace-nowrap">or connect with</span>
+                            <div className="h-[1px] bg-foreground/30 w-40"></div>
                         </div>
                         <SocialLogin />
                     </div>
 
-                    <p className="text-center text-white text-base mt-6 font-['Segoe_UI']">
+                    <p className="text-center text-foreground text-base mt-6 font-['Segoe_UI']">
                         Already have an account?{" "}
                         <Link
                             href="/login"
-                            className="relative inline-block text-white hover:text-primary transition-colors font-medium cursor-pointer underline decoration-white/50 hover:decoration-primary underline-offset-2"
+                            className="relative inline-block text-foreground hover:text-primary transition-colors font-medium cursor-pointer underline decoration-foreground/50 hover:decoration-primary underline-offset-2"
                         >
                             Log in
                         </Link>

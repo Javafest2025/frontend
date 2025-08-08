@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getAuthToken, getUserData, isAuthenticated, clearAuthData } from '@/lib/api/auth'
+import { getAuthToken, getUserData, isAuthenticated, clearAuthData } from '@/lib/api/user-service'
 
 export interface User {
     id: string

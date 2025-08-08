@@ -112,7 +112,7 @@ export function TestimonialsSection() {
     }
 
     return (
-        <section id="testimonials" className="py-24 bg-gradient-to-b from-black/30 to-black" ref={ref}>
+        <section id="testimonials" className="py-24 bg-gradient-to-b from-muted/30 to-background" ref={ref}>
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
@@ -124,11 +124,11 @@ export function TestimonialsSection() {
                         <Sparkles className="h-6 w-6 text-primary mr-2" />
                         <span className="text-sm font-medium text-primary uppercase tracking-wider">Testimonials</span>
                     </div>
-                    <h2 className="text-4xl font-bold text-white sm:text-5xl mb-6">
+                    <h2 className="text-4xl font-bold text-foreground sm:text-5xl mb-6">
                         Trusted by
                         <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent"> Leading Researchers</span>
                     </h2>
-                    <p className="text-lg text-white/80 max-w-3xl mx-auto leading-relaxed">
+                    <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
                         Join thousands of researchers worldwide who are accelerating their discoveries with ScholarAI
                     </p>
                 </motion.div>
@@ -151,10 +151,10 @@ export function TestimonialsSection() {
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
                             transition={{ duration: 0.5, delay: index * 0.1 + 0.4 }}
-                            className="text-center p-6 rounded-xl bg-gradient-to-br from-black/20 to-black/10 border border-primary/30 hover:border-primary/50 transition-colors backdrop-blur-md"
+                            className="text-center p-6 rounded-xl bg-gradient-to-br from-background/20 to-muted/10 border border-primary/30 hover:border-primary/50 transition-colors backdrop-blur-md"
                         >
                             <div className="text-3xl font-bold text-primary mb-2">{stat.value}</div>
-                            <div className="text-sm text-white/70">{stat.label}</div>
+                            <div className="text-sm text-muted-foreground">{stat.label}</div>
                         </motion.div>
                     ))}
                 </motion.div>
@@ -178,7 +178,7 @@ export function TestimonialsSection() {
                                     whileHover={{ y: -5 }}
                                     className="group"
                                 >
-                                    <Card className="h-full border-primary/30 bg-gradient-to-br from-black/20 to-black/10 hover:border-primary/50 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 overflow-hidden relative backdrop-blur-md">
+                                    <Card className="h-full border-primary/30 bg-gradient-to-br from-background/20 to-muted/10 hover:border-primary/50 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 overflow-hidden relative backdrop-blur-md">
                                         {/* Quote icon */}
                                         <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
                                             <Quote className="h-8 w-8 text-primary" />
@@ -193,7 +193,7 @@ export function TestimonialsSection() {
                                             </div>
 
                                             {/* Quote */}
-                                            <blockquote className="text-white/70 mb-6 leading-relaxed italic">
+                                            <blockquote className="text-muted-foreground mb-6 leading-relaxed italic">
                                                 "{testimonial.quote}"
                                             </blockquote>
 
@@ -206,8 +206,8 @@ export function TestimonialsSection() {
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex-1">
-                                                    <div className="font-semibold text-white">{testimonial.name}</div>
-                                                    <div className="text-sm text-white/70">{testimonial.role}</div>
+                                                    <div className="font-semibold text-foreground">{testimonial.name}</div>
+                                                    <div className="text-sm text-muted-foreground">{testimonial.role}</div>
                                                     <div className="text-xs text-primary">{testimonial.institution}</div>
                                                 </div>
                                             </div>
@@ -246,7 +246,7 @@ export function TestimonialsSection() {
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ duration: 0.5, delay: index * 0.1 }}
                                 >
-                                    <Card className="border-primary/30 bg-gradient-to-br from-black/20 to-black/10 backdrop-blur-md">
+                                    <Card className="border-primary/30 bg-gradient-to-br from-background/20 to-muted/10 backdrop-blur-md">
                                         <CardContent className="p-6">
                                             <div className="flex items-center space-x-4 mb-4">
                                                 <Avatar className="w-12 h-12 border-2 border-primary/20">
@@ -256,8 +256,8 @@ export function TestimonialsSection() {
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex-1">
-                                                    <div className="font-semibold text-white">{testimonial.name}</div>
-                                                    <div className="text-sm text-white/70">{testimonial.role}</div>
+                                                    <div className="font-semibold text-foreground">{testimonial.name}</div>
+                                                    <div className="text-sm text-muted-foreground">{testimonial.role}</div>
                                                     <div className="text-xs text-primary">{testimonial.institution}</div>
                                                 </div>
                                             </div>
@@ -268,7 +268,7 @@ export function TestimonialsSection() {
                                                 ))}
                                             </div>
 
-                                            <blockquote className="text-white/70 text-sm leading-relaxed italic">
+                                            <blockquote className="text-muted-foreground text-sm leading-relaxed italic">
                                                 "{testimonial.quote}"
                                             </blockquote>
                                         </CardContent>

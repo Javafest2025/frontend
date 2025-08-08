@@ -1,6 +1,6 @@
 import type { APIResponse } from "@/types/project";
 import { getApiUrl } from "@/lib/config/api-config";
-import { authenticatedFetch } from "@/lib/api/auth";
+import { authenticatedFetch } from "@/lib/api/user-service";
 import { hasStructuredFacts, extractPaper } from "@/lib/api/extract";
 
 /**

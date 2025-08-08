@@ -381,10 +381,10 @@ export function HeroBackground() {
                                 }}
                             >
                                 {/* Enhanced citation card matching auth theme */}
-                                <div className="relative bg-gradient-to-br from-black/20 via-black/10 to-transparent backdrop-blur-md border border-primary/30 rounded-xl p-4 max-w-xs shadow-2xl shadow-primary/10 group-hover:shadow-primary/20 transition-all duration-500">
+                                <div className="relative bg-gradient-to-br from-background/20 via-background/10 to-transparent backdrop-blur-md border border-primary/30 rounded-xl p-4 max-w-xs shadow-2xl shadow-primary/10 group-hover:shadow-primary/20 transition-all duration-500">
                                     {/* Top gradient border */}
                                     <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/30 via-purple-500/20 to-primary/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm"></div>
-                                    <div className="absolute inset-[1px] rounded-xl bg-black/10 backdrop-blur-md"></div>
+                                    <div className="absolute inset-[1px] rounded-xl bg-background/10 backdrop-blur-md"></div>
 
                                     {/* Content */}
                                     <div className="relative z-10">
@@ -400,7 +400,7 @@ export function HeroBackground() {
                                         </div>
 
                                         {/* Title */}
-                                        <div className="text-sm text-white/80 font-medium leading-snug mb-3 line-clamp-2">
+                                        <div className="text-sm text-foreground/80 font-medium leading-snug mb-3 line-clamp-2">
                                             {node.title}
                                         </div>
 
@@ -410,7 +410,7 @@ export function HeroBackground() {
                                                 <svg className="w-3 h-3 text-primary/70" fill="currentColor" viewBox="0 0 20 20">
                                                     <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
                                                 </svg>
-                                                <span className="text-xs text-white/60 font-medium">
+                                                <span className="text-xs text-muted-foreground/60 font-medium">
                                                     {node.citations.toLocaleString()}
                                                 </span>
                                             </div>

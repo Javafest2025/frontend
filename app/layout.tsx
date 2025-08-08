@@ -32,7 +32,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         <GoogleOAuthProvider clientId={googleClientId || "YOUR_FALLBACK_CLIENT_ID_IF_ANY"}>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
             <LoadingProvider>
               <RouteTransition>
                 {children}

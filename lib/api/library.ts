@@ -1,5 +1,5 @@
 import { getApiUrl } from "@/lib/config/api-config";
-import { authenticatedFetch } from "@/lib/api/auth";
+import { authenticatedFetch } from "@/lib/api/user-service";
 import type { Paper } from "@/types/websearch";
 
 /**

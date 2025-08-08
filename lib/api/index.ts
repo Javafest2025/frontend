@@ -1,5 +1,5 @@
 // Re-export all API functions for easier imports
-export * from "./auth";
+export * from "./user-service";
 export * from "./websearch";
 export * from "./library";
 export * from "./pdf";

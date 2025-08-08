@@ -16,7 +16,7 @@ import {
   ReadingListStats,
   BulkReadingListUpdate,
 } from "@/types/project";
-import { authenticatedFetch } from "@/lib/api/auth";
+import { authenticatedFetch } from "@/lib/api/user-service";
 import { getApiUrl } from "@/lib/config/api-config";
 
 const PROJECTS_ENDPOINT = "/api/v1/projects";
