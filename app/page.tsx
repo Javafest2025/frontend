@@ -5,19 +5,22 @@ import { WorkflowSection } from "@/components/landing/workflow-section"
 import { TestimonialsSection } from "@/components/landing/testimonials-section"
 import { IntegrationsSection } from "@/components/landing/integrations-section"
 import { Footer } from "@/components/landing/footer"
+import VideoBackground from "@/components/background/VideoBackground"
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
-      <main>
-        <HeroSection />
-        <FeaturesSection />
-        <WorkflowSection />
-        <TestimonialsSection />
-        <IntegrationsSection />
-      </main>
-      <Footer />
-    </div>
+    <VideoBackground>
+      <div className="min-h-screen bg-black">
+        <Navigation />
+        <main>
+          <HeroSection />
+          <FeaturesSection />
+          <WorkflowSection />
+          <TestimonialsSection />
+          <IntegrationsSection />
+        </main>
+        <Footer />
+      </div>
+    </VideoBackground>
   )
 }

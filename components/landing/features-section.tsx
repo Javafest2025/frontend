@@ -103,7 +103,7 @@ export function FeaturesSection() {
     const isInView = useInView(ref, { once: true, amount: 0.2 })
 
     return (
-        <section id="features" className="py-24 bg-gradient-to-b from-muted/30 to-background" ref={ref}>
+        <section id="features" className="py-24 bg-gradient-to-b from-black/30 to-black" ref={ref}>
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
@@ -115,11 +115,11 @@ export function FeaturesSection() {
                         <Sparkles className="h-6 w-6 text-primary mr-2" />
                         <span className="text-sm font-medium text-primary uppercase tracking-wider">Features</span>
                     </div>
-                    <h2 className="text-4xl font-bold text-foreground sm:text-5xl mb-6">
+                    <h2 className="text-4xl font-bold text-white sm:text-5xl mb-6">
                         Intelligent Research
                         <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent"> Workflow</span>
                     </h2>
-                    <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+                    <p className="text-lg text-white/80 max-w-3xl mx-auto leading-relaxed">
                         Our AI agents work together to streamline every aspect of your research process,
                         from discovery to analysis and insight generation.
                     </p>
@@ -141,7 +141,7 @@ export function FeaturesSection() {
                                 whileHover={{ y: -8 }}
                                 className="group"
                             >
-                                <Card className="h-full border-border/50 bg-gradient-to-br from-background to-muted/20 hover:border-primary/30 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 overflow-hidden relative">
+                                <Card className="h-full border-primary/30 bg-gradient-to-br from-black/20 to-black/10 hover:border-primary/50 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 overflow-hidden relative backdrop-blur-md">
                                     {/* Gradient overlay on hover */}
                                     <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
 
@@ -157,7 +157,7 @@ export function FeaturesSection() {
                                                 {feature.title}
                                             </CardTitle>
                                         </div>
-                                        <CardDescription className="text-muted-foreground leading-relaxed group-hover:text-muted-foreground/80 transition-colors duration-300">
+                                        <CardDescription className="text-white/70 leading-relaxed group-hover:text-white/80 transition-colors duration-300">
                                             {feature.description}
                                         </CardDescription>
                                     </CardHeader>
@@ -179,14 +179,14 @@ export function FeaturesSection() {
                                                         className="flex items-center text-sm"
                                                     >
                                                         <CheckCircle className="mr-3 h-4 w-4 text-green-500 flex-shrink-0" />
-                                                        <span className="text-muted-foreground">{highlight}</span>
+                                                        <span className="text-white/70">{highlight}</span>
                                                     </motion.div>
                                                 ))}
                                             </div>
                                         </motion.div>
 
                                         {/* Always visible highlights count */}
-                                        <div className="mt-4 flex items-center text-sm text-muted-foreground group-hover:hidden">
+                                        <div className="mt-4 flex items-center text-sm text-white/60 group-hover:hidden">
                                             <Zap className="mr-2 h-4 w-4 text-primary" />
                                             <span>{feature.highlights.length} key capabilities</span>
                                         </div>

@@ -26,7 +26,7 @@ export function HeroSection() {
     }, [])
 
     return (
-        <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16 sm:pt-20">
             <HeroBackground />
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -51,7 +51,7 @@ export function HeroSection() {
                         </div>
                     </motion.div>
 
-                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-foreground sm:mb-4 lg:mb-6">
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-white sm:mb-4 lg:mb-6">
                         <span className="block">{text}</span>
                         <span className="bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent animate-gradient">
                             {text.length === fullText.length && <motion.span
@@ -72,7 +72,7 @@ export function HeroSection() {
                     >
                         <div className="relative">
                             <div className="absolute inset-0 rounded-2xl bg-background/40 backdrop-blur-md border border-primary/10 shadow-lg shadow-primary/5 -z-10" />
-                            <p className="font-sans font-medium text-base sm:text-lg md:text-xl lg:text-2xl leading-relaxed text-transparent bg-gradient-to-r from-primary/80 via-foreground/80 to-purple-400/80 bg-clip-text drop-shadow-lg tracking-wide px-4 sm:px-6 md:px-10 py-3 sm:py-4 md:py-6">
+                            <p className="font-sans font-medium text-base sm:text-lg md:text-xl lg:text-2xl leading-relaxed text-white drop-shadow-lg tracking-wide px-4 sm:px-6 md:px-10 py-3 sm:py-4 md:py-6">
                                 Transform how you <span className="font-semibold text-primary/90">discover</span>, <span className="font-semibold text-purple-400/90">analyze</span>, and <span className="font-semibold text-blue-400/90">synthesize</span> academic papers with our intelligent AI agents. From automated paper retrieval to gap analysis and contextual Q&amp;A.
                             </p>
                         </div>
@@ -137,7 +137,7 @@ export function HeroSection() {
                                 <div className="relative z-10 text-2xl sm:text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-primary via-blue-400 to-purple-500 bg-clip-text text-transparent drop-shadow-lg tracking-tight mb-1">
                                     {metric.value}
                                 </div>
-                                <div className="relative z-10 text-sm sm:text-base lg:text-lg font-medium text-foreground/80 tracking-wide">
+                                <div className="relative z-10 text-sm sm:text-base lg:text-lg font-medium text-white/80 tracking-wide">
                                     {metric.label}
                                 </div>
                                 <span className="absolute inset-0 rounded-2xl bg-primary/10 blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-300 -z-10" />

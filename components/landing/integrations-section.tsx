@@ -151,7 +151,7 @@ export function IntegrationsSection() {
     const isInView = useInView(ref, { once: true, amount: 0.2 })
 
     return (
-        <section id="integrations" className="py-24 bg-gradient-to-b from-background to-muted/30" ref={ref}>
+        <section id="integrations" className="py-24 bg-gradient-to-b from-black to-black/30" ref={ref}>
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
@@ -163,11 +163,11 @@ export function IntegrationsSection() {
                         <Sparkles className="h-6 w-6 text-primary mr-2" />
                         <span className="text-sm font-medium text-primary uppercase tracking-wider">Integrations</span>
                     </div>
-                    <h2 className="text-4xl font-bold text-foreground sm:text-5xl mb-6">
+                    <h2 className="text-4xl font-bold text-white sm:text-5xl mb-6">
                         Connected to
                         <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent"> Every Source</span>
                     </h2>
-                    <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+                    <p className="text-lg text-white/80 max-w-3xl mx-auto leading-relaxed">
                         Access the world's largest academic databases and repositories through a unified,
                         intelligent search interface powered by AI.
                     </p>
@@ -194,11 +194,11 @@ export function IntegrationsSection() {
                                 animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
                                 transition={{ duration: 0.5, delay: index * 0.1 + 0.4 }}
                                 whileHover={{ scale: 1.05 }}
-                                className="text-center p-6 rounded-xl bg-gradient-to-br from-background to-muted/50 border border-border/50 hover:border-primary/30 transition-all duration-300 group"
+                                className="text-center p-6 rounded-xl bg-gradient-to-br from-black/20 to-black/10 border border-primary/30 hover:border-primary/50 transition-all duration-300 group backdrop-blur-md"
                             >
                                 <Icon className="h-8 w-8 text-primary mx-auto mb-3 group-hover:scale-110 transition-transform" />
                                 <div className="text-2xl font-bold text-primary mb-1">{stat.value}</div>
-                                <div className="text-sm text-muted-foreground">{stat.label}</div>
+                                <div className="text-sm text-white/70">{stat.label}</div>
                             </motion.div>
                         )
                     })}
@@ -226,7 +226,7 @@ export function IntegrationsSection() {
                                 whileHover={{ y: -5 }}
                                 className="group relative"
                             >
-                                <Card className="h-full border-border/50 bg-gradient-to-br from-background to-muted/20 hover:border-primary/30 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 overflow-hidden relative">
+                                <Card className="h-full border-primary/30 bg-gradient-to-br from-black/20 to-black/10 hover:border-primary/50 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 overflow-hidden relative backdrop-blur-md">
                                     {integration.isPopular && (
                                         <div className="absolute top-3 right-3 z-10">
                                             <Badge variant="secondary" className="bg-gradient-to-r from-primary/20 to-purple-500/20 text-primary border-primary/30">
@@ -243,20 +243,20 @@ export function IntegrationsSection() {
                                             <IconComponent className={`h-8 w-8 ${integration.iconColor}`} />
                                         </div>
 
-                                        <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
+                                        <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-primary transition-colors">
                                             {integration.name}
                                         </h3>
 
-                                        <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
+                                        <p className="text-sm text-white/70 mb-3 leading-relaxed">
                                             {integration.description}
                                         </p>
 
                                         <div className="space-y-2 mb-4">
                                             <div className="flex items-center justify-between text-xs">
-                                                <span className="text-muted-foreground">Papers:</span>
+                                                <span className="text-white/60">Papers:</span>
                                                 <span className="font-semibold text-primary">{integration.papers}</span>
                                             </div>
-                                            <div className="text-xs text-muted-foreground">
+                                            <div className="text-xs text-white/60">
                                                 <span className="font-medium">Category:</span> {integration.category}
                                             </div>
                                         </div>
@@ -312,11 +312,11 @@ export function IntegrationsSection() {
                                 animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
                                 transition={{ duration: 0.5, delay: index * 0.1 + 1.4 }}
                                 whileHover={{ scale: 1.02 }}
-                                className="text-center p-6 rounded-xl bg-gradient-to-br from-background to-muted/50 border border-border/50 hover:border-primary/30 transition-all duration-300 group"
+                                className="text-center p-6 rounded-xl bg-gradient-to-br from-black/20 to-black/10 border border-primary/30 hover:border-primary/50 transition-all duration-300 group backdrop-blur-md"
                             >
                                 <Icon className="h-8 w-8 text-primary mx-auto mb-4 group-hover:scale-110 transition-transform" />
-                                <h3 className="font-semibold text-foreground mb-2">{feature.title}</h3>
-                                <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+                                <h3 className="font-semibold text-white mb-2">{feature.title}</h3>
+                                <p className="text-sm text-white/70 leading-relaxed">{feature.description}</p>
                             </motion.div>
                         )
                     })}
@@ -329,7 +329,7 @@ export function IntegrationsSection() {
                     transition={{ duration: 0.8, delay: 1.6 }}
                     className="text-center"
                 >
-                    <Card className="max-w-4xl mx-auto border-border/50 bg-gradient-to-br from-background to-muted/20 overflow-hidden">
+                    <Card className="max-w-4xl mx-auto border-primary/30 bg-gradient-to-br from-black/20 to-black/10 overflow-hidden backdrop-blur-md">
                         <CardContent className="p-8">
                             <div className="flex items-center justify-center mb-6">
                                 <div className="p-4 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/30">
@@ -337,11 +337,11 @@ export function IntegrationsSection() {
                                 </div>
                             </div>
 
-                            <h3 className="text-2xl font-bold text-foreground mb-4">
+                            <h3 className="text-2xl font-bold text-white mb-4">
                                 Enterprise API Access
                             </h3>
 
-                            <p className="text-muted-foreground mb-6 leading-relaxed max-w-2xl mx-auto">
+                            <p className="text-white/70 mb-6 leading-relaxed max-w-2xl mx-auto">
                                 Need custom integrations or higher rate limits? Our Enterprise API provides
                                 programmatic access to all data sources with advanced filtering,
                                 bulk operations, and priority support.
