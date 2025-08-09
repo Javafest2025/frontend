@@ -2,58 +2,20 @@
 
 import type React from "react"
 import { useRouter } from "next/navigation"
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { InputField } from "@/components/form/InputField"
 import { PasswordField } from "@/components/form/PasswordField"
 import { Checkbox } from "@/components/form/Checkbox"
 import { AUTH_CONSTANTS } from "@/constants/auth"
-import { signup } from "@/lib/api"
+import { signup } from "@/lib/api/user-service"
 import type { SignupFormData } from "@/types/auth"
 import SocialLogin from "./SocialLogin"
 import { useNavigationWithLoading } from "@/components/ui/RouteTransition"
+import { Brain } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
-const MouseGlitter = () => {
-    const [particles, setParticles] = useState<Array<{ x: number; y: number; id: string }>>([])
-    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
 
-    const handleMouseMove = useCallback((e: MouseEvent) => {
-        setMousePosition({ x: e.clientX, y: e.clientY })
-
-        // Add new particle with timestamp-based unique ID
-        setParticles(prev => {
-            const newParticles = [...prev, {
-                x: e.clientX,
-                y: e.clientY,
-                id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-            }]
-            return newParticles.slice(-20) // Keep only last 20 particles
-        })
-    }, [])
-
-    useEffect(() => {
-        window.addEventListener('mousemove', handleMouseMove)
-        return () => window.removeEventListener('mousemove', handleMouseMove)
-    }, [handleMouseMove])
-
-    return (
-        <div className="fixed inset-0 pointer-events-none z-50">
-            {particles.map((particle) => (
-                <div
-                    key={particle.id}
-                    className="absolute w-2 h-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-600"
-                    style={{
-                        left: particle.x,
-                        top: particle.y,
-                        transform: 'translate(-50%, -50%)',
-                        animation: 'fadeOut 1s forwards',
-                        boxShadow: '0 0 12px hsl(var(--primary) / 0.6), 0 0 24px hsl(var(--primary) / 0.3)',
-                    }}
-                />
-            ))}
-        </div>
-    )
-}
 
 export function SignupForm() {
     const [formData, setFormData] = useState<SignupFormData>({
@@ -74,6 +36,7 @@ export function SignupForm() {
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
     const { navigateWithLoading } = useNavigationWithLoading()
+    const { toast } = useToast()
 
     /* ────────────────────────────────────────────────────────── */
     /*  Handlers                                                 */
@@ -132,23 +95,41 @@ export function SignupForm() {
         try {
             const response = await signup(formData)
             if (response.success) {
-                // Don't auto-login, redirect to login page with success message
-                navigateWithLoading("/login?signup=success", "Redirecting to login...")
+                if (response.requiresVerification) {
+                    // Show success toaster and redirect to email verification page
+                    toast({
+                        title: "Account Created Successfully!",
+                        description: "Please check your email for verification.",
+                        variant: "success",
+                    })
+                    // Add a small delay to ensure toaster is shown before redirect
+                    setTimeout(() => {
+                        navigateWithLoading(`/verify-email?email=${encodeURIComponent(formData.email)}`, "Redirecting to email verification...")
+                    }, 1000)
+                } else {
+                    // Fallback to login page if verification is not required
+                    toast({
+                        title: "Account Created Successfully!",
+                        description: "Please log in with your credentials.",
+                        variant: "success",
+                    })
+                    setTimeout(() => {
+                        navigateWithLoading("/login", "Redirecting to login...")
+                    }, 1000)
+                }
             } else {
-                setErrors({
-                    email: "",
-                    password: "",
-                    confirmPassword: "",
-                    agreeToTerms: response.message || "An error occurred during signup"
+                toast({
+                    title: "Signup Failed",
+                    description: response.message || "An error occurred during signup",
+                    variant: "destructive",
                 })
             }
         } catch (error) {
             console.error("Signup error:", error)
-            setErrors({
-                email: "",
-                password: "",
-                confirmPassword: "",
-                agreeToTerms: "An error occurred. Please try again."
+            toast({
+                title: "Signup Failed",
+                description: "An error occurred. Please try again.",
+                variant: "destructive",
             })
         } finally {
             setIsLoading(false)
@@ -160,10 +141,25 @@ export function SignupForm() {
     /* ────────────────────────────────────────────────────────── */
     return (
         <div className="w-full min-h-screen flex flex-col px-4 font-['Segoe_UI']">
-            <MouseGlitter />
+            {/* Logo in top left corner */}
+            <div className="absolute top-6 left-6 z-10">
+                <div
+                    className="flex items-center space-x-3 cursor-pointer hover:scale-105 transition-transform duration-200"
+                    onClick={() => navigateWithLoading("/")}
+                >
+                    <div className="relative">
+                        <Brain className="h-8 w-8 text-primary" />
+                        <div className="absolute inset-0 h-8 w-8 bg-primary/20 rounded-full blur-md animate-pulse" />
+                    </div>
+                    <span className="text-xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                        ScholarAI
+                    </span>
+                </div>
+            </div>
+
             <div className="flex-1 flex items-center justify-center">
                 <div className="max-w-[450px] w-full">
-                    <h1 className="text-3xl font-extrabold text-center mb-8 bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent drop-shadow-lg">
+                    <h1 className="text-3xl font-extrabold text-center mb-8 text-foreground drop-shadow-lg">
                         Sign up
                     </h1>
 
@@ -211,7 +207,7 @@ export function SignupForm() {
                                     toggleShowPassword={toggleShowConfirmPassword}
                                 />
 
-                                <div className="flex items-center justify-between text-base text-white/70 mb-4">
+                                <div className="flex items-center justify-between text-base text-foreground mb-4">
                                     <Checkbox
                                         id="agreeToTerms"
                                         name="agreeToTerms"
@@ -263,18 +259,18 @@ export function SignupForm() {
 
                     <div className="mt-8 text-center">
                         <div className="flex items-center justify-center gap-3 mb-6">
-                            <div className="h-[1px] bg-primary/30 w-40"></div>
-                            <span className="text-primary/50 text-base font-['Segoe_UI'] whitespace-nowrap">or connect with</span>
-                            <div className="h-[1px] bg-primary/30 w-40"></div>
+                            <div className="h-[1px] bg-foreground/30 w-40"></div>
+                            <span className="text-foreground text-base font-['Segoe_UI'] whitespace-nowrap">or connect with</span>
+                            <div className="h-[1px] bg-foreground/30 w-40"></div>
                         </div>
                         <SocialLogin />
                     </div>
 
-                    <p className="text-center text-primary/50 text-base mt-6 font-['Segoe_UI']">
+                    <p className="text-center text-foreground text-base mt-6 font-['Segoe_UI']">
                         Already have an account?{" "}
                         <Link
                             href="/login"
-                            className="relative inline-block text-primary/80 hover:text-primary transition-colors font-medium cursor-pointer underline decoration-primary/50 hover:decoration-primary underline-offset-2"
+                            className="relative inline-block text-foreground hover:text-primary transition-colors font-medium cursor-pointer underline decoration-foreground/50 hover:decoration-primary underline-offset-2"
                         >
                             Log in
                         </Link>
@@ -283,23 +279,4 @@ export function SignupForm() {
             </div>
         </div>
     )
-}
-
-const styles = `
-@keyframes fadeOut {
-    0% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
-    100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.5);
-    }
-}
-`
-
-if (typeof document !== 'undefined') {
-    const styleSheet = document.createElement('style')
-    styleSheet.textContent = styles
-    document.head.appendChild(styleSheet)
 } 

@@ -151,7 +151,7 @@ export function TestimonialsSection() {
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
                             transition={{ duration: 0.5, delay: index * 0.1 + 0.4 }}
-                            className="text-center p-6 rounded-xl bg-gradient-to-br from-background to-muted/50 border border-border/50 hover:border-primary/30 transition-colors"
+                            className="text-center p-6 rounded-xl bg-gradient-to-br from-background/20 to-muted/10 border border-primary/30 hover:border-primary/50 transition-colors backdrop-blur-md"
                         >
                             <div className="text-3xl font-bold text-primary mb-2">{stat.value}</div>
                             <div className="text-sm text-muted-foreground">{stat.label}</div>
@@ -178,7 +178,7 @@ export function TestimonialsSection() {
                                     whileHover={{ y: -5 }}
                                     className="group"
                                 >
-                                    <Card className="h-full border-border/50 bg-gradient-to-br from-background to-muted/20 hover:border-primary/30 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 overflow-hidden relative">
+                                    <Card className="h-full border-primary/30 bg-gradient-to-br from-background/20 to-muted/10 hover:border-primary/50 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 overflow-hidden relative backdrop-blur-md">
                                         {/* Quote icon */}
                                         <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
                                             <Quote className="h-8 w-8 text-primary" />
@@ -246,7 +246,7 @@ export function TestimonialsSection() {
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ duration: 0.5, delay: index * 0.1 }}
                                 >
-                                    <Card className="border-border/50 bg-gradient-to-br from-background to-muted/20">
+                                    <Card className="border-primary/30 bg-gradient-to-br from-background/20 to-muted/10 backdrop-blur-md">
                                         <CardContent className="p-6">
                                             <div className="flex items-center space-x-4 mb-4">
                                                 <Avatar className="w-12 h-12 border-2 border-primary/20">

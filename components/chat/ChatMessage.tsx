@@ -1,9 +1,9 @@
 "use client"
 
-import { Avatar } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils/cn"
 import type { Message } from "@/types/chat"
 import { useDocument } from "@/lib/hooks/useDocument"
+import { AtSign } from "lucide-react"
 
 type Props = {
   message: Message
@@ -13,38 +13,61 @@ export function ChatMessage({ message }: Props) {
   const isUser = message.role === "user"
   const { documents } = useDocument()
 
-  // Get document titles for context
-  const contextTitles = message.context?.map((docId) => {
-    const doc = documents.find((d) => d.id === docId)
-    return doc?.title || docId
+  // Build context chips array mixing docs and raw strings
+  const contextChips = (message.context || []).map((ctx) => {
+    const doc = documents.find((d) => d.id === ctx)
+    if (doc) {
+      return { type: "doc" as const, label: doc.title, id: doc.id }
+    }
+    return { type: "text" as const, label: ctx }
   })
 
   return (
-    <div className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}>
-      {!isUser && (
-        <Avatar className="h-8 w-8 shrink-0">
-          <div className="flex h-full w-full items-center justify-center bg-primary text-primary-foreground">AI</div>
-        </Avatar>
+    <div
+      className={cn(
+        "group relative flex flex-col gap-1.5 py-4",
+        isUser ? "items-end" : "items-start"
+      )}
+    >
+      {/* Context chips above user messages */}
+      {isUser && contextChips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-1 max-w-full justify-end">
+          {contextChips.map((chip, idx) => (
+            <div
+              key={idx}
+              className={cn(
+                "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs max-w-[200px] truncate",
+                chip.type === "doc"
+                  ? "bg-secondary/50 text-secondary-foreground"
+                  : "bg-muted/20 text-foreground"
+              )}
+            >
+              {chip.type === "doc" && <AtSign className="h-3 w-3" />}
+              <span className="truncate">{chip.label}</span>
+            </div>
+          ))}
+        </div>
       )}
 
-      <div className="flex flex-col max-w-[80%]">
-        {message.context && message.context.length > 0 && (
-          <div className="text-xs text-muted-foreground mb-1">Context: {contextTitles?.join(", ")}</div>
-        )}
+      {/* Message bubble */}
+      {message.content && (
         <div
           className={cn(
-            "rounded-lg px-4 py-2",
-            isUser ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+            "relative max-w-[85%] rounded-lg px-3 py-2",
+            isUser ? "bg-primary/10 text-foreground" : "bg-transparent text-foreground"
           )}
         >
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+            {message.content}
+          </p>
         </div>
-      </div>
+      )}
 
-      {isUser && (
-        <Avatar className="h-8 w-8 shrink-0">
-          <div className="flex h-full w-full items-center justify-center bg-accent text-accent-foreground">You</div>
-        </Avatar>
+      {/* Assistant label */}
+      {!isUser && (
+        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+          <span>Assistant</span>
+        </div>
       )}
     </div>
   )

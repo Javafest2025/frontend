@@ -6,6 +6,7 @@ export interface Author {
 }
 
 export interface Paper {
+    id: string;
     title: string;
     abstractText?: string | null;
     authors: Author[];

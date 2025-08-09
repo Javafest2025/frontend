@@ -194,7 +194,7 @@ export function IntegrationsSection() {
                                 animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
                                 transition={{ duration: 0.5, delay: index * 0.1 + 0.4 }}
                                 whileHover={{ scale: 1.05 }}
-                                className="text-center p-6 rounded-xl bg-gradient-to-br from-background to-muted/50 border border-border/50 hover:border-primary/30 transition-all duration-300 group"
+                                className="text-center p-6 rounded-xl bg-gradient-to-br from-background/20 to-muted/10 border border-primary/30 hover:border-primary/50 transition-all duration-300 group backdrop-blur-md"
                             >
                                 <Icon className="h-8 w-8 text-primary mx-auto mb-3 group-hover:scale-110 transition-transform" />
                                 <div className="text-2xl font-bold text-primary mb-1">{stat.value}</div>
@@ -226,7 +226,7 @@ export function IntegrationsSection() {
                                 whileHover={{ y: -5 }}
                                 className="group relative"
                             >
-                                <Card className="h-full border-border/50 bg-gradient-to-br from-background to-muted/20 hover:border-primary/30 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 overflow-hidden relative">
+                                <Card className="h-full border-primary/30 bg-gradient-to-br from-background/20 to-muted/10 hover:border-primary/50 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 overflow-hidden relative backdrop-blur-md">
                                     {integration.isPopular && (
                                         <div className="absolute top-3 right-3 z-10">
                                             <Badge variant="secondary" className="bg-gradient-to-r from-primary/20 to-purple-500/20 text-primary border-primary/30">
@@ -253,10 +253,10 @@ export function IntegrationsSection() {
 
                                         <div className="space-y-2 mb-4">
                                             <div className="flex items-center justify-between text-xs">
-                                                <span className="text-muted-foreground">Papers:</span>
+                                                <span className="text-muted-foreground/60">Papers:</span>
                                                 <span className="font-semibold text-primary">{integration.papers}</span>
                                             </div>
-                                            <div className="text-xs text-muted-foreground">
+                                            <div className="text-xs text-muted-foreground/60">
                                                 <span className="font-medium">Category:</span> {integration.category}
                                             </div>
                                         </div>
@@ -312,7 +312,7 @@ export function IntegrationsSection() {
                                 animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
                                 transition={{ duration: 0.5, delay: index * 0.1 + 1.4 }}
                                 whileHover={{ scale: 1.02 }}
-                                className="text-center p-6 rounded-xl bg-gradient-to-br from-background to-muted/50 border border-border/50 hover:border-primary/30 transition-all duration-300 group"
+                                className="text-center p-6 rounded-xl bg-gradient-to-br from-background/20 to-muted/10 border border-primary/30 hover:border-primary/50 transition-all duration-300 group backdrop-blur-md"
                             >
                                 <Icon className="h-8 w-8 text-primary mx-auto mb-4 group-hover:scale-110 transition-transform" />
                                 <h3 className="font-semibold text-foreground mb-2">{feature.title}</h3>
@@ -329,7 +329,7 @@ export function IntegrationsSection() {
                     transition={{ duration: 0.8, delay: 1.6 }}
                     className="text-center"
                 >
-                    <Card className="max-w-4xl mx-auto border-border/50 bg-gradient-to-br from-background to-muted/20 overflow-hidden">
+                    <Card className="max-w-4xl mx-auto border-primary/30 bg-gradient-to-br from-background/20 to-muted/10 overflow-hidden backdrop-blur-md">
                         <CardContent className="p-8">
                             <div className="flex items-center justify-center mb-6">
                                 <div className="p-4 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/30">

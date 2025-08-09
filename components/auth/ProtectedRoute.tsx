@@ -14,7 +14,9 @@ export const ProtectedRoute = ({ children, redirectTo = '/login' }: ProtectedRou
     const router = useRouter()
 
     useEffect(() => {
+        console.log("ProtectedRoute: Auth state check", { loading, isAuthenticated, redirectTo })
         if (!loading && !isAuthenticated) {
+            console.log("ProtectedRoute: Redirecting to", redirectTo)
             router.push(redirectTo)
         }
     }, [isAuthenticated, loading, router, redirectTo])

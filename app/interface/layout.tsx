@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { MainLayout } from '@/components/layout/MainLayout'
+import { SettingsProvider } from '@/contexts/SettingsContext'
+import { TooltipProvider } from '@/contexts/TooltipContext'
 
 export default function InterfaceLayout({
     children,
@@ -13,14 +15,18 @@ export default function InterfaceLayout({
     const isProjectRoute = pathname.includes('/projects/')
 
     return (
-        <ProtectedRoute>
-            {isProjectRoute ? (
-                children
-            ) : (
-                <MainLayout>
-                    {children}
-                </MainLayout>
-            )}
-        </ProtectedRoute>
+        <SettingsProvider>
+            <TooltipProvider>
+                <ProtectedRoute>
+                    {isProjectRoute ? (
+                        children
+                    ) : (
+                        <MainLayout>
+                            {children}
+                        </MainLayout>
+                    )}
+                </ProtectedRoute>
+            </TooltipProvider>
+        </SettingsProvider>
     )
 } 

@@ -141,7 +141,7 @@ export function FeaturesSection() {
                                 whileHover={{ y: -8 }}
                                 className="group"
                             >
-                                <Card className="h-full border-border/50 bg-gradient-to-br from-background to-muted/20 hover:border-primary/30 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 overflow-hidden relative">
+                                <Card className="h-full border-primary/30 bg-gradient-to-br from-background/20 to-muted/10 hover:border-primary/50 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 overflow-hidden relative backdrop-blur-md">
                                     {/* Gradient overlay on hover */}
                                     <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
 

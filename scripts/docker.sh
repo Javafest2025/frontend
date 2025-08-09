@@ -47,7 +47,12 @@ build() {
     print_info "Building Scholar AI Frontend Docker image..."
     check_docker
     
-    docker-compose -f $COMPOSE_FILE build --no-cache
+    # Try docker compose (v2) first, fallback to docker-compose (v1)
+    if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        docker compose -f $COMPOSE_FILE build --no-cache
+    else
+        docker-compose -f $COMPOSE_FILE build --no-cache
+    fi
     
     if [ $? -eq 0 ]; then
         print_success "Docker image built successfully!"
@@ -62,11 +67,20 @@ rebuild_nocache() {
     print_info "Rebuilding Scholar AI Frontend Docker image without cache..."
     check_docker
     
-    # Remove existing image first
-    docker-compose -f $COMPOSE_FILE down --rmi all
-    
-    # Build fresh image without cache
-    docker-compose -f $COMPOSE_FILE build --no-cache --pull
+    # Try docker compose (v2) first, fallback to docker-compose (v1)
+    if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        # Remove existing image first
+        docker compose -f $COMPOSE_FILE down --rmi all
+        
+        # Build fresh image without cache
+        docker compose -f $COMPOSE_FILE build --no-cache --pull
+    else
+        # Remove existing image first
+        docker-compose -f $COMPOSE_FILE down --rmi all
+        
+        # Build fresh image without cache
+        docker-compose -f $COMPOSE_FILE build --no-cache --pull
+    fi
     
     if [ $? -eq 0 ]; then
         print_success "Docker image rebuilt successfully without cache!"
@@ -81,7 +95,12 @@ start() {
     print_info "Starting Scholar AI Frontend..."
     check_docker
     
-    docker-compose -f $COMPOSE_FILE up -d
+    # Try docker compose (v2) first, fallback to docker-compose (v1)
+    if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        docker compose -f $COMPOSE_FILE up -d
+    else
+        docker-compose -f $COMPOSE_FILE up -d
+    fi
     
     if [ $? -eq 0 ]; then
         print_success "Scholar AI Frontend started successfully!"
@@ -99,7 +118,12 @@ stop() {
     print_info "Stopping Scholar AI Frontend..."
     check_docker
     
-    docker-compose -f $COMPOSE_FILE down
+    # Try docker compose (v2) first, fallback to docker-compose (v1)
+    if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        docker compose -f $COMPOSE_FILE down
+    else
+        docker-compose -f $COMPOSE_FILE down
+    fi
     
     if [ $? -eq 0 ]; then
         print_success "Scholar AI Frontend stopped successfully!"
@@ -121,7 +145,12 @@ logs() {
     print_info "Showing logs for Scholar AI Frontend..."
     check_docker
     
-    docker-compose -f $COMPOSE_FILE logs -f $SERVICE_NAME
+    # Try docker compose (v2) first, fallback to docker-compose (v1)
+    if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        docker compose -f $COMPOSE_FILE logs -f $SERVICE_NAME
+    else
+        docker-compose -f $COMPOSE_FILE logs -f $SERVICE_NAME
+    fi
 }
 
 # Show status
@@ -129,7 +158,12 @@ status() {
     print_info "Checking Scholar AI Frontend status..."
     check_docker
     
-    docker-compose -f $COMPOSE_FILE ps
+    # Try docker compose (v2) first, fallback to docker-compose (v1)
+    if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        docker compose -f $COMPOSE_FILE ps
+    else
+        docker-compose -f $COMPOSE_FILE ps
+    fi
 }
 
 # Clean up (remove containers and images)
@@ -140,8 +174,14 @@ clean() {
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_info "Cleaning up..."
         
-        # Stop and remove containers
-        docker-compose -f $COMPOSE_FILE down --rmi all --volumes --remove-orphans
+        # Try docker compose (v2) first, fallback to docker-compose (v1)
+        if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+            # Stop and remove containers
+            docker compose -f $COMPOSE_FILE down --rmi all --volumes --remove-orphans
+        else
+            # Stop and remove containers
+            docker-compose -f $COMPOSE_FILE down --rmi all --volumes --remove-orphans
+        fi
         
         # Remove dangling images
         docker image prune -f

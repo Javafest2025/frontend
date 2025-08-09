@@ -1,9 +1,9 @@
-import { WelcomeScreen } from "@/components/layout/WelcomeScreen"
+import { NotificationContent } from "@/components/notifications/NotificationContent"
 
 export default function NotificationsPage() {
     return (
         <div className="h-full">
-            <WelcomeScreen />
+            <NotificationContent />
         </div>
     )
 } 

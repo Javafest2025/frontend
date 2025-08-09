@@ -253,24 +253,24 @@ export function HeroBackground() {
             className="absolute inset-0 overflow-hidden"
             onMouseMove={handleMouseMove}
         >
-            {/* Dynamic gradient background */}
+            {/* Subtle gradient background matching auth theme */}
             <motion.div
                 className="absolute inset-0"
                 animate={{
                     background: [
-                        'radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 40% 80%, rgba(168, 85, 247, 0.1) 0%, transparent 50%)',
-                        'radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%), radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 60% 40%, rgba(168, 85, 247, 0.1) 0%, transparent 50%)',
-                        'radial-gradient(circle at 60% 70%, rgba(99, 102, 241, 0.15) 0%, transparent 50%), radial-gradient(circle at 30% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 60%, rgba(168, 85, 247, 0.1) 0%, transparent 50%)'
+                        'radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 50%), radial-gradient(circle at 40% 80%, rgba(168, 85, 247, 0.05) 0%, transparent 50%)',
+                        'radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 50%), radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%), radial-gradient(circle at 60% 40%, rgba(168, 85, 247, 0.05) 0%, transparent 50%)',
+                        'radial-gradient(circle at 60% 70%, rgba(99, 102, 241, 0.08) 0%, transparent 50%), radial-gradient(circle at 30% 30%, rgba(139, 92, 246, 0.08) 0%, transparent 50%), radial-gradient(circle at 80% 60%, rgba(168, 85, 247, 0.05) 0%, transparent 50%)'
                     ]
                 }}
                 transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
             />
 
-            {/* Aurora wave overlay */}
+            {/* Subtle wave overlay */}
             <motion.div
-                className="absolute inset-0 opacity-30"
+                className="absolute inset-0 opacity-15"
                 style={{
-                    background: 'linear-gradient(45deg, transparent 30%, rgba(99, 102, 241, 0.1) 50%, transparent 70%)',
+                    background: 'linear-gradient(45deg, transparent 30%, rgba(99, 102, 241, 0.05) 50%, transparent 70%)',
                 }}
                 animate={{
                     transform: ['translateX(-100%) translateY(-100%)', 'translateX(100%) translateY(100%)']
@@ -380,8 +380,8 @@ export function HeroBackground() {
                                     delay: index * 2
                                 }}
                             >
-                                {/* Enhanced citation card */}
-                                <div className="relative bg-gradient-to-br from-background/10 via-background/5 to-transparent backdrop-blur-md border border-primary/20 rounded-xl p-4 max-w-xs shadow-2xl shadow-primary/10 group-hover:shadow-primary/20 transition-all duration-500">
+                                {/* Enhanced citation card matching auth theme */}
+                                <div className="relative bg-gradient-to-br from-background/20 via-background/10 to-transparent backdrop-blur-md border border-primary/30 rounded-xl p-4 max-w-xs shadow-2xl shadow-primary/10 group-hover:shadow-primary/20 transition-all duration-500">
                                     {/* Top gradient border */}
                                     <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/30 via-purple-500/20 to-primary/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm"></div>
                                     <div className="absolute inset-[1px] rounded-xl bg-background/10 backdrop-blur-md"></div>
@@ -410,7 +410,7 @@ export function HeroBackground() {
                                                 <svg className="w-3 h-3 text-primary/70" fill="currentColor" viewBox="0 0 20 20">
                                                     <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
                                                 </svg>
-                                                <span className="text-xs text-muted-foreground/80 font-medium">
+                                                <span className="text-xs text-muted-foreground/60 font-medium">
                                                     {node.citations.toLocaleString()}
                                                 </span>
                                             </div>

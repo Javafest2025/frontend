@@ -2,59 +2,21 @@
 
 import type React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { InputField } from "@/components/form/InputField"
 import { PasswordField } from "@/components/form/PasswordField"
 import { Checkbox } from "@/components/form/Checkbox"
 import { AUTH_CONSTANTS } from "@/constants/auth"
-import { login, type SocialLoginResponse } from "@/lib/api"
+import { login, type SocialLoginResponse } from "@/lib/api/user-service"
 import type { LoginFormData } from "@/types/auth"
 import SocialLogin from "./SocialLogin"
 import { useAuth } from "@/hooks/useAuth"
 import { useNavigationWithLoading } from "@/components/ui/RouteTransition"
+import { Brain } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
-const MouseGlitter = () => {
-    const [particles, setParticles] = useState<Array<{ x: number; y: number; id: string }>>([])
-    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
 
-    const handleMouseMove = useCallback((e: MouseEvent) => {
-        setMousePosition({ x: e.clientX, y: e.clientY })
-
-        // Add new particle with timestamp-based unique ID
-        setParticles(prev => {
-            const newParticles = [...prev, {
-                x: e.clientX,
-                y: e.clientY,
-                id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-            }]
-            return newParticles.slice(-20) // Keep only last 20 particles
-        })
-    }, [])
-
-    useEffect(() => {
-        window.addEventListener('mousemove', handleMouseMove)
-        return () => window.removeEventListener('mousemove', handleMouseMove)
-    }, [handleMouseMove])
-
-    return (
-        <div className="fixed inset-0 pointer-events-none z-50">
-            {particles.map((particle) => (
-                <div
-                    key={particle.id}
-                    className="absolute w-2 h-2 rounded-full bg-gradient-to-r from-primary to-purple-500"
-                    style={{
-                        left: particle.x,
-                        top: particle.y,
-                        transform: 'translate(-50%, -50%)',
-                        animation: 'fadeOut 1s forwards',
-                        boxShadow: '0 0 12px rgba(99, 102, 241, 0.8), 0 0 24px rgba(139, 92, 246, 0.4)',
-                    }}
-                />
-            ))}
-        </div>
-    )
-}
 
 export function LoginForm() {
     const [formData, setFormData] = useState<LoginFormData>({
@@ -67,13 +29,11 @@ export function LoginForm() {
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [sessionExpired, setSessionExpired] = useState(false)
-    const [signupSuccess, setSignupSuccess] = useState(false)
-    const [resetSuccess, setResetSuccess] = useState(false)
-    const [socialLoginSuccessMessage, setSocialLoginSuccessMessage] = useState<string | null>(null)
     const router = useRouter()
     const searchParams = useSearchParams()
     const { updateAuthState } = useAuth()
     const { navigateWithLoading } = useNavigationWithLoading()
+    const { toast } = useToast()
 
     /* ────────────────────────────────────────────────────────── */
     /*  Handlers                                                 */
@@ -81,23 +41,34 @@ export function LoginForm() {
     useEffect(() => {
         if (searchParams.get("session") === "expired") setSessionExpired(true)
         if (searchParams.get("signup") === "success") {
-            setSignupSuccess(true)
-            setTimeout(() => setSignupSuccess(false), 5000)
+            toast({
+                title: "Account Created Successfully!",
+                description: "Please log in with your credentials.",
+                variant: "success",
+            })
+            // Clear the URL parameter to prevent showing again on reload
+            const newUrl = new URL(window.location.href)
+            newUrl.searchParams.delete("signup")
+            window.history.replaceState({}, "", newUrl.toString())
         }
         if (searchParams.get("reset") === "success") {
-            setResetSuccess(true)
-            setTimeout(() => setResetSuccess(false), 5000)
+            toast({
+                title: "Password Reset Successfully!",
+                description: "Please log in with your new password.",
+                variant: "success",
+            })
+            // Clear the URL parameter to prevent showing again on reload
+            const newUrl = new URL(window.location.href)
+            newUrl.searchParams.delete("reset")
+            window.history.replaceState({}, "", newUrl.toString())
         }
-    }, [searchParams])
+    }, [searchParams, toast])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type, checked } = e.target
         setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }))
         if (errors[name as keyof typeof errors]) setErrors((prev) => ({ ...prev, [name]: "" }))
         if (sessionExpired) setSessionExpired(false)
-        if (signupSuccess) setSignupSuccess(false)
-        if (resetSuccess) setResetSuccess(false)
-        if (socialLoginSuccessMessage) setSocialLoginSuccessMessage(null)
     }
 
     const toggleShowPassword = () => setShowPassword((prev) => !prev)
@@ -143,20 +114,43 @@ export function LoginForm() {
                 localStorage.setItem("scholarai_user", JSON.stringify(response.user))
                 // Update auth state
                 updateAuthState(response.token, response.user)
+                toast({
+                    title: "Login Successful!",
+                    description: "Redirecting to dashboard...",
+                    variant: "success",
+                })
                 navigateWithLoading("/interface/home", "Accessing neural network...")
+            }
+            else if (response.requiresEmailVerification) {
+                console.log('Email verification required, redirecting to verification page')
+                toast({
+                    title: "Email Verification Required",
+                    description: response.message || "Please verify your email before logging in.",
+                    variant: "destructive",
+                })
+                // Redirect to email verification page
+                setTimeout(() => {
+                    navigateWithLoading(`/verify-email?email=${encodeURIComponent(response.email || formData.email)}`, "Redirecting to email verification...")
+                }, 1000)
             }
             else {
                 console.error('Login failed:', response)
-                setErrors({
-                    email: "",
-                    password: response.message || "Invalid email or password. Please check your credentials and try again."
+                // Set password error for form validation
+                setErrors(prev => ({ ...prev, password: response.message || "Invalid email or password" }))
+                toast({
+                    title: "Login Failed",
+                    description: response.message || "Invalid email or password. Please check your credentials and try again.",
+                    variant: "destructive",
                 })
             }
         } catch (error) {
             console.error("Login error:", error)
-            setErrors({
-                email: "",
-                password: "An error occurred. Please check your internet connection and try again."
+            // Set password error for network errors
+            setErrors(prev => ({ ...prev, password: "An error occurred. Please check your internet connection and try again." }))
+            toast({
+                title: "Login Failed",
+                description: "An error occurred. Please check your internet connection and try again.",
+                variant: "destructive",
             })
         } finally {
             setIsLoading(false)
@@ -166,25 +160,37 @@ export function LoginForm() {
     const handleSocialLoginSuccess = (data: SocialLoginResponse) => {
         console.log("Social login success in LoginForm:", data)
         if (data.success && data.token && data.user) {
+            console.log("Setting localStorage and updating auth state......")
             localStorage.setItem("scholarai_token", data.token)
             localStorage.setItem("scholarai_user", JSON.stringify(data.user))
             updateAuthState(data.token, data.user)
-            setSocialLoginSuccessMessage("Login successful!..")
-            navigateWithLoading('/interface/home', "Accessing neural network...")
+            toast({
+                title: "Login Successful!",
+                description: "Redirecting to dashboard...",
+                variant: "success",
+            })
+
+            // Add a small delay to ensure auth state is updated before navigation
+            setTimeout(() => {
+                console.log("Navigating to /interface/home...")
+                navigateWithLoading('/interface/home', "Accessing neural network...")
+            }, 100)
         } else {
             // Handle cases where social login API might return success:false but was handled as success by SocialLogin
-            setErrors({
-                email: "",
-                password: data.message || "Social login failed. Please try again."
+            toast({
+                title: "Login Failed",
+                description: data.message || "Social login failed. Please try again.",
+                variant: "destructive",
             })
         }
     }
 
     const handleSocialLoginError = (message: string) => {
         console.error("Social login error in LoginForm:", message)
-        setErrors({
-            email: "", // Or a more generic error field
-            password: message || "An error occurred during social login. Please try again."
+        toast({
+            title: "Login Failed",
+            description: message || "An error occurred during social login. Please try again.",
+            variant: "destructive",
         })
     }
 
@@ -193,48 +199,37 @@ export function LoginForm() {
     /* ────────────────────────────────────────────────────────── */
     return (
         <div className="w-full min-h-screen flex flex-col px-4 font-['Segoe_UI']">
-            <MouseGlitter />
+            {/* Logo in top left corner */}
+            <div className="absolute top-6 left-6 z-10">
+                <div
+                    className="flex items-center space-x-3 cursor-pointer hover:scale-105 transition-transform duration-200"
+                    onClick={() => navigateWithLoading("/")}
+                >
+                    <div className="relative">
+                        <Brain className="h-8 w-8 text-primary" />
+                        <div className="absolute inset-0 h-8 w-8 bg-primary/20 rounded-full blur-md animate-pulse" />
+                    </div>
+                    <span className="text-xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                        ScholarAI
+                    </span>
+                </div>
+            </div>
+
             <div className="flex-1 flex items-center justify-center">
                 <div className="max-w-[450px] w-full">
-                    <h1 className="text-3xl font-extrabold text-center mb-8 bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent drop-shadow-lg">
+                    <h1 className="text-3xl font-extrabold text-center mb-8 text-foreground drop-shadow-lg">
                         {AUTH_CONSTANTS.loginTitle}
                     </h1>
 
                     {sessionExpired && (
-                        <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-md text-white text-sm">
+                        <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-md text-foreground text-sm">
                             Your session has expired. Please log in again to continue.
                         </div>
                     )}
 
-                    {resetSuccess && (
-                        <div className="mb-6 p-4 rounded-2xl backdrop-blur-2xl border border-primary/40 bg-gradient-to-br from-primary/20 via-primary/10 to-green-500/15 shadow-lg shadow-primary/20 text-white text-base font-['Segoe_UI'] animate-fadeIn relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent animate-shimmer"></div>
-                            <div className="relative z-10 flex items-center gap-3">
-                                <svg className="w-6 h-6 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                <span className="font-medium">Password has been reset successfully! Please log in with your new password.</span>
-                            </div>
-                        </div>
-                    )}
 
-                    {signupSuccess && (
-                        <div className="mb-6 p-4 rounded-2xl backdrop-blur-2xl border border-primary/40 bg-gradient-to-br from-primary/20 via-primary/10 to-green-500/15 shadow-lg shadow-primary/20 text-white text-base font-['Segoe_UI'] animate-fadeIn relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent animate-shimmer"></div>
-                            <div className="relative z-10 flex items-center gap-3">
-                                <svg className="w-6 h-6 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                <span className="font-medium">Account created successfully! Please log in with your credentials.</span>
-                            </div>
-                        </div>
-                    )}
 
-                    {socialLoginSuccessMessage && (
-                        <div className="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-md text-white text-sm">
-                            {socialLoginSuccessMessage}
-                        </div>
-                    )}
+
 
                     {/* ----------  THEMED GLASS CARD ---------- */}
                     <div
@@ -267,7 +262,7 @@ export function LoginForm() {
                                     toggleShowPassword={toggleShowPassword}
                                 />
 
-                                <div className="flex items-center justify-between text-base text-white/70 mb-8">
+                                <div className="flex items-center justify-between text-base text-foreground mb-8">
                                     <Checkbox
                                         id="rememberMe"
                                         name="rememberMe"
@@ -276,12 +271,20 @@ export function LoginForm() {
                                         onChange={handleChange}
                                     />
 
-                                    <Link
-                                        href="/forgot-password"
-                                        className="text-primary/60 hover:text-primary/80 transition-colors font-['Segoe_UI'] underline underline-offset-2"
-                                    >
-                                        {AUTH_CONSTANTS.forgotPassword}
-                                    </Link>
+                                    <div className="flex flex-col gap-1">
+                                        <Link
+                                            href="/forgot-password"
+                                            className="text-foreground hover:text-primary/80 transition-colors font-['Segoe_UI'] underline underline-offset-2 text-sm"
+                                        >
+                                            {AUTH_CONSTANTS.forgotPassword}
+                                        </Link>
+                                        <Link
+                                            href={`/verify-email?email=${encodeURIComponent(formData.email)}`}
+                                            className="text-foreground hover:text-primary/80 transition-colors font-['Segoe_UI'] underline underline-offset-2 text-sm"
+                                        >
+                                            Resend verification email
+                                        </Link>
+                                    </div>
                                 </div>
                             </div>
 
@@ -325,18 +328,18 @@ export function LoginForm() {
 
                     <div className="mt-12 text-center">
                         <div className="flex items-center justify-center gap-3 mb-8">
-                            <div className="h-[1px] bg-primary/30 w-40"></div>
-                            <span className="text-primary/50 text-base font-['Segoe_UI'] whitespace-nowrap">or connect with</span>
-                            <div className="h-[1px] bg-primary/30 w-40"></div>
+                            <div className="h-[1px] bg-foreground/30 w-40"></div>
+                            <span className="text-foreground text-base font-['Segoe_UI'] whitespace-nowrap">or connect with</span>
+                            <div className="h-[1px] bg-foreground/30 w-40"></div>
                         </div>
                         <SocialLogin onLoginSuccess={handleSocialLoginSuccess} onLoginError={handleSocialLoginError} />
                     </div>
 
-                    <p className="text-center text-primary/50 text-base mt-8 font-['Segoe_UI']">
+                    <p className="text-center text-foreground text-base mt-8 font-['Segoe_UI']">
                         {AUTH_CONSTANTS.noAccount}{" "}
                         <Link
                             href="/signup"
-                            className="relative inline-block text-primary/80 hover:text-primary transition-colors font-medium cursor-pointer underline decoration-primary/50 hover:decoration-primary underline-offset-2"
+                            className="relative inline-block text-foreground hover:text-primary transition-colors font-medium cursor-pointer underline decoration-foreground/50 hover:decoration-primary underline-offset-2"
                         >
                             {AUTH_CONSTANTS.signUpLink}
                         </Link>

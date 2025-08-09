@@ -29,6 +29,15 @@ export interface AuthResponse {
     }
 }
 
+export interface LoginResponse extends AuthResponse {
+    requiresEmailVerification?: boolean
+    email?: string
+}
+
+export interface SignupResponse extends AuthResponse {
+    requiresVerification?: boolean
+}
+
 export interface AuthState {
     isAuthenticated: boolean
     user: User | null

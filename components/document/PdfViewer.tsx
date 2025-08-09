@@ -6,34 +6,43 @@ import type { PopoverProps } from '@react-pdf-viewer/core'
 import { zoomPlugin } from '@react-pdf-viewer/zoom'
 import type { ZoomPopoverProps } from '@react-pdf-viewer/zoom'
 import { searchPlugin } from '@react-pdf-viewer/search'
+import { pageNavigationPlugin } from '@react-pdf-viewer/page-navigation'
 import {
   Download,
   FileText,
   AlertCircle,
   RefreshCw,
-  Maximize,
-  Minimize,
   Search,
   Plus,
   Minus,
   ChevronLeft,
   ChevronRight,
   X,
-  ChevronUp,
-  ChevronDown,
-  Hash
+  MessageSquarePlus,
+  Bot,
+  LayoutGrid
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils/cn"
-import { downloadPdfWithAuth } from "@/lib/api"
+import { downloadPdfWithAuth } from "@/lib/api/pdf"
+import { ChatContainer } from "@/components/chat/ChatContainer"
+import { postPaperChat } from "@/lib/api/qa"
 
 // Import CSS for react-pdf-viewer
 import '@react-pdf-viewer/core/lib/styles/index.css'
 
+// Thumbnail plugin for grid view
+import { thumbnailPlugin } from '@react-pdf-viewer/thumbnail'
+import '@react-pdf-viewer/thumbnail/lib/styles/index.css'
+
+// Search plugin styles (for highlight colors)
+import '@react-pdf-viewer/search/lib/styles/index.css'
+
 type Props = {
   documentUrl?: string
   documentName?: string
+  paperId?: string
 }
 
 // Helper function to handle PDF URL processing
@@ -60,6 +69,19 @@ const processPdfUrl = async (url: string): Promise<string> => {
         }
       }
 
+      // Check if it's a B2 URL
+      const isB2Url = urlObj.hostname.startsWith('f') && urlObj.hostname.endsWith('.backblazeb2.com')
+
+      if (isB2Url) {
+        // Extract file ID from B2 URL
+        const fileId = urlObj.searchParams.get('fileId')
+        if (fileId) {
+          const b2DownloadUrl = `/api/b2/download?fileId=${fileId}`
+          console.log('B2 URL detected, using dedicated download endpoint:', b2DownloadUrl)
+          return b2DownloadUrl
+        }
+      }
+
       // If it's external, use our proxy to bypass CORS
       const proxyUrl = `/api/pdf/proxy?url=${encodeURIComponent(url)}`
       console.log('External URL detected, using proxy. Original:', url, 'Proxy:', proxyUrl)
@@ -74,7 +96,7 @@ const processPdfUrl = async (url: string): Promise<string> => {
   }
 }
 
-export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
+export function PDFViewer({ documentUrl, documentName = "Document", paperId }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [viewMode, setViewMode] = useState<'read' | 'edit'>('read')
   const [processedUrl, setProcessedUrl] = useState<string | null>(null)
@@ -84,21 +106,155 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
   const [totalPages, setTotalPages] = useState(0)
   const [showSearch, setShowSearch] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [searchResults, setSearchResults] = useState<{ pageIndex: number; snippet: string }[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [pdfDoc, setPdfDoc] = useState<any>(null)
   const [jumpToPage, setJumpToPage] = useState('')
   const [scale, setScale] = useState(1.0)
+  const [visualScale, setVisualScale] = useState(1.0)
+  const [isZooming, setIsZooming] = useState(false)
+  const [zoomOrigin, setZoomOrigin] = useState({ x: '50%', y: '50%' })
+  const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0)
   const [totalMatches, setTotalMatches] = useState(0)
+  const [showThumbnails, setShowThumbnails] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Initialize plugins
+  // Chat drawer state
+  const [showChat, setShowChat] = useState(false)
+  const [chatInput, setChatInput] = useState('')
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
+  const [externalContexts, setExternalContexts] = useState<string[]>([])
+
+  // Floating add-to-chat button for selected text
+  const [selectionText, setSelectionText] = useState('')
+  const [selectionPos, setSelectionPos] = useState<{ x: number; y: number } | null>(null)
+
+  // Chat metadata and resizing
+  const [chatName, setChatName] = useState('New Chat')
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [chatHistory, setChatHistory] = useState<{ name: string; messages: { role: 'user' | 'assistant'; content: string }[] }[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+  const [chatWidth, setChatWidth] = useState(384)
+  const [isResizing, setIsResizing] = useState(false)
+  const [startX, setStartX] = useState(0)
+  const [startWidth, setStartWidth] = useState(384)
+
+  // Q/A chat state
+  const [qaLoading, setQaLoading] = useState(false)
+  const [qaError, setQaError] = useState<string | null>(null)
+  const [qaUserMessage, setQaUserMessage] = useState<string | null>(null)
+  const [qaAssistantMessage, setQaAssistantMessage] = useState<string | null>(null)
+
   const zoomPluginInstance = zoomPlugin()
   const { zoomTo } = zoomPluginInstance
 
-  const searchPluginInstance = searchPlugin({
-    keyword: searchKeyword ? [searchKeyword] : [],
-  })
-  const { clearHighlights, highlight, jumpToNextMatch, jumpToPreviousMatch } = searchPluginInstance
+  const searchPluginInstance = searchPlugin()
+  const { clearHighlights, highlight, jumpToNextMatch, jumpToPreviousMatch, jumpToMatch } = searchPluginInstance
+
+  // Thumbnail plugin instance
+  const thumbnailPluginInstance = thumbnailPlugin()
+
+  // Add thumbnail overlay component
+  const ThumbnailOverlay = () => {
+    const [thumbnails, setThumbnails] = useState<{ pageIndex: number; url: string }[]>([])
+    const [loadingThumbnails, setLoadingThumbnails] = useState(true)
+
+    useEffect(() => {
+      const generateThumbnails = async () => {
+        if (!pdfDoc) return
+
+        setLoadingThumbnails(true)
+        const thumbs: { pageIndex: number; url: string }[] = []
+
+        try {
+          for (let i = 1; i <= Math.min(pdfDoc.numPages, 100); i++) {
+            const page = await pdfDoc.getPage(i)
+            const viewport = page.getViewport({ scale: 0.5 })
+            const canvas = document.createElement('canvas')
+            const context = canvas.getContext('2d')
+
+            if (context) {
+              canvas.height = viewport.height
+              canvas.width = viewport.width
+
+              await page.render({
+                canvasContext: context,
+                viewport: viewport
+              }).promise
+
+              thumbs.push({
+                pageIndex: i - 1,
+                url: canvas.toDataURL()
+              })
+            }
+          }
+
+          setThumbnails(thumbs)
+        } catch (error) {
+          console.error('Error generating thumbnails:', error)
+        } finally {
+          setLoadingThumbnails(false)
+        }
+      }
+
+      if (showThumbnails && pdfDoc) {
+        generateThumbnails()
+      }
+    }, [showThumbnails, pdfDoc])
+
+    return (
+      <div className="fixed inset-0 bg-background z-50 overflow-auto">
+        <div className="sticky top-0 flex items-center justify-between p-4 bg-background border-b border-border z-10">
+          <h2 className="text-lg font-semibold">All Pages</h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowThumbnails(false)}
+            className="h-8 w-8 p-0"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="p-8 max-w-[1600px] mx-auto">
+          {loadingThumbnails ? (
+            <div className="flex items-center justify-center py-20">
+              <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-sm text-muted-foreground">Generating thumbnails...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {thumbnails.map((thumb) => (
+                <div
+                  key={thumb.pageIndex}
+                  className="cursor-pointer group"
+                  onClick={() => {
+                    jumpToPageNumber(thumb.pageIndex)
+                    setShowThumbnails(false)
+                  }}
+                >
+                  <div className="relative rounded-lg overflow-hidden bg-card border border-border transition-all duration-200 hover:border-primary hover:shadow-lg hover:-translate-y-1">
+                    <div className="aspect-[1/1.4] bg-muted">
+                      <img
+                        src={thumb.url}
+                        alt={`Page ${thumb.pageIndex + 1}`}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                  </div>
+                  <p className="text-center mt-2 text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+                    Page {thumb.pageIndex + 1}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   // Load and process PDF URL
   useEffect(() => {
@@ -154,19 +310,34 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
 
   // Handle PDF download
   const handleDownload = async () => {
-    if (!documentUrl) return
+    const urlForDownload = processedUrl || documentUrl
+    if (!urlForDownload) return
 
     try {
-      await downloadPdfWithAuth(documentUrl, documentName)
+      await downloadPdfWithAuth(urlForDownload, documentName)
     } catch (error) {
       console.error('Download failed:', error)
-      setError(error instanceof Error ? error.message : 'Download failed. Please try again.')
+
+      // Fallback: Attempt to open the PDF in a new tab for download
+      try {
+        const link = document.createElement('a')
+        link.href = urlForDownload
+        link.download = `${documentName}.pdf`
+        link.target = '_blank'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } catch (fallbackError) {
+        console.error('Fallback download also failed:', fallbackError)
+        setError('Failed to download PDF. Please try again or check your connection.')
+      }
     }
   }
 
   const handleDocumentLoad = useCallback((e: any) => {
     console.log('Document loaded successfully:', e)
     setTotalPages(e.doc.numPages)
+    setPdfDoc(e.doc)
     setError(null)
     setScale(1.0)
   }, [])
@@ -178,43 +349,69 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
 
   // Add scroll event listener to track current page manually if needed
   useEffect(() => {
-    const viewer = containerRef.current?.querySelector('.rpv-core__viewer')
-    if (!viewer) return
+    const outerContainer = containerRef.current?.parentElement
+    if (!outerContainer) return
 
     const handleScroll = () => {
-      const pages = viewer.querySelectorAll('.rpv-core__page-layer')
+      // Find all pages in the document
+      const pages = document.querySelectorAll('.rpv-core__page-layer')
       if (pages.length === 0) return
 
-      const viewerRect = viewer.getBoundingClientRect()
-      const viewerCenter = viewerRect.top + viewerRect.height / 2
+      const containerRect = outerContainer.getBoundingClientRect()
+      const containerTop = containerRect.top
+      const containerBottom = containerRect.bottom
+      const containerCenter = containerTop + containerRect.height / 2
 
-      // Find which page is closest to the center of the viewer
-      let closestPageIndex = 0
-      let closestDistance = Infinity
+      // Find which page is most visible in the viewport
+      let visiblePageIndex = 0
+      let maxVisibleArea = 0
 
       pages.forEach((page, index) => {
         const pageRect = page.getBoundingClientRect()
-        const pageCenter = pageRect.top + pageRect.height / 2
-        const distance = Math.abs(pageCenter - viewerCenter)
 
-        if (distance < closestDistance) {
-          closestDistance = distance
-          closestPageIndex = index
+        // Calculate visible area of this page
+        const visibleTop = Math.max(pageRect.top, containerTop)
+        const visibleBottom = Math.min(pageRect.bottom, containerBottom)
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop)
+        const visibleArea = visibleHeight * pageRect.width
+
+        if (visibleArea > maxVisibleArea) {
+          maxVisibleArea = visibleArea
+          visiblePageIndex = index
         }
       })
 
-      if (closestPageIndex !== currentPage) {
-        setCurrentPage(closestPageIndex)
+      if (visiblePageIndex !== currentPage) {
+        console.log('Page changed from', currentPage, 'to', visiblePageIndex)
+        setCurrentPage(visiblePageIndex)
       }
     }
 
-    viewer.addEventListener('scroll', handleScroll, { passive: true })
-    return () => viewer.removeEventListener('scroll', handleScroll)
+    // Throttle scroll events for better performance
+    let ticking = false
+    const throttledHandleScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          handleScroll()
+          ticking = false
+        })
+        ticking = true
+      }
+    }
+
+    outerContainer.addEventListener('scroll', throttledHandleScroll, { passive: true })
+    return () => outerContainer.removeEventListener('scroll', throttledHandleScroll)
   }, [processedUrl, currentPage])
 
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Toggle chat with Ctrl+I
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
+        e.preventDefault()
+        setShowChat((prev) => !prev)
+        return
+      }
       if (e.ctrlKey && e.key === 'f') {
         e.preventDefault()
         setShowSearch(true)
@@ -233,77 +430,101 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [showSearch, clearHighlights])
 
-  // Handle search
+  // Listen to selection changes to show Add-to-Chat button
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const sel = window.getSelection()
+      if (sel && sel.toString().trim().length > 0) {
+        const range = sel.getRangeAt(0)
+        const rect = range.getBoundingClientRect()
+        setSelectionText(sel.toString())
+        setSelectionPos({ x: rect.right, y: rect.bottom })
+      } else {
+        setSelectionPos(null)
+      }
+    }
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => document.removeEventListener('selectionchange', handleSelectionChange)
+  }, [])
+
+  const performSearch = async (keyword: string) => {
+    if (!pdfDoc || !keyword.trim()) {
+      setSearchResults([])
+      return
+    }
+    setIsSearching(true)
+    const newResults: { pageIndex: number; snippet: string }[] = []
+    const regex = new RegExp(keyword, 'gi')
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      const page = await pdfDoc.getPage(i)
+      const textContent = await page.getTextContent()
+      const text = (textContent.items as any[]).map((it) => it.str).join(' ')
+      let match
+      while ((match = regex.exec(text)) !== null) {
+        const start = Math.max(0, match.index - 30)
+        const snippet = text.substr(start, keyword.length + 60).replace(/\s+/g, ' ')
+        newResults.push({ pageIndex: i - 1, snippet })
+      }
+    }
+    setSearchResults(newResults)
+    setTotalMatches(newResults.length)
+    setIsSearching(false)
+  }
+
   const handleSearch = (keyword: string) => {
     setSearchKeyword(keyword)
     setCurrentMatchIndex(0)
     if (keyword.trim()) {
       highlight([keyword])
+      performSearch(keyword)
     } else {
       clearHighlights()
+      setSearchResults([])
       setTotalMatches(0)
     }
   }
 
-  // Enhanced page navigation with multiple fallback methods
+  // Enhanced page navigation - cleaned up but keeping working logic
   const jumpToPageNumber = (pageIndex: number) => {
-    console.log('Jumping to page index:', pageIndex)
     setCurrentPage(pageIndex)
 
-    // Wait for the component to update, then scroll
-    setTimeout(() => {
-      const viewer = containerRef.current?.querySelector('.rpv-core__viewer') as HTMLElement
-      if (!viewer) {
-        console.warn('PDF viewer container not found')
-        return
+    // Fallback: Direct DOM manipulation
+    const pageSelectors = [
+      '.rpv-core__page-layer',
+      '[data-page-number]',
+      '.rpv-page',
+      '.page'
+    ]
+
+    let pages: NodeListOf<Element> | null = null
+
+    for (const selector of pageSelectors) {
+      const foundPages = document.querySelectorAll(selector)
+      if (foundPages.length > 0) {
+        pages = foundPages
+        break
       }
+    }
 
-      // Method 1: Find page by data attribute or class
-      let pageElement = viewer.querySelector(`[data-page-number="${pageIndex + 1}"]`) ||
-        viewer.querySelector(`[data-page-number="${pageIndex}"]`) ||
-        viewer.querySelector(`.rpv-core__page-layer:nth-child(${pageIndex + 1})`)
+    if (pages && pages.length > pageIndex && pageIndex >= 0) {
+      const targetPage = pages[pageIndex] as HTMLElement
+      const scrollContainer = containerRef.current?.parentElement
 
-      if (pageElement) {
-        console.log('Found page element, scrolling...')
-        pageElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        })
-        return
-      }
+      if (scrollContainer && targetPage) {
+        const containerRect = scrollContainer.getBoundingClientRect()
+        const pageRect = targetPage.getBoundingClientRect()
 
-      // Method 2: Calculate scroll position based on page height
-      const pages = viewer.querySelectorAll('.rpv-core__page-layer')
-      if (pages.length > pageIndex) {
-        const targetPage = pages[pageIndex] as HTMLElement
-        console.log('Scrolling to calculated position...')
+        const currentScroll = scrollContainer.scrollTop
+        const targetScroll = currentScroll + pageRect.top - containerRect.top - 20
 
-        // Calculate the scroll position
-        let scrollTop = 0
-        for (let i = 0; i < pageIndex; i++) {
-          const page = pages[i] as HTMLElement
-          scrollTop += page.offsetHeight + 16 // Include margin
-        }
-
-        viewer.scrollTo({
-          top: scrollTop,
+        // Force immediate scroll first, then smooth scroll
+        scrollContainer.scrollTop = targetScroll
+        scrollContainer.scrollTo({
+          top: targetScroll,
           behavior: 'smooth'
         })
-        return
       }
-
-      // Method 3: Force re-render and try again
-      console.log('Forcing re-render and retrying...')
-      setTimeout(() => {
-        const retryPages = viewer.querySelectorAll('.rpv-core__page-layer')
-        if (retryPages.length > pageIndex) {
-          retryPages[pageIndex].scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
-          })
-        }
-      }, 500)
-    }, 200)
+    }
   }
 
   const handleJumpToPage = () => {
@@ -326,11 +547,200 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
     }
   }
 
+  // Handle zoom with wheel events - smooth implementation
+  const handleWheel = useCallback((e: WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault()
 
+      // Calculate zoom origin based on mouse position
+      const container = containerRef.current
+      if (container) {
+        const rect = container.getBoundingClientRect()
+        const x = ((e.clientX - rect.left) / rect.width) * 100
+        const y = ((e.clientY - rect.top) / rect.height) * 100
+        setZoomOrigin({ x: `${x}%`, y: `${y}%` })
+      }
+
+      // Calculate zoom delta based on wheel movement with smooth acceleration
+      const sensitivity = 0.002 // Adjust this for zoom sensitivity
+      const delta = -e.deltaY * sensitivity
+      const currentVisualScale = visualScale
+      const zoomFactor = Math.exp(delta) // Exponential zoom for smoother feel
+      const newVisualScale = Math.max(0.5, Math.min(3.0, currentVisualScale * zoomFactor))
+
+      // Apply immediate visual zoom using CSS transform
+      setVisualScale(newVisualScale)
+      setIsZooming(true)
+
+      // Clear any existing timeout
+      if (zoomTimeoutRef.current) {
+        clearTimeout(zoomTimeoutRef.current)
+      }
+
+      // Debounce the actual PDF scale update
+      zoomTimeoutRef.current = setTimeout(() => {
+        setScale(newVisualScale)
+        if (zoomTo) {
+          zoomTo(newVisualScale)
+        }
+        setIsZooming(false)
+        // Reset zoom origin after zoom completes
+        setZoomOrigin({ x: '50%', y: '50%' })
+      }, 150) // Reduced from 300ms for more responsive feel
+    }
+  }, [visualScale, zoomTo])
+
+  // Sync visual scale with actual scale when not zooming
+  useEffect(() => {
+    if (!isZooming) {
+      setVisualScale(scale)
+    }
+  }, [scale, isZooming])
+
+  // Cleanup zoom timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (zoomTimeoutRef.current) {
+        clearTimeout(zoomTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  // Add wheel event listener for zoom
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => container.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
+
+  // Handle pinch gestures on touchpad/touchscreen
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    let initialDistance = 0
+    let initialScale = 1
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const touch1 = e.touches[0]
+        const touch2 = e.touches[1]
+        initialDistance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        )
+        initialScale = visualScale
+
+        // Calculate center point for zoom origin
+        const centerX = (touch1.clientX + touch2.clientX) / 2
+        const centerY = (touch1.clientY + touch2.clientY) / 2
+        const rect = container.getBoundingClientRect()
+        const x = ((centerX - rect.left) / rect.width) * 100
+        const y = ((centerY - rect.top) / rect.height) * 100
+        setZoomOrigin({ x: `${x}%`, y: `${y}%` })
+      }
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault()
+
+        const touch1 = e.touches[0]
+        const touch2 = e.touches[1]
+        const currentDistance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        )
+
+        const scaleFactor = currentDistance / initialDistance
+        const newScale = Math.max(0.5, Math.min(3.0, initialScale * scaleFactor))
+
+        setVisualScale(newScale)
+        setIsZooming(true)
+
+        // Clear and set new timeout
+        if (zoomTimeoutRef.current) {
+          clearTimeout(zoomTimeoutRef.current)
+        }
+
+        zoomTimeoutRef.current = setTimeout(() => {
+          setScale(newScale)
+          if (zoomTo) {
+            zoomTo(newScale)
+          }
+          setIsZooming(false)
+          setZoomOrigin({ x: '50%', y: '50%' })
+        }, 150)
+      }
+    }
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: true })
+    container.addEventListener('touchmove', handleTouchMove, { passive: false })
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart)
+      container.removeEventListener('touchmove', handleTouchMove)
+    }
+  }, [visualScale, zoomTo])
+
+  // Handle gesture events (Safari and some other browsers)
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    let initialScale = 1
+
+    const handleGestureStart = (e: any) => {
+      e.preventDefault()
+      initialScale = visualScale
+    }
+
+    const handleGestureChange = (e: any) => {
+      e.preventDefault()
+
+      const newScale = Math.max(0.5, Math.min(3.0, initialScale * e.scale))
+
+      setVisualScale(newScale)
+      setIsZooming(true)
+
+      // Clear and set new timeout
+      if (zoomTimeoutRef.current) {
+        clearTimeout(zoomTimeoutRef.current)
+      }
+
+      zoomTimeoutRef.current = setTimeout(() => {
+        setScale(newScale)
+        if (zoomTo) {
+          zoomTo(newScale)
+        }
+        setIsZooming(false)
+      }, 150)
+    }
+
+    const handleGestureEnd = (e: any) => {
+      e.preventDefault()
+    }
+
+    // Add gesture event listeners if supported
+    if ('GestureEvent' in window) {
+      container.addEventListener('gesturestart', handleGestureStart, { passive: false })
+      container.addEventListener('gesturechange', handleGestureChange, { passive: false })
+      container.addEventListener('gestureend', handleGestureEnd, { passive: false })
+
+      return () => {
+        container.removeEventListener('gesturestart', handleGestureStart)
+        container.removeEventListener('gesturechange', handleGestureChange)
+        container.removeEventListener('gestureend', handleGestureEnd)
+      }
+    }
+  }, [visualScale, zoomTo])
 
   // Handle zoom
   const handleZoomIn = () => {
-    const newScale = Math.min(scale * 1.2, 3.0)
+    const newScale = Math.min(visualScale * 1.2, 3.0)
+    setVisualScale(newScale)
     setScale(newScale)
     if (zoomTo) {
       zoomTo(newScale)
@@ -338,7 +748,8 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
   }
 
   const handleZoomOut = () => {
-    const newScale = Math.max(scale / 1.2, 0.5)
+    const newScale = Math.max(visualScale / 1.2, 0.5)
+    setVisualScale(newScale)
     setScale(newScale)
     if (zoomTo) {
       zoomTo(newScale)
@@ -346,6 +757,7 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
   }
 
   const handleFitToPage = () => {
+    setVisualScale(1.0)
     setScale(1.0)
     if (zoomTo) {
       zoomTo(1.0)
@@ -396,15 +808,57 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
     }
   }
 
-  return (
-    <div className="flex flex-col h-full bg-background">
-      {/* Compact Header */}
-      <div className="flex items-center justify-between h-12 px-4 bg-card border-b border-border">
-        <div className="flex items-center gap-3">
-          <FileText className="h-4 w-4 text-primary" />
-          <span className="text-foreground font-medium text-sm truncate max-w-64">{documentName}</span>
-        </div>
+  // Handle resizing of chat drawer
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return
+      const delta = startX - e.clientX
+      setChatWidth(Math.max(200, Math.min(800, startWidth + delta)))
+    }
+    const onMouseUp = () => setIsResizing(false)
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [isResizing, startX, startWidth])
 
+  // Handler for sending a message
+  const handleQaSend = async (message: string) => {
+    if (!documentName) return;
+    setQaLoading(true);
+    setQaError(null);
+    // Prepend external context if present
+    let fullMessage = message;
+    if (externalContexts.length > 0) {
+      fullMessage = externalContexts.join('\n') + '\n' + message;
+    }
+    setQaUserMessage(fullMessage);
+    setQaAssistantMessage(null);
+    try {
+      const sessionId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+      const res = await postPaperChat(
+        documentUrl || '',
+        {
+          message: fullMessage,
+          sessionId,
+          sessionTitle: documentName,
+        }
+      );
+      setQaAssistantMessage(res.response);
+      setExternalContexts([]); // Clear after sending
+    } catch (e) {
+      setQaError('Failed to send message');
+    } finally {
+      setQaLoading(false);
+    }
+  };
+
+  return (
+    <div className="relative flex flex-col h-full bg-background">
+      {/* Compact Header */}
+      <div className="flex items-center justify-end h-10 px-2 bg-card border-b border-border">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -433,62 +887,38 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={() => setShowChat(!showChat)}
+            className={cn(
+              "h-8 w-8 p-0",
+              showChat ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
           >
-            {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+            <Bot className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Search Bar */}
-      {showSearch && (
-        <div className="flex items-center gap-2 h-10 px-4 bg-primary/5 border-b border-border">
+      {/* Search Sidebar */}
+      <div className={`absolute left-0 top-0 bottom-0 w-72 bg-card border-r border-border z-40 transform transition-transform duration-300 ease-in-out ${showSearch ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
+        {/* Header with input */}
+        <div className="p-3 border-b border-border flex items-center gap-2">
           <Search className="h-4 w-4 text-primary" />
           <Input
             ref={searchInputRef}
             type="text"
             value={searchKeyword}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Search in document..."
-            className="h-8 flex-1 text-sm"
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 setShowSearch(false)
                 setSearchKeyword('')
                 clearHighlights()
-              } else if (e.key === 'Enter') {
-                if (e.shiftKey) {
-                  handlePreviousMatch()
-                } else {
-                  handleNextMatch()
-                }
+                setSearchResults([])
               }
             }}
+            placeholder="Keyword search"
+            className="h-8 text-sm flex-1"
           />
-          {searchKeyword && totalMatches > 0 && (
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-muted-foreground">
-                {currentMatchIndex + 1} of {totalMatches}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handlePreviousMatch}
-                className="h-6 w-6 p-0 text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <ChevronUp className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleNextMatch}
-                className="h-6 w-6 p-0 text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </div>
-          )}
           <Button
             variant="ghost"
             size="sm"
@@ -496,16 +926,77 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
               setShowSearch(false)
               setSearchKeyword('')
               clearHighlights()
+              setSearchResults([])
             }}
             className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
+
+        {/* Results */}
+        <div className="flex-1 overflow-auto">
+          {isSearching ? (
+            <div className="flex items-center justify-center h-full text-sm text-muted-foreground">Searching...</div>
+          ) : searchResults.length === 0 ? (
+            <div className="p-4 text-sm text-muted-foreground">No results</div>
+          ) : (
+            searchResults.map((res, idx) => (
+              <button
+                key={`${res.pageIndex}-${idx}`}
+                onClick={() => {
+                  // 1) Scroll to the page containing the match
+                  jumpToPageNumber(res.pageIndex)
+
+                  // 2) Highlight and jump to this specific match
+                  highlight([searchKeyword]).then(() => {
+                    jumpToMatch(idx + 1) // jumpToMatch is 1-based
+                    setCurrentMatchIndex(idx)
+                  })
+                  // We intentionally keep the search pane open
+                }}
+                className="w-full text-left px-4 py-2 hover:bg-muted"
+              >
+                <div className="text-xs text-muted-foreground">Page {res.pageIndex + 1}</div>
+                <div
+                  className="text-sm truncate"
+                  dangerouslySetInnerHTML={{
+                    __html: res.snippet.replace(
+                      new RegExp(searchKeyword, 'gi'),
+                      `<span class='text-primary font-semibold'>${searchKeyword}</span>`
+                    )
+                  }}
+                />
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Floating add-to-chat button */}
+      {selectionPos && (
+        <button
+          style={{ top: selectionPos.y + window.scrollY + 8, left: selectionPos.x + window.scrollX + 8 }}
+          className="fixed z-50 flex items-center gap-1 px-2 py-1 rounded-md bg-primary text-primary-foreground text-xs shadow hover:bg-primary/90"
+          onClick={() => {
+            setExternalContexts((ctx) => [...ctx, selectionText])
+            window.getSelection()?.removeAllRanges()
+            setSelectionPos(null)
+            setShowChat(true)
+          }}
+        >
+          <MessageSquarePlus className="h-3 w-3" /> Add to chat
+        </button>
       )}
 
       {/* Document Viewer */}
-      <div className="flex-1 bg-background">
+      <div
+        className={`flex-1 bg-background overflow-auto transition-all ease-in-out ${showSearch ? 'ml-72' : 'ml-0'}`}
+        style={{
+          marginRight: showChat ? `${chatWidth}px` : '0px',
+          transitionDuration: isResizing ? '0ms' : '300ms'
+        }}
+      >
         {isLoading ? (
           <div className="flex items-center justify-center h-full w-full">
             <div className="text-center">
@@ -528,25 +1019,33 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
         ) : processedUrl ? (
           <div
             ref={containerRef}
-            className="flex-1 pdf-viewer-container"
-            style={{ height: 'calc(100vh - 12rem)', overflow: 'auto' }}
+            className={cn("pdf-viewer-container", isZooming && "zooming")}
+            style={{
+              touchAction: 'pan-x pan-y pinch-zoom',
+              transform: isZooming ? `scale(${visualScale / scale})` : undefined,
+              transformOrigin: isZooming ? `${zoomOrigin.x} ${zoomOrigin.y}` : 'center center',
+              transition: isZooming ? 'none' : 'transform 0.3s ease-out',
+              willChange: isZooming ? 'transform' : 'auto'
+            }}
           >
             <Worker workerUrl="/pdfjs/pdf.worker.min.js">
               <Viewer
                 fileUrl={processedUrl}
-                plugins={[zoomPluginInstance, searchPluginInstance]}
+                plugins={[zoomPluginInstance, searchPluginInstance, thumbnailPluginInstance]}
                 onDocumentLoad={handleDocumentLoad}
                 onPageChange={handlePageChange}
                 theme="dark"
                 defaultScale={1.0}
                 scrollMode={ScrollMode.Vertical}
                 renderLoader={(percentages: number) => (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-                      <p className="text-sm text-muted-foreground">Loading PDF... {Math.round(percentages)}%</p>
+                  isZooming ? <></> : (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center">
+                        <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+                        <p className="text-sm text-muted-foreground">Loading PDF... {Math.round(percentages)}%</p>
+                      </div>
                     </div>
-                  </div>
+                  )
                 )}
               />
             </Worker>
@@ -563,58 +1062,54 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
 
       {/* Footer Controls - Drawboard style */}
       {processedUrl && !isLoading && !error && (
-        <div className="flex items-center justify-between h-14 px-6 bg-card border-t border-border pdf-footer-controls">
-          {/* Page Navigation */}
-          <div className="flex items-center gap-3">
+        <div className="flex items-center h-10 px-4 bg-card border-t border-border pdf-footer-controls">
+          {/* Centered Page Navigation */}
+          <div className="flex-1 flex items-center justify-center gap-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={goToPreviousPage}
-              disabled={currentPage === 0}
-              className="h-9 w-9 p-0 rounded-lg border border-border hover:bg-muted disabled:opacity-50"
+              disabled={currentPage <= 0}
+              className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
 
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                value={jumpToPage || (currentPage + 1).toString()}
-                onChange={(e) => setJumpToPage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleJumpToPage()
-                  }
-                }}
-                onBlur={() => setJumpToPage('')}
-                className="h-9 w-16 text-center text-sm"
-                min={1}
-                max={totalPages}
-              />
-              <span className="text-sm text-muted-foreground">
-                of {totalPages}
-              </span>
-            </div>
+            <Input
+              type="number"
+              value={jumpToPage}
+              onChange={(e) => setJumpToPage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleJumpToPage()
+                }
+              }}
+              className="w-14 h-8 text-center text-xs"
+              placeholder={(currentPage + 1).toString()}
+              min="1"
+              max={totalPages.toString()}
+            />
 
             <Button
               variant="ghost"
               size="sm"
               onClick={goToNextPage}
               disabled={currentPage >= totalPages - 1}
-              className="h-9 w-9 p-0 rounded-lg border border-border hover:bg-muted disabled:opacity-50"
+              className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Zoom Controls */}
-          <div className="flex items-center gap-3">
+          {/* Zoom Controls - aligned right with separators */}
+          <div className="ml-auto flex items-center gap-2">
+            <div className="border-l border-border h-6 mx-2" />
             <Button
               variant="ghost"
               size="sm"
               onClick={handleZoomOut}
               disabled={scale <= 0.5}
-              className="h-9 w-9 p-0 rounded-lg border border-border hover:bg-muted disabled:opacity-50"
+              className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
             >
               <Minus className="h-4 w-4" />
             </Button>
@@ -623,9 +1118,9 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
               variant="ghost"
               size="sm"
               onClick={handleFitToPage}
-              className="h-9 px-3 text-sm font-medium border border-border hover:bg-muted"
+              className="h-8 px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
             >
-              {Math.round(scale * 100)}%
+              {Math.round(visualScale * 100)}%
             </Button>
 
             <Button
@@ -633,13 +1128,45 @@ export function PDFViewer({ documentUrl, documentName = "Document" }: Props) {
               size="sm"
               onClick={handleZoomIn}
               disabled={scale >= 3.0}
-              className="h-9 w-9 p-0 rounded-lg border border-border hover:bg-muted disabled:opacity-50"
+              className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
             >
               <Plus className="h-4 w-4" />
+            </Button>
+            <div className="border-l border-border h-6 mx-2" />
+
+            {/* View all pages / Thumbnail grid button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowThumbnails(true)}
+              className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <LayoutGrid className="h-4 w-4" />
             </Button>
           </div>
         </div>
       )}
+
+      {/* Chat Drawer */}
+      <div
+        className={`absolute right-0 top-0 bottom-0 bg-card border-l border-border z-40 transform transition-all ease-in-out ${showChat ? 'translate-x-0' : 'translate-x-full'}`}
+        style={{
+          width: `${chatWidth}px`,
+          transitionDuration: isResizing ? '0ms' : '300ms'
+        }}
+      >
+        {/* Resizer Handle */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-border"
+          onMouseDown={(e) => { setIsResizing(true); setStartX(e.clientX); setStartWidth(chatWidth) }}
+        />
+
+        {/* Chat Interface */}
+        <ChatContainer onClose={() => setShowChat(false)} externalContexts={externalContexts} onExternalContextsCleared={() => setExternalContexts([])} paperId={paperId} />
+      </div>
+
+      {/* Add thumbnail overlay */}
+      {showThumbnails && <ThumbnailOverlay />}
     </div>
   )
 }

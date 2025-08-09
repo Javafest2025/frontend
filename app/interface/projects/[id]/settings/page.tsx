@@ -40,7 +40,7 @@ export default function ProjectSettingsPage({ params }: ProjectSettingsPageProps
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.2 }}
                 >
-                    <Card className="bg-background/40 backdrop-blur-xl border border-primary/10 shadow-lg">
+                    <Card className="bg-background/40 backdrop-blur-xl border-2 border-primary/25 shadow-lg">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Cog className="h-5 w-5 text-primary" />

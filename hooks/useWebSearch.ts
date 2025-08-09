@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { initiateWebSearch, pollUntilComplete } from "@/lib/api"
+import { initiateWebSearch, pollUntilComplete } from "@/lib/api/websearch"
 import type { WebSearchRequest, WebSearchResponse, Paper } from "@/types/websearch"
 
 interface UseWebSearchState {
@@ -120,7 +120,13 @@ export function useWebSearch(): UseWebSearchState & UseWebSearchActions {
                 }
             }
 
-            const result = await pollUntilComplete(correlationId, 30, onProgress)
+            const result = await pollUntilComplete(correlationId, { onProgress })
+
+            // Ensure compatibility: map `abstract` field (from API) to `abstractText` used in UI
+            const processedPapers: Paper[] = result.papers.map((p: any) => ({
+                ...p,
+                abstractText: p.abstractText ?? p.abstract ?? null,
+            }))
 
             // Clear interval and finalize
             clearInterval(progressInterval)
@@ -131,7 +137,7 @@ export function useWebSearch(): UseWebSearchState & UseWebSearchActions {
                 setState(prev => ({
                     ...prev,
                     isSearching: false,
-                    papers: result.papers,
+                    papers: processedPapers,
                     progress: 100
                 }))
             }, 500)

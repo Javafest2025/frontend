@@ -20,6 +20,7 @@ import {
 } from "@/constants/research-data"
 import { Loader2, Sparkles, Brain, Target, Hash, Settings, X, BarChart3 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
+import { cn } from "@/lib/utils/cn"
 
 interface ProjectEditDialogProps {
     isOpen: boolean
@@ -117,28 +118,33 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                     transition={{ duration: 0.3 }}
                     className="fixed inset-0 z-50 bg-background/95 backdrop-blur-xl"
                 >
-                    <div className="h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 relative flex flex-col">
+                    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 relative overflow-hidden">
                         {/* Background Effects */}
                         <div className="absolute inset-0 bg-grid-pattern opacity-5" />
-                        <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-orange-500/10 via-red-500/5 to-transparent rounded-full blur-3xl" />
-                        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tr from-pink-500/10 via-red-500/5 to-transparent rounded-full blur-3xl" />
+                        <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-primary/10 via-purple-500/5 to-transparent rounded-full blur-3xl" />
+                        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tr from-cyan-500/10 via-purple-500/5 to-transparent rounded-full blur-3xl" />
 
                         {/* Header */}
                         <motion.div
                             initial={{ y: -20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ duration: 0.4, delay: 0.1 }}
-                            className="relative z-10 border-b border-orange-500/20 bg-background/80 backdrop-blur-xl flex-shrink-0"
-                            style={{ boxShadow: '0 2px 15px rgba(249, 115, 22, 0.1), 0 4px 25px rgba(239, 68, 68, 0.06)' }}
+                            className="relative z-10 border-b border-border bg-background/80 backdrop-blur-xl flex-shrink-0"
+                            style={{
+                                boxShadow: `
+                                    0 2px 15px hsl(var(--primary) / 0.1),
+                                    0 4px 25px hsl(var(--accent) / 0.06)
+                                `
+                            }}
                         >
                             <div className="max-w-7xl mx-auto px-6 py-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/20">
-                                            <Settings className="h-5 w-5 text-orange-500" />
+                                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/20">
+                                            <Settings className="h-5 w-5 text-primary" />
                                         </div>
                                         <div>
-                                            <h1 className="text-xl font-bold bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 bg-clip-text text-transparent">
+                                            <h1 className="text-xl font-bold text-gradient-primary">
                                                 Edit Project
                                             </h1>
                                             <p className="text-sm text-muted-foreground">
@@ -151,8 +157,13 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                         size="icon"
                                         onClick={handleClose}
                                         disabled={isLoading}
-                                        className="h-9 w-9 rounded-lg bg-background/40 backdrop-blur-xl border border-primary/20 hover:bg-red-500/10 hover:text-red-500"
-                                        style={{ boxShadow: '0 0 8px rgba(249, 115, 22, 0.08), 0 0 16px rgba(239, 68, 68, 0.04)' }}
+                                        className="h-9 w-9 rounded-lg bg-background/40 backdrop-blur-xl border border-border hover:bg-destructive/10 hover:text-destructive transition-all duration-300"
+                                        style={{
+                                            boxShadow: `
+                                                0 0 8px hsl(var(--primary) / 0.08),
+                                                0 0 16px hsl(var(--accent) / 0.04)
+                                            `
+                                        }}
                                     >
                                         <X className="h-4 w-4" />
                                     </Button>
@@ -161,7 +172,7 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                         </motion.div>
 
                         {/* Main Content */}
-                        <div className="relative z-10 flex-1 overflow-y-auto">
+                        <div className="relative z-10 h-[calc(100vh-81px)] overflow-hidden">
                             <motion.div
                                 initial={{ y: 20, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
@@ -172,7 +183,14 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                     <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8">
                                         {/* Left Column */}
                                         <div className="space-y-8 flex flex-col lg:col-span-1">
-                                            <Card className="bg-background/40 backdrop-blur-xl border-primary/20 shadow-lg" style={{ boxShadow: '0 0 20px rgba(249, 115, 22, 0.1), 0 0 40px rgba(239, 68, 68, 0.06)' }}>
+                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg transition-all duration-300 hover:shadow-primary/5"
+                                                style={{
+                                                    boxShadow: `
+                                                        0 0 20px hsl(var(--primary) / 0.1),
+                                                        0 0 40px hsl(var(--accent) / 0.06)
+                                                    `
+                                                }}
+                                            >
                                                 <CardHeader>
                                                     <CardTitle className="text-base flex items-center gap-2">
                                                         <div className="w-2 h-2 rounded-full bg-primary" />
@@ -186,20 +204,27 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                                             required: "Project name is required",
                                                             maxLength: { value: 500, message: "Project name must not exceed 500 characters" }
                                                         })}
-                                                        placeholder="Enter a descriptive name"
+                                                        placeholder="Enter a descriptive name for your research project"
                                                         disabled={isLoading}
-                                                        className="bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-lg p-0"
+                                                        className="bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-lg p-0 placeholder:text-muted-foreground"
                                                     />
                                                     {errors.name && (
-                                                        <p className="text-sm text-red-500 flex items-center gap-2 mt-2">
-                                                            <span className="w-1 h-1 rounded-full bg-red-500" />
+                                                        <p className="text-sm text-destructive flex items-center gap-2 mt-2">
+                                                            <span className="w-1 h-1 rounded-full bg-destructive" />
                                                             {errors.name.message}
                                                         </p>
                                                     )}
                                                 </CardContent>
                                             </Card>
 
-                                            <Card className="bg-background/40 backdrop-blur-xl border-primary/20 shadow-lg flex-1 flex flex-col" style={{ boxShadow: '0 0 20px rgba(249, 115, 22, 0.1), 0 0 40px rgba(239, 68, 68, 0.06)' }}>
+                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-primary/5"
+                                                style={{
+                                                    boxShadow: `
+                                                        0 0 20px hsl(var(--primary) / 0.1),
+                                                        0 0 40px hsl(var(--accent) / 0.06)
+                                                    `
+                                                }}
+                                            >
                                                 <CardHeader>
                                                     <CardTitle className="text-base flex items-center gap-2">
                                                         <div className="w-2 h-2 rounded-full bg-blue-500" />
@@ -212,13 +237,13 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                                         {...register("description", {
                                                             maxLength: { value: 5000, message: "Description must not exceed 5000 characters" }
                                                         })}
-                                                        placeholder="Describe your research..."
-                                                        className="bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none flex-1 w-full p-0"
+                                                        placeholder="Describe your research objectives, methodology, and expected outcomes..."
+                                                        className="bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none flex-1 w-full p-0 placeholder:text-muted-foreground"
                                                         disabled={isLoading}
                                                     />
                                                     {errors.description && (
-                                                        <p className="text-sm text-red-500 flex items-center gap-2 mt-2">
-                                                            <span className="w-1 h-1 rounded-full bg-red-500" />
+                                                        <p className="text-sm text-destructive flex items-center gap-2 mt-2">
+                                                            <span className="w-1 h-1 rounded-full bg-destructive" />
                                                             {errors.description.message}
                                                         </p>
                                                     )}
@@ -228,7 +253,14 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
 
                                         {/* Middle Column */}
                                         <div className="space-y-8 flex flex-col lg:col-span-1">
-                                            <Card className="bg-background/40 backdrop-blur-xl border-primary/20 shadow-lg flex-1 flex flex-col" style={{ boxShadow: '0 0 20px rgba(249, 115, 22, 0.1), 0 0 40px rgba(239, 68, 68, 0.06)' }}>
+                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-primary/5"
+                                                style={{
+                                                    boxShadow: `
+                                                        0 0 20px hsl(var(--primary) / 0.1),
+                                                        0 0 40px hsl(var(--accent) / 0.06)
+                                                    `
+                                                }}
+                                            >
                                                 <CardHeader>
                                                     <CardTitle className="text-base flex items-center justify-between gap-2">
                                                         <div className="flex items-center gap-2">
@@ -262,7 +294,14 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                                 </CardContent>
                                             </Card>
 
-                                            <Card className="bg-background/40 backdrop-blur-xl border-primary/20 shadow-lg flex-1 flex flex-col" style={{ boxShadow: '0 0 20px rgba(249, 115, 22, 0.1), 0 0 40px rgba(239, 68, 68, 0.06)' }}>
+                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-primary/5"
+                                                style={{
+                                                    boxShadow: `
+                                                        0 0 20px hsl(var(--primary) / 0.1),
+                                                        0 0 40px hsl(var(--accent) / 0.06)
+                                                    `
+                                                }}
+                                            >
                                                 <CardHeader>
                                                     <CardTitle className="text-base flex items-center justify-between gap-2">
                                                         <div className="flex items-center gap-2">
@@ -297,7 +336,14 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
 
                                         {/* Right Column */}
                                         <div className="space-y-8 flex flex-col lg:col-span-1">
-                                            <Card className="bg-background/40 backdrop-blur-xl border-primary/20 shadow-lg" style={{ boxShadow: '0 0 20px rgba(249, 115, 22, 0.1), 0 0 40px rgba(239, 68, 68, 0.06)' }}>
+                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg transition-all duration-300 hover:shadow-primary/5"
+                                                style={{
+                                                    boxShadow: `
+                                                        0 0 20px hsl(var(--primary) / 0.1),
+                                                        0 0 40px hsl(var(--accent) / 0.06)
+                                                    `
+                                                }}
+                                            >
                                                 <CardHeader>
                                                     <CardTitle className="text-base flex items-center gap-2">
                                                         <Settings className="h-4 w-4 text-purple-500" />
@@ -361,7 +407,7 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                                                 className="w-full mt-1"
                                                             />
                                                             {errors.progress && (
-                                                                <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
+                                                                <p className="text-sm text-destructive flex items-center gap-1 mt-1">
                                                                     {errors.progress.message}
                                                                 </p>
                                                             )}
@@ -373,30 +419,45 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                     </div>
 
                                     {error && (
-                                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl mt-8">
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl"
+                                        >
                                             <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full bg-red-500" />
-                                                <p className="text-sm text-red-400 font-medium">{error}</p>
+                                                <div className="w-2 h-2 rounded-full bg-destructive" />
+                                                <p className="text-sm text-destructive font-medium">{error}</p>
                                             </div>
-                                        </div>
+                                        </motion.div>
                                     )}
 
-                                    <div className="flex flex-col sm:flex-row gap-4 pt-6 mt-auto border-t border-orange-500/20">
+                                    <div className="flex flex-col sm:flex-row gap-4 pt-6 mt-auto border-t border-border">
                                         <Button
                                             type="button"
                                             variant="outline"
                                             onClick={handleClose}
                                             disabled={isLoading}
-                                            className="flex-1 h-11 bg-background/40 backdrop-blur-xl border-primary/20"
-                                            style={{ boxShadow: '0 0 10px rgba(249, 115, 22, 0.08), 0 0 20px rgba(239, 68, 68, 0.04)' }}
+                                            className="flex-1 h-11 bg-background/40 backdrop-blur-xl border-border hover:bg-accent transition-all duration-300"
+                                            style={{
+                                                boxShadow: `
+                                                    0 0 10px hsl(var(--primary) / 0.08),
+                                                    0 0 20px hsl(var(--accent) / 0.04)
+                                                `
+                                            }}
                                         >
                                             Cancel
                                         </Button>
                                         <Button
                                             type="submit"
                                             disabled={isLoading}
-                                            className="flex-1 h-11 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white border-0"
-                                            style={{ boxShadow: '0 0 15px rgba(249, 115, 22, 0.4), 0 0 30px rgba(239, 68, 68, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)' }}
+                                            className="flex-1 h-11 gradient-primary-to-accent text-primary-foreground border-0 transition-all duration-300 hover:scale-[1.02]"
+                                            style={{
+                                                boxShadow: `
+                                                    0 0 15px hsl(var(--primary) / 0.4),
+                                                    0 0 30px hsl(var(--accent) / 0.2),
+                                                    inset 0 1px 0 hsl(var(--primary-foreground) / 0.1)
+                                                `
+                                            }}
                                         >
                                             {isLoading ? (
                                                 <>

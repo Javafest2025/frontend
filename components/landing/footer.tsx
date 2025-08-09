@@ -104,7 +104,7 @@ export function Footer() {
     }
 
     return (
-        <footer className="relative overflow-hidden bg-gradient-to-b from-muted/30 to-background border-t border-border/50" ref={ref}>
+        <footer className="relative overflow-hidden bg-gradient-to-b from-muted/30 to-background border-t border-primary/30" ref={ref}>
             {/* Background Pattern */}
             <div className="absolute inset-0 opacity-5">
                 <div className="absolute inset-0 bg-grid-pattern" />
@@ -118,7 +118,7 @@ export function Footer() {
                     transition={{ duration: 0.8 }}
                     className="py-16"
                 >
-                    <Card className="max-w-4xl mx-auto border-border/50 bg-gradient-to-br from-background to-muted/20 overflow-hidden">
+                    <Card className="max-w-4xl mx-auto border-primary/30 bg-gradient-to-br from-background/20 to-muted/10 overflow-hidden backdrop-blur-md">
                         <CardContent className="p-8 lg:p-12">
                             <div className="text-center">
                                 <motion.div
@@ -217,15 +217,15 @@ export function Footer() {
                                 <div className="space-y-3 text-sm text-muted-foreground">
                                     <div className="flex items-center space-x-3">
                                         <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-                                        <span>San Francisco, CA</span>
+                                        <span>ECE Building, BUET</span>
                                     </div>
                                     <div className="flex items-center space-x-3">
                                         <Phone className="h-4 w-4 text-primary flex-shrink-0" />
-                                        <span>+1 (555) 123-4567</span>
+                                        <span>+8801842686804</span>
                                     </div>
                                     <div className="flex items-center space-x-3">
                                         <Mail className="h-4 w-4 text-primary flex-shrink-0" />
-                                        <span>hello@scholarai.com</span>
+                                        <span>trisn.eclipse@gmail.com</span>
                                     </div>
                                 </div>
 
@@ -241,7 +241,7 @@ export function Footer() {
                                                 animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
                                                 transition={{ duration: 0.4, delay: index * 0.1 + 0.8 }}
                                                 whileHover={{ scale: 1.1 }}
-                                                className={`p-3 rounded-xl bg-background/50 border border-border/50 ${social.color} ${social.bgColor} transition-all duration-300 hover:border-primary/30 group`}
+                                                className={`p-3 rounded-xl bg-background/20 border border-primary/30 ${social.color} ${social.bgColor} transition-all duration-300 hover:border-primary/50 group backdrop-blur-md`}
                                                 aria-label={social.label}
                                             >
                                                 <Icon className="h-5 w-5" />

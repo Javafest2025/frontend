@@ -31,24 +31,29 @@ export function ThemeProvider({
   children,
   defaultTheme = "system",
   storageKey = "theme",
-  attribute = "data-theme",
+  attribute = "class",
   enableSystem = true,
   disableTransitionOnChange = false,
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme)
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(storageKey) as Theme
+      return stored || defaultTheme
+    }
+    return defaultTheme
+  })
 
   useEffect(() => {
     const root = window.document.documentElement
 
-    // Remove old attribute
-    root.removeAttribute(attribute)
+    // Remove old classes
+    root.classList.remove("light", "dark")
 
-    // Add new attribute
+    // Add new class
     if (theme === "system" && enableSystem) {
       const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
 
       root.classList.add(systemTheme)
-      root.setAttribute(attribute, systemTheme)
       return
     }
 
@@ -60,12 +65,35 @@ export function ThemeProvider({
     }
 
     root.classList.add(theme)
-    root.setAttribute(attribute, theme)
-  }, [theme, attribute, enableSystem, disableTransitionOnChange])
+  }, [theme, enableSystem, disableTransitionOnChange])
+
+  // Listen for system theme changes when using "system" theme
+  useEffect(() => {
+    if (theme === "system" && enableSystem) {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+
+      const handleChange = () => {
+        const root = window.document.documentElement
+        root.classList.remove("light", "dark")
+        const systemTheme = mediaQuery.matches ? "dark" : "light"
+        root.classList.add(systemTheme)
+      }
+
+      mediaQuery.addEventListener("change", handleChange)
+      return () => mediaQuery.removeEventListener("change", handleChange)
+    }
+  }, [theme, enableSystem])
+
+  const setThemeWithStorage = (newTheme: Theme) => {
+    setTheme(newTheme)
+    if (typeof window !== "undefined") {
+      localStorage.setItem(storageKey, newTheme)
+    }
+  }
 
   const value = {
     theme,
-    setTheme,
+    setTheme: setThemeWithStorage,
   }
 
   return <ThemeProviderContext.Provider value={value}>{children}</ThemeProviderContext.Provider>

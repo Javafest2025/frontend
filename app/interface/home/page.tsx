@@ -1,9 +1,9 @@
-import { ProjectsDashboard } from "@/components/interface/ProjectsDashboard"
+import { HomeGuide } from "@/components/interface/HomeGuide"
 
 export default function HomePage() {
     return (
         <div className="min-h-full">
-            <ProjectsDashboard />
+            <HomeGuide />
         </div>
     )
 }
