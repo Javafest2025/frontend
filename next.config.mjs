@@ -9,6 +9,7 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+    domains: ['scholarai-papers.s3.ams5.backblazeb2.com'],
   },
 
   async rewrites() {

@@ -1,9 +1,40 @@
 import { getMicroserviceUrl } from "@/lib/config/api-config";
 
+// JWT validation utility function
+const isValidJWT = (token: string): boolean => {
+    if (!token || typeof token !== 'string') {
+        return false;
+    }
+
+    // Check if token has the correct JWT format (3 parts separated by dots)
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+        return false;
+    }
+
+    // Check if each part is base64 encoded (basic validation)
+    try {
+        // Try to decode the header and payload to see if they're valid base64
+        atob(parts[0].replace(/-/g, '+').replace(/_/g, '/'));
+        atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+        return true;
+    } catch (error) {
+        return false;
+    }
+};
+
 // Authentication utility functions
 export const getAuthToken = (): string | null => {
     if (typeof window !== "undefined") {
-        return localStorage.getItem("scholarai_token");
+        const token = localStorage.getItem("scholarai_token");
+        if (token && isValidJWT(token)) {
+            return token;
+        } else if (token) {
+            console.warn("⚠️ Invalid JWT token format found in localStorage, clearing it");
+            localStorage.removeItem("scholarai_token");
+            return null;
+        }
+        return null;
     }
     return null;
 };
@@ -20,7 +51,8 @@ export const clearAuthData = (): void => {
     if (typeof window !== "undefined") {
         localStorage.removeItem("scholarai_token");
         localStorage.removeItem("scholarai_user");
-        // Note: Refresh token is stored in HttpOnly cookies, managed by backend
+        localStorage.removeItem("scholarai_refresh_token");
+        // Note: Refresh token is also stored in HttpOnly cookies, managed by backend
     }
 };
 
@@ -30,12 +62,23 @@ export const isAuthenticated = (): boolean => {
 
 export const refreshAccessToken = async (): Promise<string | null> => {
     try {
-        // Get user data to retrieve email for refresh request
-        const userData = getUserData();
-        if (!userData?.email) {
-            console.warn("No user email found for refresh token request");
-            clearAuthData();
-            return null;
+        console.log("🔄 Attempting to refresh token...");
+
+        // Try to get refresh token from localStorage first
+        let refreshToken = null;
+        if (typeof window !== "undefined") {
+            refreshToken = localStorage.getItem("scholarai_refresh_token");
+        }
+
+        // Prepare request body if refresh token is available
+        let requestBody = null;
+        if (refreshToken) {
+            console.log("📝 Found refresh token in localStorage, sending in request body");
+            requestBody = JSON.stringify({
+                refreshToken: refreshToken
+            });
+        } else {
+            console.log("🍪 No refresh token in localStorage, will use HttpOnly cookie");
         }
 
         const response = await fetch(getMicroserviceUrl("user-service", "/api/v1/auth/refresh"), {
@@ -43,29 +86,78 @@ export const refreshAccessToken = async (): Promise<string | null> => {
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-                email: userData.email,
-                // refreshToken omitted - backend should use HttpOnly cookie
-            }),
+            credentials: 'include', // Include cookies for refresh token
+            body: requestBody, // Send refresh token in body if available, otherwise null
         });
 
-        const data = await response.json();
+        console.log("📊 Refresh response status:", response.status, response.statusText);
+
+        // Check if response is JSON
+        const contentType = response.headers.get("content-type");
+        const isJson = contentType && contentType.includes("application/json");
+
+        let data;
+        if (isJson) {
+            try {
+                data = await response.json();
+            } catch (jsonError) {
+                console.error("❌ Failed to parse JSON response:", jsonError);
+                data = { message: "Invalid JSON response from server" };
+            }
+        } else {
+            // If it's not JSON, get the text content
+            const text = await response.text();
+            data = { message: text || "Server error" };
+        }
+
+        console.log("📋 Refresh response data:", data);
 
         if (response.ok && data.data?.accessToken) {
-            localStorage.setItem("scholarai_token", data.data.accessToken);
+            const newToken = data.data.accessToken;
+
+            // Validate the new token format
+            if (!isValidJWT(newToken)) {
+                console.error("❌ Invalid JWT format received from refresh endpoint");
+                clearAuthData();
+                return null;
+            }
+
+            localStorage.setItem("scholarai_token", newToken);
+
+            // If the response includes a new refresh token, store it
+            if (data.data?.refreshToken) {
+                localStorage.setItem("scholarai_refresh_token", data.data.refreshToken);
+                console.log("💾 Stored new refresh token in localStorage");
+            }
+
+            // Store user data if it's included in the response
+            if (data.data?.email || data.data?.userId || data.data?.role) {
+                const userData = {
+                    id: data.data?.userId || data.data?.id,
+                    email: data.data?.email,
+                    roles: data.data?.role ? [data.data.role] : data.data?.roles || [],
+                };
+                localStorage.setItem("scholarai_user", JSON.stringify(userData));
+                console.log("💾 Stored user data in localStorage:", userData);
+            }
+
             console.log("✅ Access token refreshed successfully");
-            return data.data.accessToken;
+            return newToken;
         } else {
             console.warn(
-                "Refresh token invalid or expired:",
+                "⚠️ Refresh token invalid or expired:",
                 data.message || "Unknown error"
             );
-            clearAuthData();
+            // Only clear auth data if the refresh token is actually invalid
+            if (response.status === 401 || response.status === 403) {
+                console.log("🔄 Clearing auth data due to invalid refresh token");
+                clearAuthData();
+            }
             return null;
         }
     } catch (error) {
-        console.error("Token refresh failed:", error);
-        clearAuthData();
+        console.error("❌ Token refresh failed:", error);
+        // Don't clear auth data on network errors - only on actual auth failures
         return null;
     }
 };
@@ -76,6 +168,14 @@ export const authenticatedFetch = async (
     options: RequestInit = {}
 ) => {
     let token = getAuthToken();
+
+    // Debug logging for token
+    if (token) {
+        console.log("🔑 Valid JWT token found:", token.substring(0, 20) + "...");
+    } else {
+        console.warn("⚠️ No valid token found in localStorage");
+    }
+
     let headers = {
         "Content-Type": "application/json",
         Accept: "application/json",
@@ -83,25 +183,41 @@ export const authenticatedFetch = async (
         ...options.headers,
     };
 
+    console.log("🌐 Making authenticated request to:", url);
+    console.log("📋 Request headers:", headers);
+
     const response = await fetch(url, {
         ...options,
         headers,
+        credentials: 'include', // Include cookies in the request
     });
 
+    console.log("📊 Response status:", response.status, response.statusText);
+
     if (response.status === 401) {
-        console.log("Access token expired, refreshing...");
+        console.log("🔄 Access token expired, attempting to refresh...");
         // Try to refresh token
         const newAccessToken = await refreshAccessToken();
         if (newAccessToken) {
+            console.log("✅ Token refreshed successfully, retrying request");
             const retryHeaders = {
                 ...headers,
                 Authorization: `Bearer ${newAccessToken}`,
             };
 
-            return fetch(url, {
+            const retryResponse = await fetch(url, {
                 ...options,
                 headers: retryHeaders,
+                credentials: 'include', // Include cookies in the request
             });
+
+            console.log("📊 Retry response status:", retryResponse.status, retryResponse.statusText);
+            return retryResponse;
+        } else {
+            console.error("❌ Failed to refresh token, clearing auth data");
+            clearAuthData();
+            // Return the original response so the calling code can handle it
+            return response;
         }
     }
 
@@ -156,6 +272,7 @@ export const login = async (formData: {
                 email: formData.email.trim(),
                 password: formData.password.trim(),
             }),
+            credentials: 'include', // Include cookies in the request
         });
 
         // Check if response is JSON
@@ -194,6 +311,7 @@ export const login = async (formData: {
         }
 
         const token = data.data?.accessToken;
+        const refreshToken = data.data?.refreshToken; // Check if refresh token is in response
         const user = {
             id: data.data?.userId,
             email: data.data?.email,
@@ -202,6 +320,17 @@ export const login = async (formData: {
 
         if (!token) {
             throw new Error("No access token received");
+        }
+
+        // Validate the token format before returning
+        if (!isValidJWT(token)) {
+            throw new Error("Invalid JWT token format received from server");
+        }
+
+        // Store refresh token in localStorage if received
+        if (refreshToken && typeof window !== "undefined") {
+            localStorage.setItem("scholarai_refresh_token", refreshToken);
+            console.log("💾 Stored refresh token in localStorage");
         }
 
         return {
@@ -251,6 +380,7 @@ export const signup = async (formData: {
                 email: formData.email,
                 password: formData.password,
             }),
+            credentials: 'include', // Include cookies in the request
         });
 
         console.log("Response received:", response);
@@ -326,6 +456,7 @@ export const logout = async () => {
     try {
         await fetch(getMicroserviceUrl("user-service", "/api/v1/auth/logout"), {
             method: "POST",
+            credentials: 'include', // Include cookies in the request
         });
     } catch (error) {
         console.error("Logout API error:", error);
@@ -342,6 +473,7 @@ export const sendResetCode = async (email: string) => {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ email }),
+        credentials: 'include', // Include cookies in the request
     });
 
     if (!res.ok) {
@@ -371,6 +503,7 @@ export const submitNewPassword = async (
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ email, code, newPassword }),
+        credentials: 'include', // Include cookies in the request
     });
 
     if (!res.ok) {
@@ -397,6 +530,7 @@ export const sendEmailVerificationCode = async (email: string) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
+        credentials: 'include', // Include cookies in the request
     });
 
     if (!res.ok) {
@@ -428,6 +562,7 @@ export const verifyEmailWithCode = async (email: string, code: string) => {
             email: email,
             otp: code
         }),
+        credentials: 'include', // Include cookies in the request
     });
 
     if (!res.ok) {
@@ -455,6 +590,7 @@ export const checkEmailStatus = async (email: string) => {
     const res = await fetch(getMicroserviceUrl("user-service", `/api/v1/auth/check-email-status?email=${encodeURIComponent(email)}`), {
         method: "GET",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include', // Include cookies in the request
     });
 
     if (!res.ok) {
@@ -515,6 +651,7 @@ export const handleGoogleSocialLogin = async (
                     Accept: "application/json",
                 },
                 body: JSON.stringify({ idToken }),
+                credentials: 'include', // Include cookies in the request
             }
         );
 
@@ -554,6 +691,11 @@ export const handleGoogleSocialLogin = async (
 
         if (!accessToken) {
             throw new Error("No access token received from social login");
+        }
+
+        // Validate the token format before storing
+        if (!isValidJWT(accessToken)) {
+            throw new Error("Invalid JWT token format received from social login");
         }
 
         // Store access token
@@ -621,6 +763,7 @@ export const handleGitHubAuthCallback = async (
                     Accept: "application/json",
                 },
                 body: JSON.stringify({ code }),
+                credentials: 'include', // Include cookies in the request
             }
         );
 
@@ -660,6 +803,11 @@ export const handleGitHubAuthCallback = async (
 
         if (!accessToken) {
             throw new Error("No access token received from GitHub login");
+        }
+
+        // Validate the token format before storing
+        if (!isValidJWT(accessToken)) {
+            throw new Error("Invalid JWT token format received from GitHub login");
         }
 
         // Store access token

@@ -17,7 +17,11 @@ export function middleware(request: NextRequest) {
     '/forgot-password',
     '/auth/forgot-password',
     '/callback', // Add callback for social auth
-    '/auth/callback'
+    '/auth/callback',
+    '/verify-email', // Email verification page
+    '/api/', // API routes
+    '/_next/', // Next.js internal routes
+    '/static/', // Static files
   ];
 
   // Allow requests to API routes, Next.js specific paths, and static files

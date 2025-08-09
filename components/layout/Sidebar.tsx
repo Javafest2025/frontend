@@ -121,7 +121,7 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
           "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border-2 w-full text-left",
           "hover:bg-primary/10 hover:border-primary/50",
           isActive
-            ? "bg-gradient-to-r from-primary/20 to-purple-500/10 text-primary border-primary/50"
+            ? "bg-gradient-to-r from-primary/20 to-accent/10 text-primary border-primary/50"
             : "text-foreground/80 hover:text-foreground border-primary/20 bg-background/20",
           collapsed && "justify-center px-2"
         )}
@@ -131,13 +131,13 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
             0 0 50px hsl(var(--accent-2) / 0.15),
             inset 0 1px 0 rgba(255, 255, 255, 0.3),
             0 6px 25px hsl(var(--accent-1) / 0.2),
-            0 0 0 1px rgba(99, 102, 241, 0.2)
+            0 0 0 1px hsl(var(--accent-1) / 0.2)
           `
         } : {
           boxShadow: `
             0 0 10px hsl(var(--accent-1) / 0.1),
             0 2px 8px rgba(0, 0, 0, 0.05),
-            0 0 0 1px rgba(99, 102, 241, 0.05)
+            0 0 0 1px hsl(var(--accent-1) / 0.05)
           `
         }}
         onMouseEnter={(e) => {
@@ -146,7 +146,7 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
               0 0 20px hsl(var(--accent-1) / 0.2),
               0 0 40px hsl(var(--accent-2) / 0.1),
               0 4px 20px hsl(var(--accent-1) / 0.15),
-              0 0 0 1px rgba(99, 102, 241, 0.15)
+              0 0 0 1px hsl(var(--accent-1) / 0.15)
             `
           }
         }}
@@ -155,7 +155,7 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
             e.currentTarget.style.boxShadow = `
               0 0 10px hsl(var(--accent-1) / 0.1),
               0 2px 8px rgba(0, 0, 0, 0.05),
-              0 0 0 1px rgba(99, 102, 241, 0.05)
+              0 0 0 1px hsl(var(--accent-1) / 0.05)
             `
           }
         }}
@@ -163,7 +163,7 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
         <div className={cn(
           "relative p-1.5 rounded-lg transition-all duration-300",
           isActive
-            ? "bg-gradient-to-r from-primary/30 to-purple-500/20"
+            ? "bg-gradient-to-r from-primary/30 to-accent/20"
             : "group-hover:bg-primary/10"
         )}>
           <item.icon className={cn(
@@ -177,7 +177,7 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
           <span className="truncate font-medium">{item.name}</span>
         )}
         {isActive && !collapsed && (
-          <div className="absolute right-3 w-2 h-2 bg-gradient-to-r from-primary to-purple-500 rounded-full shadow-lg shadow-primary/50" />
+          <div className="absolute right-3 w-2 h-2 bg-gradient-to-r from-primary to-accent rounded-full shadow-lg shadow-primary/50" />
         )}
       </button>
     )
@@ -195,25 +195,22 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
 
   return (
     <div className={cn(
-      "flex h-screen flex-col bg-background/60 backdrop-blur-xl border-r border-primary/30 transition-all duration-300 relative z-10",
+      "flex h-screen flex-col bg-background/80 backdrop-blur-xl border-r border-primary/30 transition-all duration-300 relative z-10",
       collapsed ? "w-16" : "w-72",
       className
     )}
       style={{
         boxShadow: `
-            inset -2px 0 0 0 rgba(99, 102, 241, 0.4),
-            4px 0 20px rgba(99, 102, 241, 0.2),
-            8px 0 40px rgba(139, 92, 246, 0.1),
-            0 0 60px rgba(99, 102, 241, 0.05),
-            0 0 0 1px rgba(99, 102, 241, 0.1)
+            inset -2px 0 0 0 hsl(var(--accent-1) / 0.2),
+            4px 0 20px hsl(var(--accent-1) / 0.1),
+            8px 0 40px hsl(var(--accent-2) / 0.05),
+            0 0 0 1px hsl(var(--accent-1) / 0.05)
           `
       }}>
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-gradient-to-b from-primary/3 via-background/30 to-purple-500/3" />
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/8 to-transparent rounded-full blur-2xl animate-pulse" />
-      <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-blue-500/8 to-transparent rounded-full blur-2xl animate-pulse" />
-      <div className="absolute top-1/2 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-30" />
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/3 to-transparent animate-pulse duration-3000" />
+      {/* Background Effects - Simplified to match auth pages */}
+      <div className="absolute inset-0 bg-gradient-to-br from-background/20 via-background/10 to-primary/5" />
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/5 to-transparent rounded-full blur-2xl animate-pulse" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-accent/5 to-transparent rounded-full blur-2xl animate-pulse" />
 
       {/* Header */}
       <div className={cn(
@@ -222,10 +219,9 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
       )}
         style={{
           boxShadow: `
-              0 2px 0 0 rgba(99, 102, 241, 0.4),
-              0 4px 15px rgba(99, 102, 241, 0.15),
-              0 8px 30px rgba(139, 92, 246, 0.08),
-              0 0 0 1px rgba(99, 102, 241, 0.1)
+              0 2px 0 0 hsl(var(--accent-1) / 0.2),
+              0 4px 15px hsl(var(--accent-1) / 0.1),
+              0 0 0 1px hsl(var(--accent-1) / 0.05)
             `
         }}>
         {!collapsed && (
@@ -233,16 +229,33 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
             onClick={() => handleNavigation("/interface/home", "Loading home dashboard...")}
             className="flex items-center gap-3 group"
           >
-            <div className="flex items-center justify-center w-10 h-10 gradient-radial-accent rounded-xl shadow-lg shadow-primary/30 group-hover:shadow-primary/50 transition-all duration-300 group-hover:scale-105">
-              <Sparkles className="h-6 w-6 text-white drop-shadow-glow" />
+            <div className="relative">
+              <Brain className="h-8 w-8 text-primary" />
+              <div className="absolute inset-0 h-8 w-8 bg-primary/20 rounded-full blur-md" />
             </div>
             <div className="flex flex-col">
               <span className="font-bold text-lg text-gradient-primary">
                 ScholarAI
               </span>
-              <span className="text-xs text-muted-foreground">Research Assistant</span>
+              <span className="text-xs text-gradient-accent font-medium tracking-wide">
+                Research Assistant
+              </span>
             </div>
           </button>
+        )}
+
+        {collapsed && (
+          <EnhancedTooltip content="ScholarAI: Research Assistant" side="right">
+            <button
+              onClick={() => handleNavigation("/interface/home", "Loading home dashboard...")}
+              className="flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 group hover:scale-105"
+            >
+              <div className="relative">
+                <Brain className="h-6 w-6 text-primary" />
+                <div className="absolute inset-0 h-6 w-6 bg-primary/20 rounded-full blur-md" />
+              </div>
+            </button>
+          </EnhancedTooltip>
         )}
 
         {/* Collapse/Expand Button - Hidden on mobile */}
@@ -279,7 +292,7 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
 
         {/* Separator */}
         <div className="my-4 px-3">
-          <div className="h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+          <div className="h-px bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
         </div>
       </nav>
 
@@ -287,10 +300,9 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
       <div className="border-t border-primary/30 p-3 space-y-2 relative z-10"
         style={{
           boxShadow: `
-              0 -2px 0 0 rgba(99, 102, 241, 0.4),
-              0 -4px 15px rgba(99, 102, 241, 0.15),
-              0 -8px 30px rgba(139, 92, 246, 0.08),
-              0 0 0 1px rgba(99, 102, 241, 0.1)
+              0 -2px 0 0 hsl(var(--accent-1) / 0.2),
+              0 -4px 15px hsl(var(--accent-1) / 0.1),
+              0 0 0 1px hsl(var(--accent-1) / 0.05)
             `
         }}>
         {!collapsed && (

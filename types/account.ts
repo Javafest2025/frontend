@@ -1,59 +1,38 @@
 export interface UserAccount {
   id: string
+  userId?: string
   email?: string
   createdAt?: string
   updatedAt?: string
 
   fullName?: string
-  institution?: string
-  department?: string
-  position?: string
+  avatarUrl?: string
+  phoneNumber?: string
+  dateOfBirth?: string
   bio?: string
-
-  profileImageUrl?: string
-  profileImageFilename?: string
-
-  websiteUrl?: string
+  affiliation?: string
+  positionTitle?: string
+  researchInterests?: string
   googleScholarUrl?: string
-  linkedinUrl?: string
-  githubUrl?: string
-  facebookUrl?: string
+  personalWebsiteUrl?: string
   orcidId?: string
-
-  addressLine1?: string
-  addressLine2?: string
-  city?: string
-  stateProvinceRegion?: string
-  postalCode?: string
-  country?: string
-
-  languagePreference?: string
-  timezone?: string
+  linkedInUrl?: string
+  twitterUrl?: string
 }
 
 export interface UserAccountForm {
   fullName: string
-  institution: string
-  department: string
-  position: string
+  phoneNumber: string
+  dateOfBirth: string
   bio: string
-
-  websiteUrl: string
+  affiliation: string
+  positionTitle: string
+  researchInterests: string
   googleScholarUrl: string
-  linkedinUrl: string
-  githubUrl: string
-  facebookUrl: string
+  personalWebsiteUrl: string
   orcidId: string
-
-  addressLine1: string
-  addressLine2: string
-  city: string
-  stateProvinceRegion: string
-  postalCode: string
-  country: string
-
-  languagePreference: string
-  timezone: string
+  linkedInUrl: string
+  twitterUrl: string
 }
 
 export interface SocialLink {

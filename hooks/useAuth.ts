@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getAuthToken, getUserData, isAuthenticated, clearAuthData } from '@/lib/api/user-service'
+import { getAuthToken, getUserData, isAuthenticated, clearAuthData, refreshAccessToken } from '@/lib/api/user-service'
 
 export interface User {
     id: string
@@ -26,12 +26,36 @@ export const useAuth = () => {
     })
 
     useEffect(() => {
-        const checkAuth = () => {
+        const checkAuth = async () => {
             try {
                 console.log('Checking auth state in useAuth hook...')
-                const token = getAuthToken()
-                const user = getUserData()
-                const authenticated = isAuthenticated()
+                let token = getAuthToken()
+                let user = getUserData()
+                let authenticated = isAuthenticated()
+
+                // If no access token but we might have a refresh token, try to refresh
+                if (!authenticated && typeof window !== "undefined") {
+                    // Check if there's a refresh token in localStorage or cookies
+                    const refreshToken = localStorage.getItem("scholarai_refresh_token")
+                    const hasRefreshTokenCookie = document.cookie.includes("refreshToken=")
+
+                    if (refreshToken || hasRefreshTokenCookie) {
+                        console.log("🔄 No access token found, but refresh token available. Attempting to refresh...")
+                        try {
+                            const newToken = await refreshAccessToken()
+                            if (newToken) {
+                                console.log("✅ Token refreshed successfully in useAuth hook")
+                                token = newToken
+                                user = getUserData() // Re-fetch user data
+                                authenticated = true
+                            } else {
+                                console.log("❌ Token refresh failed in useAuth hook")
+                            }
+                        } catch (refreshError) {
+                            console.error("Error refreshing token in useAuth hook:", refreshError)
+                        }
+                    }
+                }
 
                 setAuthState({
                     isAuthenticated: authenticated,
@@ -54,7 +78,7 @@ export const useAuth = () => {
 
         // Listen for storage changes (e.g., login/logout in another tab)
         const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === 'scholarai_token' || e.key === 'scholarai_user') {
+            if (e.key === 'scholarai_token' || e.key === 'scholarai_user' || e.key === 'scholarai_refresh_token') {
                 checkAuth()
             }
         }
