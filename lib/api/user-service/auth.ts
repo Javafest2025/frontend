@@ -40,7 +40,6 @@ export const refreshAccessToken = async (): Promise<string | null> => {
 
         const response = await fetch(getMicroserviceUrl("user-service", "/api/v1/auth/refresh"), {
             method: "POST",
-            credentials: "include", // This sends the HttpOnly refresh token cookie
             headers: {
                 "Content-Type": "application/json",
             },
@@ -327,7 +326,6 @@ export const logout = async () => {
     try {
         await fetch(getMicroserviceUrl("user-service", "/api/v1/auth/logout"), {
             method: "POST",
-            credentials: "include", // include the refresh token cookie
         });
     } catch (error) {
         console.error("Logout API error:", error);
@@ -516,7 +514,6 @@ export const handleGoogleSocialLogin = async (
                     "Content-Type": "application/json",
                     Accept: "application/json",
                 },
-                credentials: "include", // Include cookies for refresh token
                 body: JSON.stringify({ idToken }),
             }
         );
@@ -623,7 +620,6 @@ export const handleGitHubAuthCallback = async (
                     "Content-Type": "application/json",
                     Accept: "application/json",
                 },
-                credentials: "include", // Include cookies for refresh token
                 body: JSON.stringify({ code }),
             }
         );

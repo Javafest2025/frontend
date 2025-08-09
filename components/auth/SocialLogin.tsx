@@ -66,7 +66,11 @@ export default function SocialLogin({ className = '', onLoginSuccess, onLoginErr
                 try {
                     window.google.accounts.id.initialize({
                         client_id: googleClientId,
-                        callback: handleGoogleCallback
+                        callback: handleGoogleCallback,
+                        auto_select: false,
+                        cancel_on_tap_outside: true,
+                        context: 'signin',
+                        ux_mode: 'popup'
                     })
 
                     // Render the hidden Google button
