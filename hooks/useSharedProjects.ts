@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { projectsApi } from '@/lib/api/projects'
+import { projectsApi } from '@/lib/api/project-service'
 
 export function useSharedProjects(projects: Array<{ id: string }>) {
   const [sharedProjectIds, setSharedProjectIds] = useState<Set<string>>(new Set())
@@ -13,17 +13,9 @@ export function useSharedProjects(projects: Array<{ id: string }>) {
       return cacheRef.current.get(projectId)!
     }
 
-    try {
-      const hasCollaborators = await projectsApi.hasCollaborators(projectId)
-      // Cache the result
-      cacheRef.current.set(projectId, hasCollaborators)
-      return hasCollaborators
-    } catch (error) {
-      console.error(`Error checking collaborators for project ${projectId}:`, error)
-      // Cache negative result to avoid repeated failed requests
-      cacheRef.current.set(projectId, false)
-      return false
-    }
+    // Collaborators API not available yet; default to false and cache it
+    cacheRef.current.set(projectId, false)
+    return false
   }, [])
 
   const refreshSharedProjects = useCallback(async () => {
@@ -31,18 +23,18 @@ export function useSharedProjects(projects: Array<{ id: string }>) {
 
     // Create a hash of project IDs to detect changes
     const projectsHash = projects.map(p => p.id).sort().join(',')
-    
+
     // Only refresh if the projects list has actually changed
     if (lastProjectsRef.current === projectsHash) {
       return
     }
-    
+
     lastProjectsRef.current = projectsHash
 
     setIsLoading(true)
     try {
       const sharedIds = new Set<string>()
-      
+
       // Check each project for collaborators
       const promises = projects.map(async (project) => {
         const hasCollaborators = await checkProjectCollaborators(project.id)

@@ -49,7 +49,7 @@ import {
     PlusCircle
 } from "lucide-react"
 
-import { projectsApi } from "@/lib/api/projects"
+import { projectsApi } from "@/lib/api/project-service"
 import { Project } from "@/types/project"
 import { Paper as BasePaper } from "@/types/websearch"
 import { ChatPanel } from "@/components/layout/ChatPanel"

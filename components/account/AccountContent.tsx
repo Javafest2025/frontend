@@ -211,6 +211,17 @@ export function AccountContent() {
     const loadAccountData = async () => {
       try {
         const account = await accountApi.getAccount()
+
+        if (account === null) {
+          // Account fetch returned null, which means authentication failed
+          console.log("🔄 Authentication failed, redirecting to login");
+          // Clear any stale auth data
+          clearAuthData();
+          // Redirect to login page
+          window.location.href = '/auth/login';
+          return;
+        }
+
         setAccountData(account)
 
         if (account) {

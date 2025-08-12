@@ -54,6 +54,15 @@ export const accountApi = {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error("❌ Account fetch failed:", response.status, errorText);
+
+                // Handle specific error cases
+                if (response.status === 401) {
+                    console.log("🔄 Unauthorized - authentication failed");
+                    // The authenticatedFetch function should have already handled token refresh
+                    // If we still get 401, it means the refresh token is invalid
+                    return null;
+                }
+
                 throw new Error(`Failed to fetch account: ${response.status} ${response.statusText}`)
             }
 

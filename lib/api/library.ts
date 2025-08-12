@@ -1,5 +1,6 @@
-import { getApiUrl } from "@/lib/config/api-config";
-import { authenticatedFetch } from "@/lib/api/user-service";
+// Library API is not yet available on backend. Keep DTOs for future use, but
+// export no-op or placeholder functions so callers can be updated gradually
+// without hitting 404s.
 import type { Paper } from "@/types/websearch";
 
 /**
@@ -27,47 +28,13 @@ export interface LibraryResponse {
 export const getProjectLibrary = async (
     projectId: string
 ): Promise<LibraryResponse> => {
-    try {
-        const response = await authenticatedFetch(
-            getApiUrl(`/api/v1/library/project/${projectId}`)
-        );
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(
-                errorData.message || `HTTP error! status: ${response.status}`
-            );
-        }
-
-        const data: LibraryResponse = await response.json();
-        return data;
-    } catch (error) {
-        console.error("Error fetching project library:", error);
-        throw error;
-    }
+    throw new Error("Library service is not available yet")
 };
 
 export const getProjectLibraryStats = async (
     projectId: string
 ): Promise<LibraryResponse> => {
-    try {
-        const response = await authenticatedFetch(
-            getApiUrl(`/api/v1/library/project/${projectId}/stats`)
-        );
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(
-                errorData.message || `HTTP error! status: ${response.status}`
-            );
-        }
-
-        const data: LibraryResponse = await response.json();
-        return data;
-    } catch (error) {
-        console.error("Error fetching project library stats:", error);
-        throw error;
-    }
+    throw new Error("Library service is not available yet")
 };
 
 export const addUploadedPaper = async (projectId: string, paperData: {
@@ -104,49 +71,11 @@ export const addUploadedPaper = async (projectId: string, paperData: {
     influentialCitationCount?: number | null;
     fieldsOfStudy?: string[];
 }) => {
-    try {
-        const response = await authenticatedFetch(
-            getApiUrl(`/api/v1/library/project/${projectId}/papers`),
-            {
-                method: "POST",
-                body: JSON.stringify(paperData),
-            }
-        );
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(
-                errorData.message || `HTTP error! status: ${response.status}`
-            );
-        }
-
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error("Error adding uploaded paper:", error);
-        throw error;
-    }
+    throw new Error("Library service is not available yet")
 };
 
 export const getProjectLatestPapers = async (
     projectId: string
 ): Promise<LibraryResponse> => {
-    try {
-        const response = await authenticatedFetch(
-            getApiUrl(`/api/v1/library/project/${projectId}/latest`)
-        );
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(
-                errorData.message || `HTTP error! status: ${response.status}`
-            );
-        }
-
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error("Error fetching latest papers:", error);
-        throw error;
-    }
-}; 
+    throw new Error("Library service is not available yet")
+};

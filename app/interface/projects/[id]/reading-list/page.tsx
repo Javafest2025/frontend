@@ -79,7 +79,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils/cn"
-import { projectsApi } from "@/lib/api/projects"
+import { projectsApi } from "@/lib/api/project-service"
 import { getProjectLibrary } from "@/lib/api/library"
 import type { Paper } from "@/types/websearch"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"

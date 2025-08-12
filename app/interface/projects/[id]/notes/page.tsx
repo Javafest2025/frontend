@@ -31,7 +31,7 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils/cn"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { projectsApi } from "@/lib/api/projects"
+import { projectsApi } from "@/lib/api/project-service"
 
 interface ProjectNotesPageProps {
     params: Promise<{

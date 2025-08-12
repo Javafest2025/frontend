@@ -29,7 +29,7 @@ import { isValidUUID } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { EnhancedTooltip } from "@/components/ui/enhanced-tooltip"
 import { Badge } from "@/components/ui/badge"
-import { projectsApi } from "@/lib/api/projects"
+import { projectsApi } from "@/lib/api/project-service"
 import { Project } from "@/types/project"
 import { useLoading } from "@/contexts/LoadingContext"
 

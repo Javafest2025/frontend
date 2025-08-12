@@ -9,8 +9,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { SmartComboBox } from "@/components/ui/smart-combobox"
 import { TagInput } from "@/components/ui/tag-input"
-import { projectsApi } from "@/lib/api/projects"
+import { projectsApi } from "@/lib/api/project-service"
 import { Project, ProjectFormData, CreateProjectRequest } from "@/types/project"
+import { useAuth } from "@/hooks/useAuth"
 import {
     RESEARCH_DOMAINS,
     getTopicSuggestions,
@@ -29,6 +30,7 @@ interface ProjectCreateDialogProps {
 export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: ProjectCreateDialogProps) {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const { user } = useAuth()
 
     const {
         register,
@@ -66,7 +68,12 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
             setIsLoading(true)
             setError(null)
 
+            if (!user?.id) {
+                throw new Error('User not authenticated')
+            }
+
             const createRequest: CreateProjectRequest = {
+                userId: user.id,
                 name: data.name,
                 description: data.description || undefined,
                 domain: data.domainValue || undefined,
