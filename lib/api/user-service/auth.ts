@@ -47,14 +47,15 @@ export const getUserData = (): any | null => {
     return null;
 };
 
-export const clearAuthData = (): void => {
+export const clearAuthData = () => {
     if (typeof window !== "undefined") {
-        localStorage.removeItem("scholarai_token");
-        localStorage.removeItem("scholarai_user");
-        localStorage.removeItem("scholarai_refresh_token");
-        // Note: Refresh token is also stored in HttpOnly cookies, managed by backend
+        localStorage.removeItem("scholarai_token")
+        localStorage.removeItem("scholarai_user")
+        // Remove refresh token from localStorage if it exists (for backward compatibility)
+        localStorage.removeItem("scholarai_refresh_token")
+        console.log("🧹 Auth data cleared from localStorage")
     }
-};
+}
 
 export const isAuthenticated = (): boolean => {
     return !!getAuthToken();
@@ -64,30 +65,14 @@ export const refreshAccessToken = async (): Promise<string | null> => {
     try {
         console.log("🔄 Attempting to refresh token...");
 
-        // Try to get refresh token from localStorage first
-        let refreshToken = null;
-        if (typeof window !== "undefined") {
-            refreshToken = localStorage.getItem("scholarai_refresh_token");
-        }
-
-        // Prepare request body if refresh token is available
-        let requestBody = null;
-        if (refreshToken) {
-            console.log("📝 Found refresh token in localStorage, sending in request body");
-            requestBody = JSON.stringify({
-                refreshToken: refreshToken
-            });
-        } else {
-            console.log("🍪 No refresh token in localStorage, will use HttpOnly cookie");
-        }
-
+        // Backend stores refresh token in HttpOnly cookie, so we don't need to send it in body
+        // The cookie will be automatically included with credentials: 'include'
         const response = await fetch(getMicroserviceUrl("user-service", "/api/v1/auth/refresh"), {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
             credentials: 'include', // Include cookies for refresh token
-            body: requestBody, // Send refresh token in body if available, otherwise null
         });
 
         console.log("📊 Refresh response status:", response.status, response.statusText);
@@ -123,12 +108,6 @@ export const refreshAccessToken = async (): Promise<string | null> => {
             }
 
             localStorage.setItem("scholarai_token", newToken);
-
-            // If the response includes a new refresh token, store it
-            if (data.data?.refreshToken) {
-                localStorage.setItem("scholarai_refresh_token", data.data.refreshToken);
-                console.log("💾 Stored new refresh token in localStorage");
-            }
 
             // Store user data if it's included in the response
             if (data.data?.email || data.data?.userId || data.data?.role) {
@@ -167,61 +146,83 @@ export const authenticatedFetch = async (
     url: string,
     options: RequestInit = {}
 ) => {
-    let token = getAuthToken();
+    const token = getAuthToken();
 
-    // Debug logging for token
-    if (token) {
-        console.log("🔑 Valid JWT token found:", token.substring(0, 20) + "...");
-    } else {
-        console.warn("⚠️ No valid token found in localStorage");
-    }
-
-    let headers = {
-        "Content-Type": "application/json",
+    // Build minimal headers; only set Content-Type when a body is present
+    const baseHeaders: Record<string, string> = {
         Accept: "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
-    console.log("🌐 Making authenticated request to:", url);
-    console.log("📋 Request headers:", headers);
+    const providedHeaders = (options.headers || {}) as Record<string, string>;
 
-    const response = await fetch(url, {
-        ...options,
-        headers,
-        credentials: 'include', // Include cookies in the request
-    });
-
-    console.log("📊 Response status:", response.status, response.statusText);
-
-    if (response.status === 401) {
-        console.log("🔄 Access token expired, attempting to refresh...");
-        // Try to refresh token
-        const newAccessToken = await refreshAccessToken();
-        if (newAccessToken) {
-            console.log("✅ Token refreshed successfully, retrying request");
-            const retryHeaders = {
-                ...headers,
-                Authorization: `Bearer ${newAccessToken}`,
-            };
-
-            const retryResponse = await fetch(url, {
-                ...options,
-                headers: retryHeaders,
-                credentials: 'include', // Include cookies in the request
-            });
-
-            console.log("📊 Retry response status:", retryResponse.status, retryResponse.statusText);
-            return retryResponse;
-        } else {
-            console.error("❌ Failed to refresh token, clearing auth data");
-            clearAuthData();
-            // Return the original response so the calling code can handle it
-            return response;
+    if (options.body && !Object.keys(providedHeaders).some(k => k.toLowerCase() === 'content-type')) {
+        // Don't set Content-Type for FormData - browser will set it automatically with boundary
+        if (!(options.body instanceof FormData)) {
+            baseHeaders["Content-Type"] = "application/json";
         }
     }
 
-    return response;
+    const headers = { ...baseHeaders, ...providedHeaders };
+
+    // Default to not sending cross-site credentials unless explicitly requested
+    const credentials: RequestCredentials = (options.credentials as RequestCredentials) ?? 'omit';
+
+    console.log("🌐 Making authenticated request to:", url);
+    console.log("📋 Request headers:", headers);
+    console.log("🔐 Credentials mode:", credentials);
+
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers,
+            credentials,
+        });
+
+        console.log("📊 Response status:", response.status, response.statusText);
+
+        if (response.status === 401) {
+            console.log("🔄 Access token expired, attempting to refresh...");
+            // Try to refresh token
+            const newAccessToken = await refreshAccessToken();
+            if (newAccessToken) {
+                console.log("✅ Token refreshed successfully, retrying request");
+                const retryHeaders = {
+                    ...headers,
+                    Authorization: `Bearer ${newAccessToken}`,
+                };
+
+                const retryResponse = await fetch(url, {
+                    ...options,
+                    headers: retryHeaders,
+                    credentials: 'include', // Include cookies in the request
+                });
+
+                console.log("📊 Retry response status:", retryResponse.status, retryResponse.statusText);
+
+                // If retry also fails with 401, the refresh token is invalid
+                if (retryResponse.status === 401) {
+                    console.error("❌ Retry request also failed with 401 - refresh token invalid");
+                    clearAuthData();
+                    // Don't redirect here, let the calling code handle it
+                    return retryResponse;
+                }
+
+                return retryResponse;
+            } else {
+                console.error("❌ Failed to refresh token, clearing auth data");
+                clearAuthData();
+                // Return the original response so the calling code can handle it
+                return response;
+            }
+        }
+
+        return response;
+    } catch (error) {
+        console.error("❌ Network error during authenticated fetch:", error);
+        // Don't clear auth data on network errors - only on actual auth failures
+        throw error;
+    }
 };
 
 export const login = async (formData: {
@@ -327,11 +328,7 @@ export const login = async (formData: {
             throw new Error("Invalid JWT token format received from server");
         }
 
-        // Store refresh token in localStorage if received
-        if (refreshToken && typeof window !== "undefined") {
-            localStorage.setItem("scholarai_refresh_token", refreshToken);
-            console.log("💾 Stored refresh token in localStorage");
-        }
+        // Refresh token is stored in HttpOnly cookie by the backend, no need to store in localStorage
 
         return {
             success: true,

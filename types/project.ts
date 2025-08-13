@@ -1,6 +1,11 @@
 import { Paper } from "@/types/websearch"
 
-export type ProjectStatus = 'planning' | 'active' | 'completed' | 'on-hold' | 'cancelled'
+export type ProjectStatus =
+    | 'ACTIVE'
+    | 'PAUSED'
+    | 'COMPLETED'
+    | 'ARCHIVED'
+
 
 export interface Project {
     id: string
@@ -28,6 +33,7 @@ export interface APIResponse<T> {
 }
 
 export interface CreateProjectRequest {
+    userId: string
     name: string
     description?: string
     domain?: string
@@ -36,6 +42,7 @@ export interface CreateProjectRequest {
 }
 
 export interface UpdateProjectRequest {
+    userId: string
     name?: string
     description?: string
     domain?: string

@@ -46,9 +46,11 @@ export function AvatarUploader({
             return
         }
 
-        // Validate file size (5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            toast.error("Image size must be less than 5MB")
+        // Validate file size (3MB)
+        const maxSize = 3 * 1024 * 1024 // 3MB
+        if (file.size > maxSize) {
+            const sizeInMB = (file.size / (1024 * 1024)).toFixed(1)
+            toast.error(`Image size (${sizeInMB}MB) exceeds the maximum limit of 3MB. Please choose a smaller image.`)
             return
         }
 
@@ -138,7 +140,7 @@ export function AvatarUploader({
                     Profile Picture
                 </CardTitle>
                 <CardDescription>
-                    Upload a profile picture (JPEG, PNG, or WebP, max 5MB)
+                    Upload a profile picture (JPEG, PNG, or WebP, max 3MB)
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -207,7 +209,7 @@ export function AvatarUploader({
                             <Badge variant="secondary">JPEG</Badge>
                             <Badge variant="secondary">PNG</Badge>
                             <Badge variant="secondary">WebP</Badge>
-                            <Badge variant="secondary">Max 5MB</Badge>
+                                                         <Badge variant="secondary">Max 3MB</Badge>
                         </div>
                     </div>
                 </div>

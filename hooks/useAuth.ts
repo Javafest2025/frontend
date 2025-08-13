@@ -35,12 +35,11 @@ export const useAuth = () => {
 
                 // If no access token but we might have a refresh token, try to refresh
                 if (!authenticated && typeof window !== "undefined") {
-                    // Check if there's a refresh token in localStorage or cookies
-                    const refreshToken = localStorage.getItem("scholarai_refresh_token")
+                    // Check if there's a refresh token cookie (HttpOnly cookie)
                     const hasRefreshTokenCookie = document.cookie.includes("refreshToken=")
 
-                    if (refreshToken || hasRefreshTokenCookie) {
-                        console.log("🔄 No access token found, but refresh token available. Attempting to refresh...")
+                    if (hasRefreshTokenCookie) {
+                        console.log("🔄 No access token found, but refresh token cookie available. Attempting to refresh...")
                         try {
                             const newToken = await refreshAccessToken()
                             if (newToken) {
@@ -78,7 +77,7 @@ export const useAuth = () => {
 
         // Listen for storage changes (e.g., login/logout in another tab)
         const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === 'scholarai_token' || e.key === 'scholarai_user' || e.key === 'scholarai_refresh_token') {
+            if (e.key === 'scholarai_token' || e.key === 'scholarai_user') {
                 checkAuth()
             }
         }

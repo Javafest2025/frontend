@@ -11,15 +11,14 @@ import { EnhancedTooltip } from "@/components/ui/enhanced-tooltip"
 import { ProjectCreateDialog } from "@/components/interface/ProjectCreateDialog"
 import { ProjectEditDialog } from "@/components/interface/ProjectEditDialog"
 import { ShareProjectDialog } from "@/components/interface/ShareProjectDialog"
-import { projectsApi } from "@/lib/api/projects"
-import { getProjectLibraryStats } from "@/lib/api/library"
+import { projectsApi } from "@/lib/api/project-service"
+// Library service not ready yet – derive counts from project data
 import { Project, ProjectStatus } from "@/types/project"
 import { useSharedProjects } from "@/hooks/useSharedProjects"
 import {
     Plus,
     Search,
     BookOpen,
-    Brain,
     BarChart3,
     MessageSquare,
     Clock,
@@ -28,16 +27,13 @@ import {
     PauseCircle,
     Filter,
     Star,
-    Calendar,
     Users,
     Database,
-    TrendingUp,
     Zap,
-    Settings,
-    MoreVertical,
     Edit,
     Loader2,
-    Share2
+    Share2,
+    Archive
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -58,7 +54,7 @@ export function ProjectsDashboard() {
     const [openingProjectId, setOpeningProjectId] = useState<string | null>(null)
 
     // Hook to track shared projects
-    const { isProjectShared, refreshSharedProjects, markProjectAsShared, markProjectAsNotShared } = useSharedProjects(projects)
+    const { isProjectShared, refreshSharedProjects, markProjectAsShared } = useSharedProjects(projects)
 
     // Load projects on component mount
     useEffect(() => {
@@ -115,25 +111,12 @@ export function ProjectsDashboard() {
     }
 
     const loadPaperCounts = async () => {
-        try {
-            const counts: Record<string, number> = {}
-
-            // Fetch paper counts for all projects in parallel
-            const promises = projects.map(async (project) => {
-                try {
-                    const stats = await getProjectLibraryStats(project.id)
-                    counts[project.id] = stats.data.totalPapers
-                } catch (error) {
-                    console.error(`Error loading paper count for project ${project.id}:`, error)
-                    counts[project.id] = 0
-                }
-            })
-
-            await Promise.all(promises)
-            setPaperCounts(counts)
-        } catch (error) {
-            console.error('Error loading paper counts:', error)
+        // No external call: use project.totalPapers provided by project-service
+        const counts: Record<string, number> = {}
+        for (const project of projects) {
+            counts[project.id] = project.totalPapers ?? 0
         }
+        setPaperCounts(counts)
     }
 
     const parseProjectTags = (project: Project): string[] => {
@@ -144,16 +127,25 @@ export function ProjectsDashboard() {
         return project.topics || []
     }
 
+    const normalizeStatus = (status: string): string => {
+        const s = status.toUpperCase()
+        if (s === 'ON_HOLD' || s === 'PAUSED') return 'paused'
+        if (s === 'CANCELLED' || s === 'ARCHIVED') return 'archived'
+        if (s === 'ACTIVE') return 'active'
+        if (s === 'COMPLETED') return 'completed'
+        return 'all'
+    }
+
     const filteredProjects = projects.filter(project => {
         const projectTags = parseProjectTags(project)
         const projectTopics = parseProjectTopics(project)
         const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (project.domain && project.domain.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            (project.description && project.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            project.domain?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             projectTags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
             projectTopics.some(topic => topic.toLowerCase().includes(searchQuery.toLowerCase()))
 
-        const matchesStatus = selectedStatus === "all" || project.status.toLowerCase() === selectedStatus
+        const matchesStatus = selectedStatus === "all" || normalizeStatus(project.status) === selectedStatus
         const matchesShared = !showOnlyShared || isProjectShared(project.id)
 
         return matchesSearch && matchesStatus && matchesShared
@@ -196,29 +188,36 @@ export function ProjectsDashboard() {
 
     const getStatusIcon = (status: ProjectStatus) => {
         switch (status) {
-            case 'active': return <PlayCircle className="h-4 w-4 status-active" />
-            case 'on-hold': return <PauseCircle className="h-4 w-4 status-on-hold" />
-            case 'completed': return <CheckCircle className="h-4 w-4 status-completed" />
-            case 'cancelled': return <MoreVertical className="h-4 w-4 status-cancelled" />
+            case 'ACTIVE': return <PlayCircle className="h-4 w-4 status-active" />
+            case 'PAUSED':
+            case 'ON_HOLD':
+                return <PauseCircle className="h-4 w-4 status-on-hold" />
+            case 'COMPLETED': return <CheckCircle className="h-4 w-4 status-completed" />
+            case 'ARCHIVED':
+            case 'CANCELLED':
+                return <Archive className="h-4 w-4 status-cancelled" />
             default: return null
         }
     }
 
     const getStatusColor = (status: ProjectStatus) => {
         switch (status) {
-            case 'active': return 'badge border shadow-sm backdrop-blur-sm status-active'
-            case 'on-hold': return 'badge border shadow-sm backdrop-blur-sm status-on-hold'
-            case 'completed': return 'badge border shadow-sm backdrop-blur-sm status-completed'
-            case 'cancelled': return 'badge border shadow-sm backdrop-blur-sm status-cancelled'
+            case 'ACTIVE': return 'badge border shadow-sm backdrop-blur-sm status-active'
+            case 'PAUSED':
+            case 'ON_HOLD':
+                return 'badge border shadow-sm backdrop-blur-sm status-on-hold'
+            case 'COMPLETED': return 'badge border shadow-sm backdrop-blur-sm status-completed'
+            case 'ARCHIVED':
+            case 'CANCELLED':
+                return 'badge border shadow-sm backdrop-blur-sm status-cancelled'
             default: return 'badge border shadow-sm backdrop-blur-sm status-cancelled'
         }
     }
 
     const getStatusLabel = (status: ProjectStatus) => {
-        if (status === 'on-hold') {
-            return 'On Hold'
-        }
-        return status.charAt(0).toUpperCase() + status.slice(1)
+        if (status === 'PAUSED' || status === 'ON_HOLD') return 'Paused'
+        if (status === 'ARCHIVED' || status === 'CANCELLED') return 'Archived'
+        return status.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
     }
 
     const formatLastActivity = (updatedAt: string) => {
@@ -249,7 +248,7 @@ export function ProjectsDashboard() {
     }
 
     const calculateStats = () => {
-        const activeProjects = projects.filter(p => p.status === 'active').length
+        const activeProjects = projects.filter(p => p.status === 'ACTIVE').length
         const totalPapers = projects.reduce((sum, p) => sum + paperCounts[p.id] || 0, 0)
         const totalTasks = projects.reduce((sum, p) => sum + p.activeTasks, 0)
         const sharedProjects = projects.filter(p => isProjectShared(p.id)).length
@@ -349,7 +348,7 @@ export function ProjectsDashboard() {
                                 </div>
                             </EnhancedTooltip>
                             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                                {['all', 'active', 'on-hold', 'completed', 'cancelled'].map((status) => (
+                                {['all', 'active', 'paused', 'completed', 'archived'].map((status) => (
                                     <Button
                                         key={status}
                                         variant={selectedStatus === status ? "default" : "outline"}
@@ -363,7 +362,7 @@ export function ProjectsDashboard() {
                                         )}
                                     >
                                         <Filter className="mr-1 h-3 w-3" />
-                                        {status === 'on-hold' ? 'On Hold' : status.charAt(0).toUpperCase() + status.slice(1)}
+                                        {status === 'paused' ? 'Paused' : status.charAt(0).toUpperCase() + status.slice(1)}
                                     </Button>
                                 ))}
                                 <Button

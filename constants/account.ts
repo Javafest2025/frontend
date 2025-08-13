@@ -97,7 +97,7 @@ export const SOCIAL_LINKS: SocialLink[] = [
 ]
 
 export const PROFILE_IMAGE_CONSTRAINTS = {
-  maxSize: 5 * 1024 * 1024, // 5MB
+  maxSize: 3 * 1024 * 1024, // 3MB
   allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
   dimensions: {
     min: { width: 100, height: 100 },

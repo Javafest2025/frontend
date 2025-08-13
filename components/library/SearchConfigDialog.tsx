@@ -11,7 +11,7 @@ import { Slider } from "@/components/ui/slider"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { projectsApi } from "@/lib/api/projects"
+import { projectsApi } from "@/lib/api/project-service"
 import { Project } from "@/types/project"
 import { WebSearchRequest } from "@/types/websearch"
 import {

@@ -10,8 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SmartComboBox } from "@/components/ui/smart-combobox"
 import { TagInput } from "@/components/ui/tag-input"
-import { projectsApi } from "@/lib/api/projects"
+import { projectsApi } from "@/lib/api/project-service"
 import { Project, ProjectFormData, UpdateProjectRequest, ProjectStatus } from "@/types/project"
+import { useAuth } from "@/hooks/useAuth"
 import {
     RESEARCH_DOMAINS,
     getTopicSuggestions,
@@ -32,6 +33,7 @@ interface ProjectEditDialogProps {
 export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }: ProjectEditDialogProps) {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const { user } = useAuth()
 
     const {
         register,
@@ -78,7 +80,12 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
             setIsLoading(true)
             setError(null)
 
+            if (!user?.id) {
+                throw new Error('User not authenticated')
+            }
+
             const updateRequest: UpdateProjectRequest = {
+                userId: user.id,
                 name: data.name,
                 description: data.description || undefined,
                 domain: data.domainValue || undefined,

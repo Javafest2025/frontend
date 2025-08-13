@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { projectsApi } from "@/lib/api/projects"
+import { projectsApi } from "@/lib/api/project-service"
 import { Collaborator, AddCollaboratorRequest, Project } from "@/types/project"
 import { useAuth } from "@/hooks/useAuth"
 import {
