@@ -6,6 +6,8 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { EditorArea } from "@/components/layout/EditorArea"
 import { ChatPanel } from "@/components/layout/ChatPanel"
 import { TooltipProvider } from "@/components/ui/enhanced-tooltip"
+import { Toaster as AppToaster } from "@/components/ui/toaster"
+import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import { cn } from "@/lib/utils/cn"
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile"
 
@@ -81,6 +83,9 @@ export function MainLayout({ children }: Props) {
           isMobile={isMobile}
         />
       </div>
+      {/* Mount both app toaster (Radix) and Sonner toaster to support both APIs */}
+      <AppToaster />
+      <SonnerToaster richColors position="bottom-right" />
     </TooltipProvider>
   )
 }

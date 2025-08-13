@@ -1,5 +1,5 @@
 import { getMicroserviceUrl } from "@/lib/config/api-config"
-import { authenticatedFetch, getUserData } from "./auth"
+import { authenticatedFetch } from "./auth"
 import { UserAccount, UserAccountForm } from "@/types/account"
 
 // Helper function to map backend profile data to frontend UserAccount structure
@@ -103,7 +103,7 @@ export const accountApi = {
         }
     },
 
-    // Upload profile image using presigned URL
+    // Upload profile image via multipart to backend (Cloudinary)
     uploadProfileImage: async (file: File): Promise<{ success: boolean, url?: string, message?: string }> => {
         try {
             // Validate file type
@@ -112,60 +112,58 @@ export const accountApi = {
                 throw new Error("Please upload a valid image file (JPEG, PNG, or WebP)");
             }
 
-            // Validate file size (5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                throw new Error("Image size must be less than 5MB");
-            }
+            // Send directly to user-service as multipart
+            const form = new FormData();
+            form.append("file", file);
 
-            // Step 1: Get presigned upload URL
-            const uploadUrlResponse = await authenticatedFetch(
-                getMicroserviceUrl("user-service", `/api/v1/users/me/avatar/upload-url?contentType=${encodeURIComponent(file.type)}&contentLength=${file.size}`),
-                { method: "POST" }
+            const resp = await authenticatedFetch(
+                getMicroserviceUrl("user-service", "/api/v1/users/me/avatar"),
+                { method: "POST", body: form }
             );
 
-            if (!uploadUrlResponse.ok) {
-                const errorData = await uploadUrlResponse.json();
-                throw new Error(errorData.message || "Failed to get upload URL");
-            }
-
-            const uploadUrlData = await uploadUrlResponse.json();
-            const { putUrl, key, publicUrl } = uploadUrlData.data;
-
-            // Step 2: Upload file directly to B2 using presigned URL
-            const uploadResponse = await fetch(putUrl, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": file.type,
-                },
-                body: file
-            });
-
-            if (!uploadResponse.ok) {
-                throw new Error("Failed to upload image to storage");
-            }
-
-            // Step 3: Get ETag from response headers
-            const etag = uploadResponse.headers.get("ETag") || "";
-
-            // Step 4: Commit the avatar
-            const commitResponse = await authenticatedFetch(
-                getMicroserviceUrl("user-service", "/api/v1/users/me/avatar/commit"),
-                {
-                    method: "PATCH",
-                    body: JSON.stringify({ key, etag })
+            if (!resp.ok) {
+                if (resp.status === 413) {
+                    return {
+                        success: false,
+                        message: "Image file is too large. Please choose a smaller image."
+                    };
                 }
-            );
 
-            if (!commitResponse.ok) {
-                const errorData = await commitResponse.json();
-                throw new Error(errorData.message || "Failed to commit avatar");
+                // Try to parse response data, but handle cases where response might not be JSON
+                let data;
+                try {
+                    data = await resp.json();
+                } catch (parseError) {
+                    // If response is not JSON, use status text
+                    return {
+                        success: false,
+                        message: `Upload failed: ${resp.statusText || 'Unknown error'}`
+                    };
+                }
+
+                // Handle other specific error cases
+                if (data?.message) {
+                    if (data.message.includes("File size") || data.message.includes("3MB")) {
+                        return {
+                            success: false,
+                            message: "Image file is too large. Please choose an image smaller than 3MB."
+                        };
+                    }
+                    return {
+                        success: false,
+                        message: data.message
+                    };
+                }
+                return {
+                    success: false,
+                    message: "Failed to upload avatar"
+                };
             }
 
-            return {
-                success: true,
-                url: publicUrl,
-                message: "Profile image uploaded successfully"
-            };
+            const data = await resp.json();
+
+            const url: string | undefined = data?.data?.url || data?.data?.secure_url || data?.data?.avatarUrl;
+            return { success: true, url, message: data?.message || "Profile image uploaded successfully" };
         } catch (error) {
             console.error("Upload profile image error:", error);
             return {
@@ -178,10 +176,7 @@ export const accountApi = {
     // Delete profile image
     deleteProfileImage: async (): Promise<{ success: boolean, message?: string }> => {
         try {
-            const response = await authenticatedFetch(
-                getMicroserviceUrl("user-service", "/api/v1/users/me/avatar"),
-                { method: "DELETE" }
-            );
+            const response = await authenticatedFetch(getMicroserviceUrl("user-service", "/api/v1/users/me/avatar"), { method: "DELETE" });
 
             if (!response.ok) {
                 const data = await response.json();

@@ -157,7 +157,10 @@ export const authenticatedFetch = async (
     const providedHeaders = (options.headers || {}) as Record<string, string>;
 
     if (options.body && !Object.keys(providedHeaders).some(k => k.toLowerCase() === 'content-type')) {
-        baseHeaders["Content-Type"] = "application/json";
+        // Don't set Content-Type for FormData - browser will set it automatically with boundary
+        if (!(options.body instanceof FormData)) {
+            baseHeaders["Content-Type"] = "application/json";
+        }
     }
 
     const headers = { ...baseHeaders, ...providedHeaders };

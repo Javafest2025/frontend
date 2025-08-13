@@ -379,6 +379,18 @@ export function AccountContent() {
     const file = event.target.files?.[0]
     if (!file) return
 
+    // Clear the input value to allow re-uploading the same file
+    event.target.value = ''
+
+    // Client-side validation before upload
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please upload a valid image file (JPEG, PNG, or WebP)")
+      return
+    }
+
+
+
     setIsUploadingImage(true)
     try {
       const result = await accountApi.uploadProfileImage(file)
@@ -390,7 +402,15 @@ export function AccountContent() {
       }
     } catch (error) {
       console.error("Failed to upload image:", error)
-      toast.error("Failed to upload image")
+      if (error instanceof Error) {
+        toast.error(
+          error.message.includes("413") || error.message.toLowerCase().includes("too large")
+            ? "Image file is too large. Please choose a smaller image."
+            : error.message || "Failed to upload image"
+        )
+      } else {
+        toast.error("Failed to upload image")
+      }
     } finally {
       setIsUploadingImage(false)
     }
