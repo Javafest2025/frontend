@@ -75,24 +75,25 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                 console.log('Resolved params:', resolvedParams) // Debug log
                 setProjectId(resolvedParams.id)
 
-                const [response, favoritesResponse] = await Promise.all([
-                    projectsApi.getNotes(resolvedParams.id),
-                    projectsApi.getFavoriteNotes(resolvedParams.id)
-                ])
+                // TODO: Re-enable these API calls when backend is ready
+                // const [response, favoritesResponse] = await Promise.all([
+                //     projectsApi.getNotes(resolvedParams.id),
+                //     projectsApi.getFavoriteNotes(resolvedParams.id)
+                // ])
 
-                console.log('Notes response:', response) // Debug log
-                console.log('Favorites response:', favoritesResponse) // Debug log
+                // console.log('Notes response:', response) // Debug log
+                // console.log('Favorites response:', favoritesResponse) // Debug log
 
                 // Handle the API response structure
-                const notesData = Array.isArray(response) ? response : []
-                const favoritesData = Array.isArray(favoritesResponse) ? favoritesResponse : []
+                const notesData: Note[] = [] // Fallback data - backend not ready
+                const favoritesData: Note[] = [] // Fallback data - backend not ready
 
                 setNotes(notesData)
                 setFavoriteNotes(favoritesData)
 
-                if (notesData.length > 0) {
-                    setSelectedNote(notesData[0])
-                }
+                // if (notesData.length > 0) {
+                //     setSelectedNote(notesData[0])
+                // }
             } catch (error) {
                 console.error('Error loading notes:', error)
                 setNotes([])

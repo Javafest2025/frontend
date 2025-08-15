@@ -32,7 +32,7 @@ import {
     ListTodo
 } from "lucide-react"
 import { projectsApi } from "@/lib/api/project-service"
-import { getProjectLibraryStats } from "@/lib/api/library"
+import { libraryApi } from "@/lib/api/project-service"
 import { accountApi } from "@/lib/api/user-service"
 import { Project } from "@/types/project"
 import { UserAccount } from "@/types/account"
@@ -63,18 +63,19 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
             setProjectId(resolvedParams.id)
             try {
                 // Load all data in parallel
-                const [projectData, libraryStatsData, readingListStatsData, notesData, accountData] = await Promise.all([
+                // TODO: Re-enable these API calls when backend is ready
+                const [projectData, libraryStatsData, accountData] = await Promise.all([
                     projectsApi.getProject(resolvedParams.id),
-                    getProjectLibraryStats(resolvedParams.id).catch(() => ({ data: { totalPapers: 0 } })),
-                    projectsApi.getReadingListStats(resolvedParams.id, 'all').catch(() => ({ totalItems: 0 })),
-                    projectsApi.getNotes(resolvedParams.id).catch(() => []),
+                    libraryApi.getProjectLibraryStats(resolvedParams.id).catch(() => ({ totalPapers: 0 })),
+                    // projectsApi.getReadingListStats(resolvedParams.id, 'all').catch(() => ({ totalItems: 0 })), // Disabled - backend not ready
+                    // projectsApi.getNotes(resolvedParams.id).catch(() => []), // Disabled - backend not ready
                     accountApi.getAccount()
                 ])
 
                 setProject(projectData)
-                setLibraryStats(libraryStatsData.data)
-                setReadingListStats(readingListStatsData)
-                setNotesCount(Array.isArray(notesData) ? notesData.length : 0)
+                setLibraryStats(libraryStatsData)
+                setReadingListStats({ totalItems: 0 }) // Fallback data
+                setNotesCount(0) // Fallback data
                 setUserAccount(accountData)
             } catch (error) {
                 console.error('Error loading project:', error)
