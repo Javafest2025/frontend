@@ -53,7 +53,7 @@ import {
 } from "lucide-react"
 import { cn, isValidUUID } from "@/lib/utils"
 import { useWebSearch } from "@/hooks/useWebSearch"
-import { getProjectLibrary, getProjectLibraryStats, getProjectLatestPapers } from "@/lib/api/library"
+import { libraryApi } from "@/lib/api/project-service"
 import { SearchLoadingProgress } from "@/components/library/SearchLoadingProgress"
 import { PaperCard } from "@/components/library/PaperCard"
 import { StreamingPaperCard } from "@/components/library/StreamingPaperCard"
@@ -105,9 +105,9 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
         const loadData = async () => {
             const resolvedParams = await params
 
-                        // Validate project ID format
+            // Validate project ID format
             const projectId = resolvedParams.id
-            
+
             if (!isValidUUID(projectId)) {
                 console.error('Invalid project ID format:', projectId)
                 setLibraryError('Invalid project ID format')
@@ -153,13 +153,13 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
 
             // Fetch both library data and stats
             const [libraryData, statsData] = await Promise.all([
-                getProjectLibrary(projectId),
-                getProjectLibraryStats(projectId)
+                libraryApi.getProjectLibrary(projectId),
+                libraryApi.getProjectLibraryStats(projectId).catch(() => ({ totalPapers: 0 }))
             ])
 
             // Set papers from library data, ensuring abstractText compatibility
-            if (libraryData.data.papers) {
-                const processedPapers: Paper[] = (libraryData.data.papers as any[]).map((p: any) => ({
+            if (libraryData.papers) {
+                const processedPapers: Paper[] = (libraryData.papers as any[]).map((p: any) => ({
                     ...p,
                     abstractText: p.abstractText ?? p.abstract ?? null,
                 }))
@@ -167,7 +167,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
             }
 
             // Set library stats
-            setLibraryStats(statsData.data)
+            setLibraryStats(statsData)
 
         } catch (error) {
             console.error('Error loading project library:', error)
@@ -186,18 +186,11 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
 
         try {
             setIsLoadingLatestPapers(true)
-            const response = await getProjectLatestPapers(projectId)
+            const response = await libraryApi.getLatestProjectPapers(projectId)
 
             // Set latest papers, ensuring abstractText compatibility
-            if (response.data && response.data.papers) {
-                const processedPapers: Paper[] = (response.data.papers as any[]).map((p: any) => ({
-                    ...p,
-                    abstractText: p.abstractText ?? p.abstract ?? null,
-                }))
-                setLatestPapers(processedPapers)
-            } else if (response.data && Array.isArray(response.data)) {
-                // Handle case where response.data is directly an array
-                const processedPapers: Paper[] = (response.data as any[]).map((p: any) => ({
+            if (response && Array.isArray(response)) {
+                const processedPapers: Paper[] = (response as any[]).map((p: any) => ({
                     ...p,
                     abstractText: p.abstractText ?? p.abstract ?? null,
                 }))

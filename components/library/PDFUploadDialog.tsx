@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { Upload, FileText, X, CheckCircle, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react"
 import { PDFExtractor } from "@/lib/pdf-extractor"
-import { addUploadedPaper } from "@/lib/api/library"
+import { libraryApi } from "@/lib/api/project-service"
 import { cn } from "@/lib/utils"
 
 interface PDFUploadDialogProps {
@@ -158,25 +158,25 @@ export function PDFUploadDialog({ isOpen, onClose, projectId, onUploadComplete }
                     message: `Processing ${file.name}...`
                 })
 
-                        // Create paper entry in backend
-        const paperData = {
-          projectId: projectId,
-          title: metadata.title,
-          abstract: metadata.abstract || null,
-          authors: metadata.authors?.map(name => ({ name })) || [],
-          publicationDate: new Date().toISOString().split('T')[0], // Today's date as fallback
-          source: 'Uploaded',
-          pdfContentUrl: uploadResult.downloadUrl,
-          pdfUrl: uploadResult.downloadUrl,
-          isOpenAccess: true,
-          publicationTypes: ['Uploaded Document'],
-          fieldsOfStudy: [],
-          uploadedAt: new Date().toISOString(),
-          fileSize: file.size,
-          fileName: file.name
-        }
+                // Create paper entry in backend
+                const paperData = {
+                    projectId: projectId,
+                    title: metadata.title,
+                    abstract: metadata.abstract || null,
+                    authors: metadata.authors?.map(name => ({ name })) || [],
+                    publicationDate: new Date().toISOString().split('T')[0], // Today's date as fallback
+                    source: 'Uploaded',
+                    pdfContentUrl: uploadResult.downloadUrl,
+                    pdfUrl: uploadResult.downloadUrl,
+                    isOpenAccess: true,
+                    publicationTypes: ['Uploaded Document'],
+                    fieldsOfStudy: [],
+                    uploadedAt: new Date().toISOString(),
+                    fileSize: file.size,
+                    fileName: file.name
+                }
 
-                await addUploadedPaper(projectId, paperData)
+                await libraryApi.uploadPaper(projectId, paperData)
 
                 setUploadProgress({
                     stage: 'processing',
