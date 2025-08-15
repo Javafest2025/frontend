@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { initiateWebSearch, pollUntilComplete } from "@/lib/api/websearch"
+import { websearchApi } from "@/lib/api/project-service"
 import type { WebSearchRequest, WebSearchResponse, Paper } from "@/types/websearch"
 
 interface UseWebSearchState {
@@ -107,7 +107,7 @@ export function useWebSearch(): UseWebSearchState & UseWebSearchActions {
             const progressInterval = simulateRealisticProgress()
 
             // Step 1: Initiate search
-            const { correlationId } = await initiateWebSearch(searchRequest)
+            const { correlationId } = await websearchApi.initiateWebSearch(searchRequest)
             setState(prev => ({ ...prev, correlationId }))
 
             // Step 2: Poll for results
@@ -120,7 +120,7 @@ export function useWebSearch(): UseWebSearchState & UseWebSearchActions {
                 }
             }
 
-            const result = await pollUntilComplete(correlationId, { onProgress })
+            const result = await websearchApi.pollUntilComplete(correlationId, { onProgress })
 
             // Ensure compatibility: map `abstract` field (from API) to `abstractText` used in UI
             const processedPapers: Paper[] = result.papers.map((p: any) => ({

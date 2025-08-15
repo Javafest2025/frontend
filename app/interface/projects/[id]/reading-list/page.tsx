@@ -80,7 +80,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils/cn"
 import { projectsApi } from "@/lib/api/project-service"
-import { getProjectLibrary } from "@/lib/api/library"
+import { libraryApi } from "@/lib/api/project-service"
 import type { Paper } from "@/types/websearch"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ReadingListItem, ReadingListStats } from "@/types/project"
@@ -127,9 +127,10 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
             setProjectId(resolvedParams.id)
 
             try {
+                // TODO: Re-enable reading list stats when backend is ready
                 await Promise.all([
                     loadReadingList(resolvedParams.id),
-                    loadReadingListStats(resolvedParams.id)
+                    // loadReadingListStats(resolvedParams.id) // Disabled - backend not ready
                 ])
             } catch (error) {
                 console.error('Error loading reading list data:', error)
@@ -148,10 +149,10 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
     const loadLibraryPapers = async (projectId: string) => {
         try {
             setIsLoadingLibrary(true)
-            const response = await getProjectLibrary(projectId)
+            const response = await libraryApi.getProjectLibrary(projectId)
 
-            if (response.data.papers) {
-                const processedPapers: Paper[] = (response.data.papers as any[]).map((p: any) => ({
+            if (response.papers) {
+                const processedPapers: Paper[] = (response.papers as any[]).map((p: any) => ({
                     ...p,
                     abstractText: p.abstractText ?? p.abstract ?? null,
                 }))
@@ -187,9 +188,9 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
             }
 
             // Otherwise, fetch library papers to get the details
-            const response = await getProjectLibrary(projectId)
-            if (response.data.papers) {
-                const processedPapers: Paper[] = (response.data.papers as any[]).map((p: any) => ({
+            const response = await libraryApi.getProjectLibrary(projectId)
+            if (response.papers) {
+                const processedPapers: Paper[] = (response.papers as any[]).map((p: any) => ({
                     ...p,
                     abstractText: p.abstractText ?? p.abstract ?? null,
                 }))
@@ -218,23 +219,24 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
         try {
             console.log('🔍 Loading reading list for project:', projectId)
 
+            // TODO: Re-enable when backend is ready
             // Make actual API call to get reading list
-            const response = await projectsApi.getReadingList(projectId, {
-                status: activeTab !== 'all' ? mapTabToStatus(activeTab) : undefined,
-                priority: filterPriority !== 'all' ? filterPriority.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' : undefined,
-                difficulty: filterDifficulty !== 'all' ? filterDifficulty.toUpperCase() as 'EASY' | 'MEDIUM' | 'HARD' | 'EXPERT' : undefined,
-                relevance: filterRelevance !== 'all' ? filterRelevance.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' : undefined,
-                search: searchQuery || undefined,
-                sortBy: sortBy as 'addedAt' | 'priority' | 'title' | 'rating' | 'difficulty',
-                sortOrder: sortDirection,
-                page: 1,
-                limit: 100
-            })
+            // const response = await projectsApi.getReadingList(projectId, {
+            //     status: activeTab !== 'all' ? mapTabToStatus(activeTab) : undefined,
+            //     priority: filterPriority !== 'all' ? filterPriority.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' : undefined,
+            //     difficulty: filterDifficulty !== 'all' ? filterDifficulty.toUpperCase() as 'EASY' | 'MEDIUM' | 'HARD' | 'EXPERT' : undefined,
+            //     relevance: filterRelevance !== 'all' ? filterRelevance.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' : undefined,
+            //     search: searchQuery || undefined,
+            //     sortBy: sortBy as 'addedAt' | 'priority' | 'title' | 'rating' | 'difficulty',
+            //     sortOrder: sortDirection,
+            //     page: 1,
+            //     limit: 100
+            // })
 
-            console.log('📊 Reading list loaded:', Array.isArray(response) ? response.length : 0, 'items')
+            // console.log('📊 Reading list loaded:', Array.isArray(response) ? response.length : 0, 'items')
 
             // Ensure response is always an array
-            const readingListData = Array.isArray(response) ? response : []
+            const readingListData: ReadingListItem[] = [] // Fallback data - backend not ready
 
             // Enrich reading list items with paper details from library
             const enrichedReadingList = await enrichReadingListWithPaperDetails(readingListData, projectId)
@@ -575,27 +577,34 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
         try {
             console.log('Loading reading list recommendations...')
 
+            // TODO: Re-enable when backend is ready
             // Make actual API call to get recommendations
-            const recommendations = await projectsApi.getReadingListRecommendations(projectId, {
-                limit: 10,
-                excludeRead: true
-            })
+            // const recommendations = await projectsApi.getReadingListRecommendations(projectId, {
+            //     limit: 10,
+            //     excludeRead: true
+            // })
 
-            console.log('Recommendations loaded:', recommendations)
+            // console.log('Recommendations loaded:', recommendations)
 
             // For now, we'll add recommendations to the reading list
             // In a more sophisticated implementation, you might want to show them separately
-            if (recommendations.length > 0) {
-                toast({
-                    title: "Success",
-                    description: `${recommendations.length} recommendations loaded!`,
-                })
-            } else {
-                toast({
-                    title: "Info",
-                    description: "No new recommendations available.",
-                })
-            }
+            // if (recommendations.length > 0) {
+            //     toast({
+            //         title: "Success",
+            //         description: `${recommendations.length} recommendations loaded!`,
+            //     })
+            // } else {
+            //     toast({
+            //         title: "Info",
+            //         description: "No new recommendations available.",
+            //     })
+            // }
+
+            // Fallback message - backend not ready
+            toast({
+                title: "Info",
+                description: "Recommendations feature is not available yet.",
+            })
         } catch (error) {
             console.error('Error loading recommendations:', error)
             toast({
