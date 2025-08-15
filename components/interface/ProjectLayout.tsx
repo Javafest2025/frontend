@@ -9,17 +9,18 @@ import { useIsMobile, useIsTablet } from "@/hooks/use-mobile"
 type Props = {
     children: React.ReactNode
     projectId: string
+    autoCollapseSidebar?: boolean
 }
 
-export function ProjectLayout({ children, projectId }: Props) {
+export function ProjectLayout({ children, projectId, autoCollapseSidebar = false }: Props) {
     const [isChatOpen, setIsChatOpen] = useState(false)
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(autoCollapseSidebar)
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const isMobile = useIsMobile()
     const isTablet = useIsTablet()
 
-    // Auto-collapse sidebar on mobile/tablet
-    const shouldCollapseSidebar = isMobile || isTablet
+    // Auto-collapse sidebar on mobile/tablet or when autoCollapseSidebar is true
+    const shouldCollapseSidebar = isMobile || isTablet || autoCollapseSidebar
 
     return (
         <div className="flex h-screen w-full overflow-hidden bg-background">

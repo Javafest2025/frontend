@@ -1,4 +1,4 @@
-import { ProjectLayout } from "@/components/interface/ProjectLayout"
+import { ProjectLayoutWrapper } from "@/components/interface/ProjectLayoutWrapper"
 import { isValidUUID } from "@/lib/utils"
 
 interface ProjectLayoutProps {
@@ -30,8 +30,8 @@ export default async function Layout({ children, params }: ProjectLayoutProps) {
     }
 
     return (
-        <ProjectLayout projectId={id}>
+        <ProjectLayoutWrapper projectId={id}>
             {children}
-        </ProjectLayout>
+        </ProjectLayoutWrapper>
     )
 } 

@@ -32,7 +32,7 @@ import { AIAssistancePanel } from "@/components/latex/AIAssistancePanel"
 interface Project {
   id: string
   name: string
-  description: string
+  description?: string
   status: string
   updatedAt: string
 }
