@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from '@/lib/config/api-config'
+import { getMicroserviceUrl } from '@/lib/config/api-config'
 
 // Types for LaTeX service
 export interface CreateDocumentRequest {
@@ -47,12 +47,12 @@ export interface AIChatRequest {
   fullDocument?: string
 }
 
-const API_BASE = getApiBaseUrl()
+const getProjectServiceUrl = (endpoint: string) => getMicroserviceUrl('project-service', endpoint)
 
 export const latexApi = {
   // Document management
   async createDocument(request: CreateDocumentRequest): Promise<APIResponse<DocumentResponse>> {
-    const response = await fetch(`${API_BASE}/api/documents`, {
+    const response = await fetch(getProjectServiceUrl('/api/documents'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -68,7 +68,7 @@ export const latexApi = {
   },
 
   async createDocumentWithName(projectId: string, fileName: string): Promise<APIResponse<DocumentResponse>> {
-    const response = await fetch(`${API_BASE}/api/documents/create-with-name?projectId=${projectId}&fileName=${fileName}`, {
+    const response = await fetch(getProjectServiceUrl(`/api/documents/create-with-name?projectId=${projectId}&fileName=${fileName}`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -83,7 +83,7 @@ export const latexApi = {
   },
 
   async getDocumentsByProjectId(projectId: string): Promise<APIResponse<DocumentResponse[]>> {
-    const response = await fetch(`${API_BASE}/api/documents/project/${projectId}`, {
+    const response = await fetch(getProjectServiceUrl(`/api/documents/project/${projectId}`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ export const latexApi = {
   },
 
   async getDocumentById(documentId: string): Promise<APIResponse<DocumentResponse>> {
-    const response = await fetch(`${API_BASE}/api/documents/${documentId}`, {
+    const response = await fetch(getProjectServiceUrl(`/api/documents/${documentId}`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -113,7 +113,7 @@ export const latexApi = {
   },
 
   async updateDocument(request: UpdateDocumentRequest): Promise<APIResponse<DocumentResponse>> {
-    const response = await fetch(`${API_BASE}/api/documents`, {
+    const response = await fetch(getProjectServiceUrl('/api/documents'), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ export const latexApi = {
   },
 
   async deleteDocument(documentId: string): Promise<APIResponse<void>> {
-    const response = await fetch(`${API_BASE}/api/documents/${documentId}`, {
+    const response = await fetch(getProjectServiceUrl(`/api/documents/${documentId}`), {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -145,7 +145,7 @@ export const latexApi = {
 
   // LaTeX compilation
   async compileLatex(request: CompileLatexRequest): Promise<APIResponse<string>> {
-    const response = await fetch(`${API_BASE}/api/documents/compile`, {
+    const response = await fetch(getProjectServiceUrl('/api/documents/compile'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -161,7 +161,7 @@ export const latexApi = {
   },
 
   async generatePDF(request: GeneratePDFRequest): Promise<Blob> {
-    const response = await fetch(`${API_BASE}/api/documents/generate-pdf`, {
+    const response = await fetch(getProjectServiceUrl('/api/documents/generate-pdf'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -178,7 +178,7 @@ export const latexApi = {
 
   // AI assistance
   async processChatRequest(request: AIChatRequest): Promise<APIResponse<string>> {
-    const response = await fetch(`${API_BASE}/api/ai-assistance/chat`, {
+    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/chat'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -194,7 +194,7 @@ export const latexApi = {
   },
 
   async reviewDocument(content: string): Promise<APIResponse<any>> {
-    const response = await fetch(`${API_BASE}/api/ai-assistance/review`, {
+    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/review'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -210,7 +210,7 @@ export const latexApi = {
   },
 
   async generateSuggestions(content: string, context?: string): Promise<APIResponse<string>> {
-    const response = await fetch(`${API_BASE}/api/ai-assistance/suggestions`, {
+    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/suggestions'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -226,7 +226,7 @@ export const latexApi = {
   },
 
   async checkCompliance(content: string, venue?: string): Promise<APIResponse<any>> {
-    const response = await fetch(`${API_BASE}/api/ai-assistance/compliance`, {
+    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/compliance'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -242,7 +242,7 @@ export const latexApi = {
   },
 
   async validateCitations(content: string): Promise<APIResponse<any>> {
-    const response = await fetch(`${API_BASE}/api/ai-assistance/citations/validate`, {
+    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/citations/validate'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -258,7 +258,7 @@ export const latexApi = {
   },
 
   async generateCorrections(content: string): Promise<APIResponse<any>> {
-    const response = await fetch(`${API_BASE}/api/ai-assistance/corrections`, {
+    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/corrections'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
