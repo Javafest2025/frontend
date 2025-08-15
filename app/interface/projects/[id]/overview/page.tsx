@@ -29,7 +29,8 @@ import {
     Edit3,
     Share2,
     MessageSquare,
-    ListTodo
+    ListTodo,
+    FileText
 } from "lucide-react"
 import { projectsApi } from "@/lib/api/project-service"
 import { getProjectLibraryStats } from "@/lib/api/library"
@@ -190,6 +191,7 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                 <Share2 className="mr-2 h-4 w-4" />
                                 Share Project
                             </Button>
+
                         </div>
                     </div>
                 </motion.div>

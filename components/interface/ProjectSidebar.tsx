@@ -22,7 +22,8 @@ import {
     Calendar,
     Users,
     MessageSquare,
-    GraduationCap
+    GraduationCap,
+    FileText
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { isValidUUID } from "@/lib/utils"
@@ -68,6 +69,13 @@ const PROJECT_NAV_ITEMS = [
         icon: MessageSquare,
         description: "Project notes and documentation",
         loadingMessage: "Loading project notes..."
+    },
+    {
+        name: "Latex Editor",
+        href: "/latex-editor",
+        icon: FileText,
+        description: "LaTeX document editor for research papers",
+        loadingMessage: "Loading LaTeX editor..."
     },
     {
         name: "Collaboration",
