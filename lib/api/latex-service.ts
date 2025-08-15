@@ -67,6 +67,21 @@ export const latexApi = {
     return response.json()
   },
 
+  async createDocumentWithName(projectId: string, fileName: string): Promise<APIResponse<DocumentResponse>> {
+    const response = await fetch(`${API_BASE}/api/documents/create-with-name?projectId=${projectId}&fileName=${fileName}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to create document: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
   async getDocumentsByProjectId(projectId: string): Promise<APIResponse<DocumentResponse[]>> {
     const response = await fetch(`${API_BASE}/api/documents/project/${projectId}`, {
       method: 'GET',

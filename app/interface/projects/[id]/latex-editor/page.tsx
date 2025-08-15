@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { 
   FileText, 
   Plus, 
@@ -67,6 +68,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
 
   const [showAddToChat, setShowAddToChat] = useState(false)
   const [tempSelectedText, setTempSelectedText] = useState<string>('')
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [newFileName, setNewFileName] = useState('')
 
   // Load project data
   useEffect(() => {
@@ -102,67 +105,17 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         setEditorContent(response.data[0].content)
         console.log('Documents loaded successfully')
       } else {
-        console.log('No documents found, creating default document')
-        // Create a default document if none exist
-        const newDocument = await latexApi.createDocument({
-          projectId: projectId,
-          title: 'main.tex',
-          content: `\\documentclass{article}
-\\usepackage[utf8]{inputenc}
-\\usepackage{amsmath}
-\\usepackage{amsfonts}
-\\usepackage{amssymb}
-
-\\title{${project?.name || 'Research Paper'}}
-\\author{Research Team}
-\\date{\\today}
-
-\\begin{document}
-
-\\maketitle
-
-\\begin{abstract}
-This paper presents a comprehensive analysis...
-\\end{abstract}
-
-\\section{Introduction}
-Your introduction goes here...
-
-\\section{Methodology}
-Your methodology goes here...
-
-\\section{Results}
-Your results go here...
-
-\\section{Conclusion}
-Your conclusion goes here...
-
-\\end{document}`,
-          documentType: 'LATEX'
-        })
-        setDocuments([newDocument.data])
-        setCurrentDocument(newDocument.data)
-        setEditorContent(newDocument.data.content)
+        console.log('No documents found, showing landing page')
+        setDocuments([])
+        setCurrentDocument(null)
+        setEditorContent('')
       }
     } catch (error) {
       console.error('Failed to load documents:', error)
-      // Fallback to basic document
-      const fallbackDoc: Document = {
-        id: 'temp-1',
-        title: 'main.tex',
-        content: `\\documentclass{article}
-\\title{${project?.name || 'Research Paper'}}
-\\begin{document}
-\\maketitle
-Your content goes here...
-\\end{document}`,
-        documentType: 'LATEX',
-        updatedAt: new Date().toISOString(),
-        projectId: projectId
-      }
-      setDocuments([fallbackDoc])
-      setCurrentDocument(fallbackDoc)
-      setEditorContent(fallbackDoc.content)
+      // Show landing page on error
+      setDocuments([])
+      setCurrentDocument(null)
+      setEditorContent('')
     }
   }
 
@@ -285,6 +238,32 @@ Your content goes here...
     }
   }
 
+  const handleCreateDocument = async () => {
+    if (!newFileName.trim()) {
+      alert('Please enter a file name')
+      return
+    }
+
+    try {
+      const response = await latexApi.createDocumentWithName(projectId, newFileName)
+      const newDocument = response.data
+      
+      // Update documents list
+      setDocuments(prev => [newDocument, ...prev])
+      setCurrentDocument(newDocument)
+      setEditorContent(newDocument.content)
+      
+      // Close dialog and reset
+      setShowCreateDialog(false)
+      setNewFileName('')
+      
+      console.log('Document created successfully:', newDocument.title)
+    } catch (error) {
+      console.error('Failed to create document:', error)
+      alert('Failed to create document. Please try again.')
+    }
+  }
+
   const handleDownloadPDF = async () => {
     if (!editorContent.trim()) {
       alert('No content to download')
@@ -397,7 +376,11 @@ Your content goes here...
               <div className="flex-1 p-2">
                 <div className="flex items-center justify-between mb-1">
                   <h4 className="font-medium text-sm">Documents</h4>
-                  <Button variant="ghost" size="sm">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setShowCreateDialog(true)}
+                  >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -434,14 +417,78 @@ Your content goes here...
           {/* Center - Editor */}
           <ResizablePanel defaultSize={50} minSize={30}>
             <div className="h-full flex flex-col">
-              {/* Editor Content */}
-              <div className="flex-1 flex">
-                <Tabs defaultValue="editor" className="flex-1 flex flex-col" onValueChange={handleTabChange}>
-                  <TabsList className="w-fit mx-4 mt-1 flex-shrink-0">
-                    <TabsTrigger value="editor">Editor</TabsTrigger>
-                    <TabsTrigger value="preview">Preview</TabsTrigger>
-                    <TabsTrigger value="split">Split</TabsTrigger>
-                  </TabsList>
+              {/* Show landing page if no documents, otherwise show editor */}
+              {documents.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center p-8">
+                  <div className="text-center max-w-2xl">
+                    <div className="mb-8">
+                      <FileText className="h-16 w-16 mx-auto text-primary mb-4" />
+                      <h2 className="text-2xl font-bold mb-2">Welcome to LaTeX Editor</h2>
+                      <p className="text-muted-foreground text-lg mb-6">
+                        Professional LaTeX document editing with AI-powered assistance
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                      <Card className="p-4">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <Play className="h-5 w-5 text-primary" />
+                          <h3 className="font-semibold">Real-time Compilation</h3>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          See your LaTeX rendered instantly as you type
+                        </p>
+                      </Card>
+
+                      <Card className="p-4">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <MessageSquare className="h-5 w-5 text-primary" />
+                          <h3 className="font-semibold">AI Chat Assistant</h3>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Get help with LaTeX syntax, formatting, and content
+                        </p>
+                      </Card>
+
+                      <Card className="p-4">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <Download className="h-5 w-5 text-primary" />
+                          <h3 className="font-semibold">PDF Export</h3>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Generate high-quality PDFs from your documents
+                        </p>
+                      </Card>
+
+                      <Card className="p-4">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <Save className="h-5 w-5 text-primary" />
+                          <h3 className="font-semibold">Auto-save</h3>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Never lose your work with automatic saving
+                        </p>
+                      </Card>
+                    </div>
+
+                    <Button 
+                      size="lg" 
+                      onClick={() => setShowCreateDialog(true)}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      <Plus className="h-5 w-5 mr-2" />
+                      Create Your First Document
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex">
+                  <Tabs defaultValue="editor" className="flex-1 flex flex-col" onValueChange={handleTabChange}>
+                    <TabsList className="w-fit mx-4 mt-1 flex-shrink-0">
+                      <TabsTrigger value="editor">Editor</TabsTrigger>
+                      <TabsTrigger value="preview">Preview</TabsTrigger>
+                      <TabsTrigger value="split">Split</TabsTrigger>
+                    </TabsList>
                  
                   <TabsContent value="editor" className="flex-1 m-0">
                     <div className="h-full p-2">
@@ -558,8 +605,9 @@ Your content goes here...
                       </div>
                     </div>
                   </TabsContent>
-                </Tabs>
-              </div>
+                  </Tabs>
+                </div>
+              )}
             </div>
           </ResizablePanel>
 
@@ -605,6 +653,45 @@ Your content goes here...
 
         </ResizablePanelGroup>
       </div>
+
+      {/* Create Document Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New LaTeX Document</DialogTitle>
+            <DialogDescription>
+              Enter a name for your new LaTeX document. The .tex extension will be added automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="document-name"
+              value={newFileName}
+              onChange={(e) => setNewFileName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleCreateDocument()
+                }
+              }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowCreateDialog(false)
+                setNewFileName('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateDocument} disabled={!newFileName.trim()}>
+              Create Document
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
