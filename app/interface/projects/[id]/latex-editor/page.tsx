@@ -26,7 +26,9 @@ import {
   RefreshCw,
   Trash2,
   GitBranch,
-  RotateCcw
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { projectsApi } from "@/lib/api/project-service"
@@ -75,6 +77,10 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [tempSelectedText, setTempSelectedText] = useState<string>('')
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [newFileName, setNewFileName] = useState('')
+  const [showVersionDialog, setShowVersionDialog] = useState(false)
+  const [commitMessage, setCommitMessage] = useState('')
+  const [currentVersion, setCurrentVersion] = useState<number>(1)
+  const [versionHistory, setVersionHistory] = useState<any[]>([])
 
   // Load project data
   useEffect(() => {
@@ -360,6 +366,77 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     }
   }
 
+  const loadVersionHistory = async (documentId: string) => {
+    try {
+      const response = await latexApi.getDocumentVersions(documentId)
+      if (response.status === 200) {
+        setVersionHistory(response.data || [])
+        console.log('Version history loaded:', response.data)
+      }
+    } catch (error) {
+      console.error('Failed to load version history:', error)
+    }
+  }
+
+  const navigateToVersion = async (documentId: string, versionNumber: number) => {
+    try {
+      const response = await latexApi.getSpecificDocumentVersion(documentId, versionNumber)
+      if (response.status === 200) {
+        const version = response.data
+        setEditorContent(version.content)
+        setCurrentVersion(version.versionNumber)
+        console.log('Navigated to version:', version.versionNumber)
+      }
+    } catch (error) {
+      console.error('Failed to navigate to version:', error)
+    }
+  }
+
+  const createVersion = async () => {
+    if (!currentDocument?.id || !commitMessage.trim()) {
+      alert('Please enter a commit message')
+      return
+    }
+
+    try {
+      console.log('=== VERSION CREATION DEBUG ===')
+      console.log('Document ID:', currentDocument.id)
+      console.log('Commit message:', commitMessage)
+      console.log('Content length:', editorContent.length)
+      console.log('Calling latexApi.createDocumentVersion...')
+      
+      const response = await latexApi.createDocumentVersion(
+        currentDocument.id, 
+        editorContent, 
+        commitMessage
+      )
+      
+      console.log('=== RESPONSE RECEIVED ===')
+      console.log('Full response:', response)
+      console.log('Response status:', response.status)
+      console.log('Response message:', response.message)
+      console.log('Response data:', response.data)
+      
+      if (response.status === 201) {
+        console.log('✅ Version created successfully!')
+        setShowVersionDialog(false)
+        setCommitMessage('')
+        await loadVersionHistory(currentDocument.id)
+        alert('Version created successfully!')
+      } else {
+        console.log('❌ Unexpected status code:', response.status)
+        throw new Error(`Backend returned status ${response.status}: ${response.message}`)
+      }
+    } catch (error) {
+      console.error('=== ERROR DETAILS ===')
+      console.error('Error type:', typeof error)
+      console.error('Error message:', error.message)
+      console.error('Full error object:', error)
+      console.error('Stack trace:', error.stack)
+      alert(`Failed to create version: ${error.message}`)
+    }
+  }
+
   const handleRevertVersion = async () => {
     if (!currentDocument?.id || !currentDocument.version) {
       alert('No previous version to revert to or document not found.')
@@ -407,6 +484,40 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       alert('Failed to generate PDF')
     }
   }
+
+  const navigateToPreviousVersion = async () => {
+    if (currentDocument?.id && currentVersion > 1) {
+      try {
+        const response = await latexApi.getPreviousDocumentVersion(currentDocument.id, currentVersion)
+        if (response.status === 200) {
+          const version = response.data
+          setEditorContent(version.content)
+          setCurrentVersion(version.versionNumber)
+          console.log('Navigated to previous version:', version.versionNumber)
+        }
+      } catch (error) {
+        console.error('Failed to navigate to previous version:', error)
+        alert('No previous version available')
+      }
+    }
+  }
+
+  const navigateToNextVersion = async () => {
+    if (currentDocument?.id && currentVersion < Math.max(...versionHistory.map(v => v.versionNumber), 1)) {
+      try {
+        const response = await latexApi.getNextDocumentVersion(currentDocument.id, currentVersion)
+        if (response.status === 200) {
+          const version = response.data
+          setEditorContent(version.content)
+          setCurrentVersion(version.versionNumber)
+          console.log('Navigated to next version:', version.versionNumber)
+        }
+      } catch (error) {
+        console.error('Failed to navigate to next version:', error)
+        alert('No next version available')
+      }
+    }
+  };
 
   if (isLoading) {
     return (
@@ -468,10 +579,28 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => handleSaveVersion()}
+              onClick={() => setShowVersionDialog(true)}
             >
               <GitBranch className="h-4 w-4 mr-2" />
               Save Version
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigateToPreviousVersion()}
+              disabled={!currentDocument?.id || currentVersion <= 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Previous
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigateToNextVersion()}
+              disabled={!currentDocument?.id || currentVersion >= Math.max(...versionHistory.map(v => v.versionNumber), 1)}
+            >
+              <ChevronRight className="h-4 w-4 mr-2" />
+              Next
             </Button>
             <Button 
               variant="outline" 
@@ -551,6 +680,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                             console.log('Document content to load:', doc.content)
                             setCurrentDocument(doc)
                             setEditorContent(doc.content)
+                            setCurrentVersion(doc.version || 1)
+                            loadVersionHistory(doc.id)
                             console.log('Document selected and content set')
                           }
                         }}
@@ -583,6 +714,32 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                     ))}
                   </div>
                 </ScrollArea>
+                
+                {/* Version History Section */}
+                {currentDocument && versionHistory.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="font-medium text-sm mb-2">Version History</h4>
+                    <div className="space-y-1">
+                      {versionHistory.map((version) => (
+                        <div
+                          key={version.id}
+                          className={cn(
+                            "p-1.5 rounded-md cursor-pointer text-xs hover:bg-accent",
+                            currentVersion === version.versionNumber && "bg-accent"
+                          )}
+                          onClick={() => navigateToVersion(currentDocument.id, version.versionNumber)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>v{version.versionNumber}</span>
+                            <span className="text-muted-foreground truncate">
+                              {version.commitMessage}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </ResizablePanel>
@@ -863,6 +1020,45 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             </Button>
             <Button onClick={handleCreateDocument} disabled={!newFileName.trim()}>
               Create Document
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Version Dialog */}
+      <Dialog open={showVersionDialog} onOpenChange={setShowVersionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Version</DialogTitle>
+            <DialogDescription>
+              Enter a commit message to describe the changes in this version.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="e.g., Added new section, Fixed formatting, etc."
+              value={commitMessage}
+              onChange={(e) => setCommitMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  createVersion()
+                }
+              }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowVersionDialog(false)
+                setCommitMessage('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={createVersion} disabled={!commitMessage.trim()}>
+              Save Version
             </Button>
           </DialogFooter>
         </DialogContent>
