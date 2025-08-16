@@ -315,3 +315,4 @@ export function AIChatPanel({ content, onApplySuggestion, selectedText, cursorPo
     </div>
   )
 }
+

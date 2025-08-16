@@ -83,18 +83,26 @@ export const latexApi = {
   },
 
   async getDocumentsByProjectId(projectId: string): Promise<APIResponse<DocumentResponse[]>> {
-    const response = await fetch(getProjectServiceUrl(`/api/documents/project/${projectId}`), {
+    const url = getProjectServiceUrl(`/api/documents/project/${projectId}`)
+    console.log('Calling API URL:', url)
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
     })
 
+    console.log('API Response status:', response.status, response.statusText)
+    console.log('API Response headers:', response.headers)
+
     if (!response.ok) {
       throw new Error(`Failed to fetch documents: ${response.statusText}`)
     }
 
-    return response.json()
+    const data = await response.json()
+    console.log('API Response data:', data)
+    return data
   },
 
   async getDocumentById(documentId: string): Promise<APIResponse<DocumentResponse>> {

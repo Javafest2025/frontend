@@ -24,3 +24,4 @@ export function ProjectLayoutWrapper({ children, projectId }: ProjectLayoutWrapp
         </ProjectLayout>
     )
 }
+

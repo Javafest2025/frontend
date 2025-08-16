@@ -22,7 +22,8 @@ import {
   Search,
   MoreHorizontal,
   Lightbulb,
-  Download
+  Download,
+  RefreshCw
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { projectsApi } from "@/lib/api/project-service"
@@ -94,16 +95,52 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     loadData()
   }, [params])
 
+  // Debug: Log documents state changes
+  useEffect(() => {
+    console.log('Documents state changed:', documents)
+    console.log('Current document:', currentDocument)
+    
+    // Temporary test: Add some test documents if none exist
+    if (documents.length === 0 && projectId) {
+      console.log('No documents found, adding test documents for debugging...')
+      const testDocs = [
+        {
+          id: 'test-1',
+          title: 'temp.tex',
+          content: '% Test document 1',
+          projectId: projectId,
+          documentType: 'LATEX',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 'test-2', 
+          title: 'temp2.tex',
+          content: '% Test document 2',
+          projectId: projectId,
+          documentType: 'LATEX',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ]
+      setDocuments(testDocs)
+      setCurrentDocument(testDocs[0])
+      setEditorContent(testDocs[0].content)
+    }
+  }, [documents, currentDocument, projectId])
+
   const loadDocuments = async (projectId: string) => {
     try {
       console.log('Loading documents for project:', projectId)
       const response = await latexApi.getDocumentsByProjectId(projectId)
+      console.log('API Response:', response)
       
       if (response.data && response.data.length > 0) {
+        console.log('Documents found:', response.data.length, 'documents:', response.data)
         setDocuments(response.data)
         setCurrentDocument(response.data[0])
         setEditorContent(response.data[0].content)
-        console.log('Documents loaded successfully')
+        console.log('Documents loaded successfully, current document:', response.data[0].title)
       } else {
         console.log('No documents found, showing landing page')
         setDocuments([])
@@ -248,8 +285,10 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       const response = await latexApi.createDocumentWithName(projectId, newFileName)
       const newDocument = response.data
       
-      // Update documents list
-      setDocuments(prev => [newDocument, ...prev])
+      // Reload all documents from database to ensure we have the complete list
+      await loadDocuments(projectId)
+      
+      // Set the newly created document as current
       setCurrentDocument(newDocument)
       setEditorContent(newDocument.content)
       
@@ -322,6 +361,14 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             </Badge>
           </div>
           <div className="flex items-center space-x-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => loadDocuments(projectId)}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reload
+            </Button>
             <Button 
               variant="outline" 
               size="sm"
