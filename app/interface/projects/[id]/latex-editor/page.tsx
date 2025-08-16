@@ -23,7 +23,10 @@ import {
   MoreHorizontal,
   Lightbulb,
   Download,
-  RefreshCw
+  RefreshCw,
+  Trash2,
+  GitBranch,
+  RotateCcw
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { projectsApi } from "@/lib/api/project-service"
@@ -46,6 +49,7 @@ interface Document {
   documentType: string
   updatedAt: string
   projectId: string
+  version?: number
 }
 
 interface ProjectOverviewPageProps {
@@ -76,14 +80,18 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   useEffect(() => {
     const loadData = async () => {
       const resolvedParams = await params
+      console.log('Resolved params:', resolvedParams)
       setProjectId(resolvedParams.id)
+      console.log('Setting projectId to:', resolvedParams.id)
       
       try {
         // Load project details
         const projectData = await projectsApi.getProject(resolvedParams.id)
         setProject(projectData)
+        console.log('Project loaded:', projectData)
         
         // Load documents for this project
+        console.log('Calling loadDocuments with projectId:', resolvedParams.id)
         await loadDocuments(resolvedParams.id)
       } catch (error) {
         console.error('Error loading project:', error)
@@ -99,35 +107,15 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   useEffect(() => {
     console.log('Documents state changed:', documents)
     console.log('Current document:', currentDocument)
-    
-    // Temporary test: Add some test documents if none exist
-    if (documents.length === 0 && projectId) {
-      console.log('No documents found, adding test documents for debugging...')
-      const testDocs = [
-        {
-          id: 'test-1',
-          title: 'temp.tex',
-          content: '% Test document 1',
-          projectId: projectId,
-          documentType: 'LATEX',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 'test-2', 
-          title: 'temp2.tex',
-          content: '% Test document 2',
-          projectId: projectId,
-          documentType: 'LATEX',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ]
-      setDocuments(testDocs)
-      setCurrentDocument(testDocs[0])
-      setEditorContent(testDocs[0].content)
+  }, [documents, currentDocument])
+
+  // Ensure documents are loaded when projectId is available
+  useEffect(() => {
+    if (projectId && documents.length === 0) {
+      console.log('ProjectId available but no documents, loading documents...')
+      loadDocuments(projectId)
     }
-  }, [documents, currentDocument, projectId])
+  }, [projectId, documents.length])
 
   const loadDocuments = async (projectId: string) => {
     try {
@@ -137,10 +125,23 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       
       if (response.data && response.data.length > 0) {
         console.log('Documents found:', response.data.length, 'documents:', response.data)
+        
+        // Debug: Log the content of each document
+        response.data.forEach((doc, index) => {
+          console.log(`Document ${index + 1}:`, {
+            id: doc.id,
+            title: doc.title,
+            contentLength: doc.content ? doc.content.length : 0,
+            contentPreview: doc.content ? doc.content.substring(0, 100) + '...' : 'No content',
+            fullContent: doc.content
+          })
+        })
+        
         setDocuments(response.data)
         setCurrentDocument(response.data[0])
         setEditorContent(response.data[0].content)
         console.log('Documents loaded successfully, current document:', response.data[0].title)
+        console.log('Current document content:', response.data[0].content)
       } else {
         console.log('No documents found, showing landing page')
         setDocuments([])
@@ -149,6 +150,11 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       }
     } catch (error) {
       console.error('Failed to load documents:', error)
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        projectId: projectId
+      })
       // Show landing page on error
       setDocuments([])
       setCurrentDocument(null)
@@ -303,6 +309,78 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     }
   }
 
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!confirm(`Are you sure you want to delete this document? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await latexApi.deleteDocument(documentId);
+      await loadDocuments(projectId);
+      setCurrentDocument(documents.length > 0 ? documents[0] : null);
+      setEditorContent(documents.length > 0 ? documents[0].content : '');
+      console.log(`Document with ID ${documentId} deleted successfully.`);
+    } catch (error) {
+      console.error('Failed to delete document:', error);
+      alert('Failed to delete document. Please try again.');
+    }
+  };
+
+  const handleSaveVersion = async () => {
+    if (!currentDocument?.id) {
+      alert('No document selected for versioning')
+      return
+    }
+
+    try {
+      console.log('Saving version for document:', currentDocument.title)
+      // Create a new version by appending version number to title
+      const versionNumber = (currentDocument.version || 0) + 1
+      const versionTitle = `${currentDocument.title.replace(/\.tex$/, '')}_v${versionNumber}.tex`
+      console.log('Creating version:', versionTitle)
+      
+      const response = await latexApi.createDocumentWithName(projectId, versionTitle)
+      const newVersion = response.data
+      console.log('New version created:', newVersion)
+      
+      // Update the new version with current content
+      await latexApi.updateDocument({
+        documentId: newVersion.id,
+        content: editorContent
+      })
+      
+      // Reload documents to show the new version
+      await loadDocuments(projectId)
+      
+      console.log('Version saved successfully:', versionTitle)
+      alert(`Version saved as: ${versionTitle}`)
+    } catch (error) {
+      console.error('Failed to save version:', error)
+      alert('Failed to save version. Please try again.')
+    }
+  }
+
+  const handleRevertVersion = async () => {
+    if (!currentDocument?.id || !currentDocument.version) {
+      alert('No previous version to revert to or document not found.')
+      return
+    }
+
+    try {
+      const previousVersion = await latexApi.getDocumentById(currentDocument.id);
+      if (previousVersion.data) {
+        setEditorContent(previousVersion.data.content);
+        console.log('Document reverted to version:', previousVersion.data.title);
+        alert(`Document reverted to version: ${previousVersion.data.title}`);
+      } else {
+        alert('Failed to revert document. Previous version not found.');
+      }
+    } catch (error) {
+      console.error('Failed to revert version:', error);
+      alert('Failed to revert document. Please try again.');
+    }
+  }
+
   const handleDownloadPDF = async () => {
     if (!editorContent.trim()) {
       alert('No content to download')
@@ -359,12 +437,22 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             <Badge variant="outline" className="text-xs">
               {currentDocument?.documentType || 'LATEX'}
             </Badge>
+            <span className="text-xs text-muted-foreground">
+              Project ID: {projectId || 'Not set'}
+            </span>
           </div>
           <div className="flex items-center space-x-2">
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => loadDocuments(projectId)}
+              onClick={() => {
+                console.log('Manual reload clicked, projectId:', projectId)
+                if (projectId) {
+                  loadDocuments(projectId)
+                } else {
+                  console.error('No projectId available')
+                }
+              }}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Reload
@@ -376,6 +464,23 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             >
               <Save className="h-4 w-4 mr-2" />
               Save
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleSaveVersion()}
+            >
+              <GitBranch className="h-4 w-4 mr-2" />
+              Save Version
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleRevertVersion()}
+              disabled={!currentDocument?.version || currentDocument.version <= 1}
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Revert
             </Button>
             <Button 
               variant="outline" 
@@ -437,19 +542,42 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                       <div
                         key={doc.id}
                         className={cn(
-                          "p-1.5 rounded-md cursor-pointer text-sm hover:bg-accent",
+                          "p-1.5 rounded-md cursor-pointer text-sm hover:bg-accent group",
                           currentDocument?.id === doc.id && "bg-accent"
                         )}
                         onClick={() => {
                           if (!isEditing) {
+                            console.log('Document clicked:', doc.title)
+                            console.log('Document content to load:', doc.content)
                             setCurrentDocument(doc)
                             setEditorContent(doc.content)
+                            console.log('Document selected and content set')
                           }
                         }}
                       >
-                        <div className="flex items-center space-x-2">
-                          <FileText className="h-4 w-4" />
-                          <span className="truncate">{doc.title}</span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2 flex-1">
+                            <FileText className="h-4 w-4" />
+                            <span className="truncate">{doc.title}</span>
+                            {doc.version && doc.version > 1 && (
+                              <Badge variant="outline" className="text-xs">
+                                v{doc.version}
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (confirm(`Are you sure you want to delete "${doc.title}"?`)) {
+                                handleDeleteDocument(doc.id)
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
                     ))}
