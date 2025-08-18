@@ -17,7 +17,7 @@ import { WebSearchRequest } from "@/types/websearch"
 import {
     RESEARCH_DOMAINS,
     getTopicSuggestions,
-    searchSuggestions
+    searchSuggestionsAsStrings
 } from "@/constants/research-data"
 import {
     Search,
@@ -340,7 +340,9 @@ export function SearchConfigDialog({
                                                                         onValueChange={field.onChange}
                                                                         suggestions={RESEARCH_DOMAINS}
                                                                         placeholder="Select or type a research domain (e.g., Machine Learning, Computer Vision)"
-                                                                        searchFunction={searchSuggestions}
+                                                                        searchFunction={(query: string, suggestions: string[]) => 
+                                                                            searchSuggestionsAsStrings(query, { kinds: ['domain'] })
+                                                                        }
                                                                         disabled={isLoading}
                                                                         className="w-full"
                                                                         style={{ boxShadow: '0 0 8px rgba(99, 102, 241, 0.06), 0 0 16px rgba(139, 92, 246, 0.03)' }}
