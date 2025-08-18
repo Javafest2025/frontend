@@ -516,3 +516,12 @@ export function searchStringsFacade(query: string, pool: string[], limit = 8): s
         .map(x => x.it.label);
     return scored;
 }
+
+/** Helper function for SmartComboBox compatibility - returns string[] instead of Suggestion[] */
+export function searchSuggestionsAsStrings(
+    query: string,
+    options?: { limit?: number; kinds?: SuggestionType[]; withinDomain?: string }
+): string[] {
+    const suggestions = searchSuggestions(query, options);
+    return suggestions.map(s => s.label);
+}

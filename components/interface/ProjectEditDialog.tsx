@@ -17,7 +17,7 @@ import {
     RESEARCH_DOMAINS,
     getTopicSuggestions,
     getTagSuggestions,
-    searchSuggestions
+    searchSuggestionsAsStrings
 } from "@/constants/research-data"
 import { Loader2, Sparkles, Brain, Target, Hash, Settings, X, BarChart3 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
@@ -369,7 +369,9 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                                                     onValueChange={field.onChange}
                                                                     suggestions={RESEARCH_DOMAINS}
                                                                     placeholder="Select or type a domain"
-                                                                    searchFunction={searchSuggestions}
+                                                                    searchFunction={(query: string, suggestions: string[]) => 
+                                                                        searchSuggestionsAsStrings(query, { kinds: ['domain'] })
+                                                                    }
                                                                     disabled={isLoading}
                                                                     className="w-full mt-1"
                                                                 />

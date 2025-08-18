@@ -16,7 +16,7 @@ import {
     RESEARCH_DOMAINS,
     getTopicSuggestions,
     getTagSuggestions,
-    searchSuggestions
+    searchSuggestionsAsStrings
 } from "@/constants/research-data"
 import { Loader2, Sparkles, Brain, Target, Hash, FolderPlus, X } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
@@ -276,7 +276,9 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                                 onValueChange={field.onChange}
                                                                 suggestions={RESEARCH_DOMAINS}
                                                                 placeholder="Select or type a domain"
-                                                                searchFunction={searchSuggestions}
+                                                                searchFunction={(query: string, suggestions: string[]) => 
+                                                                    searchSuggestionsAsStrings(query, { kinds: ['domain'] })
+                                                                }
                                                                 disabled={isLoading}
                                                                 className="w-full"
                                                             />

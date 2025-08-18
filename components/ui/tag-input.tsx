@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useState, useRef, useEffect } from "react"
-import { X, Plus, Sparkles } from "lucide-react"
+import { X, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -29,7 +29,6 @@ interface TagInputProps {
     className?: string
     style?: React.CSSProperties
     disabled?: boolean
-    allowCustomTags?: boolean
 }
 
 export function TagInput({
@@ -41,8 +40,7 @@ export function TagInput({
     maxTags,
     className,
     style,
-    disabled = false,
-    allowCustomTags = true
+    disabled = false
 }: TagInputProps) {
     const [inputValue, setInputValue] = useState("")
     const [isOpen, setIsOpen] = useState(false)
@@ -77,6 +75,10 @@ export function TagInput({
                 onValueChange([...value, trimmedTag])
                 setInputValue("")
                 setIsOpen(false)
+                // Maintain focus on the input after adding a tag
+                setTimeout(() => {
+                    inputRef.current?.focus()
+                }, 0)
             }
         }
     }
@@ -86,12 +88,7 @@ export function TagInput({
     }
 
     const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter" || e.key === ",") {
-            e.preventDefault()
-            if (allowCustomTags && inputValue.trim()) {
-                addTag(inputValue.trim())
-            }
-        } else if (e.key === "Backspace" && !inputValue && value.length > 0) {
+        if (e.key === "Backspace" && !inputValue && value.length > 0) {
             removeTag(value[value.length - 1])
         }
     }
@@ -103,11 +100,22 @@ export function TagInput({
 
     const handleSuggestionSelect = (suggestion: string) => {
         addTag(suggestion)
+        // Ensure focus is maintained after selection
+        setTimeout(() => {
+            inputRef.current?.focus()
+        }, 0)
     }
 
     useEffect(() => {
         setIsOpen(inputValue.length > 0 && filteredSuggestions.length > 0)
     }, [inputValue, filteredSuggestions.length])
+
+    // Ensure input maintains focus when popover state changes
+    useEffect(() => {
+        if (isOpen && inputRef.current) {
+            inputRef.current.focus()
+        }
+    }, [isOpen])
 
     return (
         <div className={cn("relative", className)} style={style}>
@@ -156,37 +164,10 @@ export function TagInput({
                             <CommandList className="max-h-[150px]">
                                 {filteredSuggestions.length === 0 ? (
                                     <CommandEmpty className="py-4 text-center text-sm text-muted-foreground">
-                                        {inputValue && allowCustomTags ? (
-                                            <div className="space-y-2">
-                                                <p>No suggestions found.</p>
-                                                <Badge
-                                                    variant="outline"
-                                                    className="cursor-pointer hover:bg-primary/10 transition-colors"
-                                                    onClick={() => addTag(inputValue)}
-                                                >
-                                                    <Plus className="h-3 w-3 mr-1" />
-                                                    Add "{inputValue}"
-                                                </Badge>
-                                            </div>
-                                        ) : (
-                                            "Start typing to see suggestions..."
-                                        )}
+                                        Start typing to see suggestions...
                                     </CommandEmpty>
                                 ) : (
                                     <CommandGroup>
-                                        {allowCustomTags && inputValue && !filteredSuggestions.includes(inputValue) && (
-                                            <CommandItem
-                                                value={inputValue}
-                                                onSelect={() => handleSuggestionSelect(inputValue)}
-                                                className="flex items-center gap-2 cursor-pointer hover:bg-primary/10 transition-colors"
-                                            >
-                                                <Plus className="h-3 w-3 text-primary" />
-                                                <span>Add "{inputValue}"</span>
-                                                <Badge variant="secondary" className="text-xs ml-auto">
-                                                    Custom
-                                                </Badge>
-                                            </CommandItem>
-                                        )}
                                         {filteredSuggestions.map((suggestion) => (
                                             <CommandItem
                                                 key={suggestion}
