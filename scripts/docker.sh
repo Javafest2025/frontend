@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-COMPOSE_FILE="docker/docker-compose.yml"
+COMPOSE_FILE="docker-compose.yml"
 SERVICE_NAME="scholar-ai-frontend"
 IMAGE_NAME="scholar-ai-frontend"
 
