@@ -493,6 +493,10 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }
 
   const navigateToPreviousVersion = async () => {
+    console.log('navigateToPreviousVersion called')
+    console.log('currentDocument:', currentDocument)
+    console.log('isViewingVersion:', isViewingVersion)
+    
     if (currentDocument?.id) {
       try {
         // Previous = Current working content (latest/newer content)
@@ -514,10 +518,16 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         setIsViewingVersion(false)
         console.log('Restored current document content as fallback')
       }
+    } else {
+      console.log('No currentDocument.id available')
     }
   }
 
   const navigateToNextVersion = async () => {
+    console.log('navigateToNextVersion called')
+    console.log('currentDocument:', currentDocument)
+    console.log('currentVersion:', currentVersion)
+    
     if (currentDocument?.id) {
       try {
         // Next = Last saved version (older content)
@@ -533,6 +543,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         console.error('Failed to navigate to previous version:', error)
         alert('No previous saved version available')
       }
+    } else {
+      console.log('No currentDocument.id available')
     }
   };
 
