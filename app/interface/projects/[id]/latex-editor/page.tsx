@@ -495,18 +495,24 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const navigateToPreviousVersion = async () => {
     if (currentDocument?.id) {
       try {
-        // Previous = Last saved version (older content)
-        const response = await latexApi.getPreviousDocumentVersion(currentDocument.id, currentVersion)
-        if (response.status === 200) {
-          const version = response.data
-          setEditorContent(version.content)
-          setCurrentVersion(version.versionNumber)
-          setIsViewingVersion(true)
-          console.log('Navigated to previous version (last saved):', version.versionNumber)
+        // Previous = Current working content (latest/newer content)
+        if (isViewingVersion) {
+          // If we're viewing a version, restore current document content
+          setEditorContent(currentDocument.content)
+          setCurrentVersion(currentDocument.version || 1)
+          setIsViewingVersion(false)
+          console.log('Restored current document content (latest)')
+        } else {
+          // Already viewing current content, no action needed
+          console.log('Already viewing current content')
         }
       } catch (error) {
-        console.error('Failed to navigate to previous version:', error)
-        alert('No previous version available')
+        console.error('Failed to navigate to current version:', error)
+        // Fallback: restore current content
+        setEditorContent(currentDocument.content)
+        setCurrentVersion(currentDocument.version || 1)
+        setIsViewingVersion(false)
+        console.log('Restored current document content as fallback')
       }
     }
   }
@@ -514,32 +520,18 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const navigateToNextVersion = async () => {
     if (currentDocument?.id) {
       try {
-        // Next = Current unsaved content (newer content)
-        // This should restore the current document content that might have been lost
-        if (isViewingVersion) {
-          // If we're viewing a version, restore current document content
-          setEditorContent(currentDocument.content)
-          setCurrentVersion(currentDocument.version || 1)
-          setIsViewingVersion(false)
-          console.log('Restored current document content')
-        } else {
-          // Try to get the next version if available
-          const response = await latexApi.getNextDocumentVersion(currentDocument.id, currentVersion)
-          if (response.status === 200) {
-            const version = response.data
-            setEditorContent(version.content)
-            setCurrentVersion(version.versionNumber)
-            setIsViewingVersion(true)
-            console.log('Navigated to next version:', version.versionNumber)
-          }
+        // Next = Last saved version (older content)
+        const response = await latexApi.getPreviousDocumentVersion(currentDocument.id, currentVersion)
+        if (response.status === 200) {
+          const version = response.data
+          setEditorContent(version.content)
+          setCurrentVersion(version.versionNumber)
+          setIsViewingVersion(true)
+          console.log('Navigated to last saved version (older):', version.versionNumber)
         }
       } catch (error) {
-        console.error('Failed to navigate to next version:', error)
-        // If no next version, just restore current content
-        setEditorContent(currentDocument.content)
-        setCurrentVersion(currentDocument.version || 1)
-        setIsViewingVersion(false)
-        console.log('Restored current document content as fallback')
+        console.error('Failed to navigate to previous version:', error)
+        alert('No previous saved version available')
       }
     }
   };
@@ -621,7 +613,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               disabled={!currentDocument?.id}
             >
               <ChevronLeft className="h-4 w-4 mr-2" />
-              {isViewingVersion ? 'Last Saved' : 'Previous'}
+              {isViewingVersion ? 'Current' : 'Previous'}
             </Button>
             <Button 
               variant="outline" 
@@ -630,7 +622,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               disabled={!currentDocument?.id}
             >
               <ChevronRight className="h-4 w-4 mr-2" />
-              {isViewingVersion ? 'Current' : 'Next'}
+              {isViewingVersion ? 'Last Saved' : 'Next'}
             </Button>
             <Button 
               variant="outline" 
