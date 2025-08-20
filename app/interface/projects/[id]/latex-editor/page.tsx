@@ -81,6 +81,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [commitMessage, setCommitMessage] = useState('')
   const [currentVersion, setCurrentVersion] = useState<number>(1)
   const [versionHistory, setVersionHistory] = useState<any[]>([])
+  const [isViewingVersion, setIsViewingVersion] = useState<boolean>(false)
 
   // Load project data
   useEffect(() => {
@@ -146,6 +147,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         setDocuments(response.data)
         setCurrentDocument(response.data[0])
         setEditorContent(response.data[0].content)
+        setCurrentVersion(response.data[0].version || 1)
+        setIsViewingVersion(false)
         console.log('Documents loaded successfully, current document:', response.data[0].title)
         console.log('Current document content:', response.data[0].content)
       } else {
@@ -187,6 +190,9 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       ))
       
       console.log('Document saved successfully')
+      
+      // Reset version viewing state since we're now viewing the current content
+      setIsViewingVersion(false)
     } catch (error) {
       console.error('Save failed:', error)
     }
@@ -385,6 +391,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         const version = response.data
         setEditorContent(version.content)
         setCurrentVersion(version.versionNumber)
+        setIsViewingVersion(true)
         console.log('Navigated to version:', version.versionNumber)
       }
     } catch (error) {
@@ -486,14 +493,16 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }
 
   const navigateToPreviousVersion = async () => {
-    if (currentDocument?.id && currentVersion > 1) {
+    if (currentDocument?.id) {
       try {
+        // Previous = Last saved version (older content)
         const response = await latexApi.getPreviousDocumentVersion(currentDocument.id, currentVersion)
         if (response.status === 200) {
           const version = response.data
           setEditorContent(version.content)
           setCurrentVersion(version.versionNumber)
-          console.log('Navigated to previous version:', version.versionNumber)
+          setIsViewingVersion(true)
+          console.log('Navigated to previous version (last saved):', version.versionNumber)
         }
       } catch (error) {
         console.error('Failed to navigate to previous version:', error)
@@ -503,18 +512,34 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }
 
   const navigateToNextVersion = async () => {
-    if (currentDocument?.id && currentVersion < Math.max(...versionHistory.map(v => v.versionNumber), 1)) {
+    if (currentDocument?.id) {
       try {
-        const response = await latexApi.getNextDocumentVersion(currentDocument.id, currentVersion)
-        if (response.status === 200) {
-          const version = response.data
-          setEditorContent(version.content)
-          setCurrentVersion(version.versionNumber)
-          console.log('Navigated to next version:', version.versionNumber)
+        // Next = Current unsaved content (newer content)
+        // This should restore the current document content that might have been lost
+        if (isViewingVersion) {
+          // If we're viewing a version, restore current document content
+          setEditorContent(currentDocument.content)
+          setCurrentVersion(currentDocument.version || 1)
+          setIsViewingVersion(false)
+          console.log('Restored current document content')
+        } else {
+          // Try to get the next version if available
+          const response = await latexApi.getNextDocumentVersion(currentDocument.id, currentVersion)
+          if (response.status === 200) {
+            const version = response.data
+            setEditorContent(version.content)
+            setCurrentVersion(version.versionNumber)
+            setIsViewingVersion(true)
+            console.log('Navigated to next version:', version.versionNumber)
+          }
         }
       } catch (error) {
         console.error('Failed to navigate to next version:', error)
-        alert('No next version available')
+        // If no next version, just restore current content
+        setEditorContent(currentDocument.content)
+        setCurrentVersion(currentDocument.version || 1)
+        setIsViewingVersion(false)
+        console.log('Restored current document content as fallback')
       }
     }
   };
@@ -548,6 +573,11 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             <Badge variant="outline" className="text-xs">
               {currentDocument?.documentType || 'LATEX'}
             </Badge>
+            {isViewingVersion && (
+              <Badge variant="secondary" className="text-xs">
+                v{currentVersion}
+              </Badge>
+            )}
             <span className="text-xs text-muted-foreground">
               Project ID: {projectId || 'Not set'}
             </span>
@@ -588,19 +618,19 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               variant="outline" 
               size="sm"
               onClick={() => navigateToPreviousVersion()}
-              disabled={!currentDocument?.id || currentVersion <= 1}
+              disabled={!currentDocument?.id}
             >
               <ChevronLeft className="h-4 w-4 mr-2" />
-              Previous
+              {isViewingVersion ? 'Last Saved' : 'Previous'}
             </Button>
             <Button 
               variant="outline" 
               size="sm"
               onClick={() => navigateToNextVersion()}
-              disabled={!currentDocument?.id || currentVersion >= Math.max(...versionHistory.map(v => v.versionNumber), 1)}
+              disabled={!currentDocument?.id}
             >
               <ChevronRight className="h-4 w-4 mr-2" />
-              Next
+              {isViewingVersion ? 'Current' : 'Next'}
             </Button>
             <Button 
               variant="outline" 
@@ -681,6 +711,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                             setCurrentDocument(doc)
                             setEditorContent(doc.content)
                             setCurrentVersion(doc.version || 1)
+                            setIsViewingVersion(false)
                             loadVersionHistory(doc.id)
                             console.log('Document selected and content set')
                           }
