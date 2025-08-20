@@ -700,15 +700,15 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               <ChevronLeft className="h-4 w-4 mr-2" />
               {isViewingVersion ? 'Current' : 'Previous'}
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => navigateToNextVersion()}
-              disabled={!currentDocument?.id}
-            >
-              <ChevronRight className="h-4 w-4 mr-2" />
-              {isViewingVersion ? 'Last Saved' : 'Next'}
-            </Button>
+                         <Button 
+               variant="outline" 
+               size="sm"
+               onClick={() => navigateToNextVersion()}
+               disabled={!currentDocument?.id}
+             >
+               <ChevronRight className="h-4 w-4 mr-2" />
+               {isViewingVersion ? 'Previously Saved' : 'Next'}
+             </Button>
             <Button 
               variant="outline" 
               size="sm"
