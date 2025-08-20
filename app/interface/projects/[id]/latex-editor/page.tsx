@@ -655,9 +655,6 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                 v{currentVersion}
               </Badge>
             )}
-            <span className="text-xs text-muted-foreground">
-              Project ID: {projectId || 'Not set'}
-            </span>
           </div>
           <div className="flex items-center space-x-2">
             <Button 
@@ -691,24 +688,6 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               <GitBranch className="h-4 w-4 mr-2" />
               Save Version
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => navigateToPreviousVersion()}
-              disabled={!currentDocument?.id}
-            >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              {isViewingVersion ? 'Current' : 'Previous'}
-            </Button>
-                         <Button 
-               variant="outline" 
-               size="sm"
-               onClick={() => navigateToNextVersion()}
-               disabled={!currentDocument?.id}
-             >
-               <ChevronRight className="h-4 w-4 mr-2" />
-               {isViewingVersion ? 'Previously Saved' : 'Next'}
-             </Button>
             <Button 
               variant="outline" 
               size="sm"
@@ -924,11 +903,49 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               ) : (
                 <div className="flex-1 flex">
                   <Tabs defaultValue="editor" className="flex-1 flex flex-col" onValueChange={handleTabChange}>
-                    <TabsList className="w-fit mx-4 mt-1 flex-shrink-0">
-                      <TabsTrigger value="editor">Editor</TabsTrigger>
-                      <TabsTrigger value="preview">Preview</TabsTrigger>
-                      <TabsTrigger value="split">Split</TabsTrigger>
-                    </TabsList>
+                    <div className="flex items-center justify-between mx-4 mt-1 flex-shrink-0">
+                      <TabsList className="w-fit">
+                        <TabsTrigger value="editor">Editor</TabsTrigger>
+                        <TabsTrigger value="preview">Preview</TabsTrigger>
+                        <TabsTrigger value="split">Split</TabsTrigger>
+                      </TabsList>
+                      <div className="flex items-center space-x-2">
+                        {!isViewingVersion ? (
+                          // Initial state: Only show "Check Versions" button
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => navigateToNextVersion()}
+                            disabled={!currentDocument?.id}
+                          >
+                            <ChevronRight className="h-4 w-4 mr-2" />
+                            Check Versions
+                          </Button>
+                        ) : (
+                          // Version viewing state: Show both navigation buttons
+                          <>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => navigateToPreviousVersion()}
+                              disabled={!currentDocument?.id}
+                            >
+                              <ChevronLeft className="h-4 w-4 mr-2" />
+                              Current
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => navigateToNextVersion()}
+                              disabled={!currentDocument?.id}
+                            >
+                              <ChevronRight className="h-4 w-4 mr-2" />
+                              Previously Saved
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
                  
                   <TabsContent value="editor" className="flex-1 m-0">
                     <div className="h-full p-2">
