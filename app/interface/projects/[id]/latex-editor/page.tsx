@@ -83,6 +83,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [versionHistory, setVersionHistory] = useState<any[]>([])
   const [isViewingVersion, setIsViewingVersion] = useState<boolean>(false)
   const [isLoadingVersions, setIsLoadingVersions] = useState<boolean>(false)
+  const [lastVersionCallTime, setLastVersionCallTime] = useState<number>(0)
 
   // Load project data
   useEffect(() => {
@@ -383,6 +384,14 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }
 
   const loadVersionHistory = async (documentId: string) => {
+    const now = Date.now()
+    
+    // Debounce: prevent calls within 1 second of each other
+    if (now - lastVersionCallTime < 1000) {
+      console.log('Version history call debounced, skipping...')
+      return
+    }
+    
     // Prevent duplicate calls for the same document
     if (versionHistory.length > 0 && currentDocument?.id === documentId) {
       console.log('Version history already loaded for this document, skipping...')
@@ -395,13 +404,23 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       return
     }
     
+    // Add a more aggressive check - if we've loaded versions recently, skip
+    const lastLoadTime = sessionStorage.getItem(`versionHistory_${documentId}_lastLoad`)
+    if (lastLoadTime && (now - parseInt(lastLoadTime)) < 5000) { // 5 second cache
+      console.log('Version history loaded recently, using cache...')
+      return
+    }
+    
     try {
+      setLastVersionCallTime(now)
       setIsLoadingVersions(true)
       console.log('Loading version history for document:', documentId)
       const response = await latexApi.getDocumentVersions(documentId)
       if (response.status === 200) {
         setVersionHistory(response.data || [])
         console.log('Version history loaded:', response.data)
+        // Cache the load time
+        sessionStorage.setItem(`versionHistory_${documentId}_lastLoad`, now.toString())
       }
     } catch (error) {
       console.error('Failed to load version history:', error)
@@ -582,10 +601,22 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     } else {
       console.log('No currentDocument.id or versionHistory available')
       if (versionHistory.length === 0) {
-        // Load version history first
+        // Load version history only once, then try navigation
         await loadVersionHistory(currentDocument.id)
-        // Try again after loading
-        setTimeout(() => navigateToNextVersion(), 100)
+        // Use the updated versionHistory state directly instead of recursive call
+        const updatedHistory = await latexApi.getDocumentVersions(currentDocument.id)
+        if (updatedHistory.status === 200 && updatedHistory.data.length > 0) {
+          setVersionHistory(updatedHistory.data)
+          // Now try to navigate
+          const currentVersionIndex = updatedHistory.data.findIndex(v => v.versionNumber === currentVersion)
+          if (currentVersionIndex > 0) {
+            const previousVersion = updatedHistory.data[currentVersionIndex - 1]
+            setEditorContent(previousVersion.content)
+            setCurrentVersion(previousVersion.versionNumber)
+            setIsViewingVersion(true)
+            console.log('Navigated to previous version after loading history:', previousVersion.versionNumber)
+          }
+        }
       }
     }
   };
