@@ -82,6 +82,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [currentVersion, setCurrentVersion] = useState<number>(1)
   const [versionHistory, setVersionHistory] = useState<any[]>([])
   const [isViewingVersion, setIsViewingVersion] = useState<boolean>(false)
+  const [isLoadingVersions, setIsLoadingVersions] = useState<boolean>(false)
 
   // Load project data
   useEffect(() => {
@@ -123,6 +124,15 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       loadDocuments(projectId)
     }
   }, [projectId, documents.length])
+
+  // Clear version history when switching documents to prevent stale data
+  useEffect(() => {
+    if (currentDocument?.id) {
+      console.log('Document changed, clearing version history')
+      setVersionHistory([])
+      setIsViewingVersion(false)
+    }
+  }, [currentDocument?.id])
 
   const loadDocuments = async (projectId: string) => {
     try {
@@ -373,7 +383,21 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }
 
   const loadVersionHistory = async (documentId: string) => {
+    // Prevent duplicate calls for the same document
+    if (versionHistory.length > 0 && currentDocument?.id === documentId) {
+      console.log('Version history already loaded for this document, skipping...')
+      return
+    }
+    
+    // Prevent multiple simultaneous calls
+    if (isLoadingVersions) {
+      console.log('Version history already loading, skipping...')
+      return
+    }
+    
     try {
+      setIsLoadingVersions(true)
+      console.log('Loading version history for document:', documentId)
       const response = await latexApi.getDocumentVersions(documentId)
       if (response.status === 200) {
         setVersionHistory(response.data || [])
@@ -381,6 +405,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       }
     } catch (error) {
       console.error('Failed to load version history:', error)
+    } finally {
+      setIsLoadingVersions(false)
     }
   }
 
