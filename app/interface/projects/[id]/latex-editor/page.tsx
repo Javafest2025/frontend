@@ -496,6 +496,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     console.log('navigateToPreviousVersion called')
     console.log('currentDocument:', currentDocument)
     console.log('isViewingVersion:', isViewingVersion)
+    console.log('versionHistory:', versionHistory)
     
     if (currentDocument?.id) {
       try {
@@ -527,24 +528,39 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     console.log('navigateToNextVersion called')
     console.log('currentDocument:', currentDocument)
     console.log('currentVersion:', currentVersion)
+    console.log('versionHistory:', versionHistory)
     
-    if (currentDocument?.id) {
+    if (currentDocument?.id && versionHistory.length > 0) {
       try {
-        // Next = Last saved version (older content)
-        const response = await latexApi.getPreviousDocumentVersion(currentDocument.id, currentVersion)
-        if (response.status === 200) {
-          const version = response.data
-          setEditorContent(version.content)
-          setCurrentVersion(version.versionNumber)
+        // Find the current version in the history
+        const currentVersionIndex = versionHistory.findIndex(v => v.versionNumber === currentVersion)
+        console.log('Current version index:', currentVersionIndex)
+        
+        if (currentVersionIndex > 0) {
+          // Get the previous version (older content)
+          const previousVersion = versionHistory[currentVersionIndex - 1]
+          console.log('Previous version found:', previousVersion)
+          
+          setEditorContent(previousVersion.content)
+          setCurrentVersion(previousVersion.versionNumber)
           setIsViewingVersion(true)
-          console.log('Navigated to last saved version (older):', version.versionNumber)
+          console.log('Navigated to previous version (older):', previousVersion.versionNumber)
+        } else {
+          console.log('No previous version available')
+          alert('No previous version available')
         }
       } catch (error) {
         console.error('Failed to navigate to previous version:', error)
-        alert('No previous saved version available')
+        alert('No previous version available')
       }
     } else {
-      console.log('No currentDocument.id available')
+      console.log('No currentDocument.id or versionHistory available')
+      if (versionHistory.length === 0) {
+        // Load version history first
+        await loadVersionHistory(currentDocument.id)
+        // Try again after loading
+        setTimeout(() => navigateToNextVersion(), 100)
+      }
     }
   };
 
