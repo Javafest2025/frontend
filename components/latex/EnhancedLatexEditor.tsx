@@ -85,6 +85,7 @@ export function EnhancedLatexEditor({
   const [editorContent, setEditorContent] = useState(content)
   const [compiledContent, setCompiledContent] = useState('')
   const [isCompiling, setIsCompiling] = useState(false)
+  const [isPdfCompiling, setIsPdfCompiling] = useState(false)
   const [activeTab, setActiveTab] = useState('editor')
   const [showCopilotPanel, setShowCopilotPanel] = useState(false)
   const [copilotQuery, setCopilotQuery] = useState('')
@@ -130,6 +131,31 @@ export function EnhancedLatexEditor({
       setIsCompiling(false)
     }
   }, [editorContent, isCompiling])
+
+  const handlePdfCompile = useCallback(async () => {
+    if (!editorContent.trim() || isPdfCompiling) return
+    
+    setIsPdfCompiling(true)
+    try {
+      const pdfBlob = await latexApi.compileLatexToPdf({ latexContent: editorContent })
+      
+      // Create a download link for the PDF
+      const url = window.URL.createObjectURL(pdfBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'document.pdf'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('PDF compilation failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`PDF compilation failed: ${errorMessage}`)
+    } finally {
+      setIsPdfCompiling(false)
+    }
+  }, [editorContent, isPdfCompiling])
 
   const createErrorPreview = (message: string) => `
     <div style="padding: 20px; background: white; color: black; font-family: 'Times New Roman', serif;">
@@ -338,6 +364,20 @@ export function EnhancedLatexEditor({
             )}
             <span className="ml-2">Compile</span>
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handlePdfCompile}
+            disabled={isPdfCompiling}
+            className="h-8 px-3"
+          >
+            {isPdfCompiling ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            <span className="ml-2">PDF</span>
+          </Button>
         </div>
         
         <div className="flex items-center space-x-2">
@@ -534,3 +574,4 @@ export function EnhancedLatexEditor({
     </div>
   )
 }
+

@@ -494,3 +494,4 @@ export class LatexCopilotService {
 }
 
 export const latexCopilotService = LatexCopilotService.getInstance()
+

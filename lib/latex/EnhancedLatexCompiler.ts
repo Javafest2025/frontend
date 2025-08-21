@@ -463,3 +463,4 @@ export class EnhancedLatexCompiler {
 }
 
 export const enhancedLatexCompiler = EnhancedLatexCompiler.getInstance()
+
