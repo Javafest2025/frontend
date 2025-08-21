@@ -58,7 +58,7 @@ import { SearchLoadingProgress } from "@/components/library/SearchLoadingProgres
 import { PaperCard } from "@/components/library/PaperCard"
 import { StreamingPaperCard } from "@/components/library/StreamingPaperCard"
 import { PaperDetailModal } from "@/components/library/PaperDetailModal"
-import { PdfViewerModal } from "@/components/library/PdfViewerModal"
+
 import { SearchConfigDialog } from "@/components/library/SearchConfigDialog"
 import { PDFUploadDialog } from "@/components/library/PDFUploadDialog"
 import { B2DownloadTest } from "@/components/test/B2DownloadTest"

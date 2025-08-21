@@ -35,6 +35,7 @@ import { projectsApi } from "@/lib/api/project-service"
 import { latexApi } from "@/lib/api/latex-service"
 import { AIChatPanel } from "@/components/latex/AIChatPanel"
 import { AIAssistancePanel } from "@/components/latex/AIAssistancePanel"
+import { LaTeXPDFViewer } from "@/components/latex/LaTeXPDFViewer"
 
 interface Project {
   id: string
@@ -67,6 +68,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null)
   const [editorContent, setEditorContent] = useState('')
   const [compiledContent, setCompiledContent] = useState('')
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>('')
   const [isCompiling, setIsCompiling] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
@@ -84,6 +86,15 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [isViewingVersion, setIsViewingVersion] = useState<boolean>(false)
   const [isLoadingVersions, setIsLoadingVersions] = useState<boolean>(false)
   const [lastVersionCallTime, setLastVersionCallTime] = useState<number>(0)
+
+  // Cleanup PDF URL when component unmounts or PDF changes
+  useEffect(() => {
+    return () => {
+      if (pdfPreviewUrl) {
+        URL.revokeObjectURL(pdfPreviewUrl)
+      }
+    }
+  }, [pdfPreviewUrl])
 
   // Load project data
   useEffect(() => {
@@ -209,6 +220,43 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     }
   }, [currentDocument?.id, editorContent])
 
+  // Test if PDF blob is valid
+  const testPdfBlob = useCallback(async (blob: Blob): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        try {
+          const arrayBuffer = reader.result as ArrayBuffer
+          const uint8Array = new Uint8Array(arrayBuffer)
+          
+          // Check if it starts with PDF magic number
+          const isPdf = uint8Array.length >= 4 && 
+                       uint8Array[0] === 0x25 && // %
+                       uint8Array[1] === 0x50 && // P
+                       uint8Array[2] === 0x44 && // D
+                       uint8Array[3] === 0x46    // F
+          
+          console.log('PDF validation:', { 
+            size: blob.size, 
+            type: blob.type, 
+            isPdf, 
+            firstBytes: Array.from(uint8Array.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' ')
+          })
+          
+          resolve(isPdf)
+        } catch (error) {
+          console.error('PDF validation error:', error)
+          resolve(false)
+        }
+      }
+      reader.onerror = () => {
+        console.error('PDF validation failed to read blob')
+        resolve(false)
+      }
+      reader.readAsArrayBuffer(blob)
+    })
+  }, [])
+
   const handleCompile = useCallback(async () => {
     if (isCompiling) {
       console.log('Compilation already in progress, skipping...')
@@ -217,35 +265,56 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     
     setIsCompiling(true)
     try {
-      console.log('Starting compilation...')
+      console.log('Starting PDF compilation...')
+      console.log('LaTeX content length:', editorContent.length)
+      console.log('LaTeX content preview:', editorContent.substring(0, 200) + '...')
       
-      const result = await latexApi.compileLatex({ latexContent: editorContent })
-      console.log('Compilation succeeded:', result)
+      // Use PDF compilation instead of HTML
+      const pdfBlob = await latexApi.compileLatexToPdf({ latexContent: editorContent })
+      console.log('PDF compilation succeeded:', pdfBlob)
+      console.log('PDF blob size:', pdfBlob.size, 'bytes')
+      console.log('PDF blob type:', pdfBlob.type)
       
-      if (result.data && typeof result.data === 'string' && result.data.length > 0) {
-        setCompiledContent(result.data)
-      } else {
-        console.error('Invalid compiled content received:', result.data)
-        setCompiledContent(`
-          <div style="padding: 20px; background: white; color: black;">
-            <h1>LaTeX Preview</h1>
-            <p style="color: orange;">Invalid compilation result received</p>
-          </div>
-        `)
+      // Validate the PDF blob
+      const isValidPdf = await testPdfBlob(pdfBlob)
+      if (!isValidPdf) {
+        throw new Error('Generated file is not a valid PDF')
       }
       
+      // Create a URL for the PDF blob with proper MIME type
+      const pdfUrl = URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }))
+      console.log('Created PDF blob URL:', pdfUrl)
+      setPdfPreviewUrl(pdfUrl)
+      
+      // Set compiled content to show PDF preview
+      setCompiledContent(`
+        <div style="padding: 20px; background: white; color: black;">
+          <h1>LaTeX PDF Preview</h1>
+          <p style="color: green;">✓ PDF compiled successfully!</p>
+          <p>Your LaTeX document has been compiled to PDF. Use the preview tab to view it.</p>
+          <p><strong>PDF Size:</strong> ${(pdfBlob.size / 1024).toFixed(1)} KB</p>
+          <p><strong>PDF Type:</strong> ${pdfBlob.type}</p>
+        </div>
+      `)
+      
     } catch (error) {
-      console.error('Compilation failed:', error)
+      console.error('PDF compilation failed:', error)
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setCompiledContent(`
         <div style="padding: 20px; background: white; color: black;">
-          <h1>LaTeX Preview</h1>
-          <p style="color: red;">Compilation failed: ${errorMessage}</p>
-          <p>Showing raw content:</p>
-          <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-size: 12px;">${editorContent}</pre>
+          <h1>LaTeX Compilation Error</h1>
+          <p style="color: red;">PDF compilation failed: ${errorMessage}</p>
+          <p>Please check your LaTeX syntax and try again.</p>
+          <details style="margin-top: 10px;">
+            <summary>Raw LaTeX Content</summary>
+            <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-size: 12px; margin-top: 10px;">${editorContent}</pre>
+          </details>
         </div>
       `)
+      
+      // Clear PDF preview URL on error
+      setPdfPreviewUrl('')
     } finally {
       setIsCompiling(false)
     }
@@ -253,10 +322,10 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
 
   // Compile when switching to preview tab
   const handleTabChange = useCallback((value: string) => {
-    if (value === 'preview' && editorContent && !compiledContent) {
+    if (value === 'preview' && editorContent && !pdfPreviewUrl) {
       handleCompile()
     }
-  }, [editorContent, compiledContent, handleCompile])
+  }, [editorContent, pdfPreviewUrl, handleCompile])
 
   const handleTextSelection = () => {
     const selection = window.getSelection()
@@ -510,32 +579,26 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     }
   }
 
-  const handleDownloadPDF = async () => {
-    if (!editorContent.trim()) {
-      alert('No content to download')
+  const handleDownloadPDF = useCallback(async () => {
+    if (!pdfPreviewUrl) {
+      console.log('No PDF available for download')
       return
     }
-
+    
     try {
-      const response = await latexApi.generatePDF({
-        latexContent: editorContent,
-        filename: currentDocument?.title || 'document'
-      })
-
-      // Create download link
-      const url = window.URL.createObjectURL(response)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${currentDocument?.title || 'document'}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      // Create a temporary link element to trigger download
+      const link = document.createElement('a')
+      link.href = pdfPreviewUrl
+      link.download = currentDocument?.title?.replace('.tex', '.pdf') || 'document.pdf'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      console.log('PDF download initiated')
     } catch (error) {
-      console.error('PDF generation failed:', error)
-      alert('Failed to generate PDF')
+      console.error('PDF download failed:', error)
     }
-  }
+  }, [pdfPreviewUrl, currentDocument?.title])
 
   const navigateToPreviousVersion = async () => {
     console.log('navigateToPreviousVersion called')
@@ -710,7 +773,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               variant="outline" 
               size="sm"
               onClick={handleDownloadPDF}
-              disabled={!compiledContent}
+              disabled={!pdfPreviewUrl || isCompiling}
             >
               <Download className="h-4 w-4 mr-2" />
               PDF
@@ -988,19 +1051,34 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   <TabsContent value="preview" className="flex-1 m-0">
                     <div className="border border-border rounded-md m-2 bg-white" style={{ height: 'calc(100vh - 180px)' }}>
                       <div className="flex items-center justify-between p-2 border-b border-border">
-                        <h3 className="text-sm font-medium">Preview</h3>
+                        <h3 className="text-sm font-medium">PDF Preview</h3>
+                        {isCompiling && (
+                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            <span>Compiling LaTeX to PDF...</span>
+                          </div>
+                        )}
                       </div>
                       <div style={{ height: 'calc(100vh - 240px)', overflow: 'auto' }}>
-                        {compiledContent ? (
-                          <div 
-                            dangerouslySetInnerHTML={{ __html: compiledContent }} 
-                            className="p-4 max-w-none preview-content"
+                        {isCompiling ? (
+                          <div className="flex items-center justify-center h-full">
+                            <div className="text-center">
+                              <RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                              <p className="text-muted-foreground">Compiling LaTeX to PDF...</p>
+                              <p className="text-sm text-muted-foreground mt-1">This may take a few seconds</p>
+                            </div>
+                          </div>
+                        ) : pdfPreviewUrl ? (
+                          <LaTeXPDFViewer
+                            documentUrl={pdfPreviewUrl}
+                            documentName="LaTeX Document"
                           />
                         ) : (
                           <div className="flex items-center justify-center h-full text-muted-foreground">
                             <div className="text-center">
                               <Eye className="h-8 w-8 mx-auto mb-2" />
-                              <p>Click "Compile" to see preview</p>
+                              <p>Click "Compile" to generate PDF preview</p>
+                              <p className="text-sm mt-1">Your LaTeX will be compiled to PDF for preview</p>
                             </div>
                           </div>
                         )}
@@ -1045,16 +1123,23 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                       </div>
                       <div className="flex-1 border border-border rounded-md bg-white">
                         <div style={{ height: 'calc(100vh - 240px)', overflow: 'auto' }}>
-                          {compiledContent ? (
-                            <div 
-                              dangerouslySetInnerHTML={{ __html: compiledContent }} 
-                              className="p-4 max-w-none preview-content"
+                          {isCompiling ? (
+                            <div className="flex items-center justify-center h-full">
+                              <div className="text-center">
+                                <RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                                <p className="text-muted-foreground">Compiling...</p>
+                              </div>
+                            </div>
+                          ) : pdfPreviewUrl ? (
+                            <LaTeXPDFViewer
+                              documentUrl={pdfPreviewUrl}
+                              documentName="LaTeX Document"
                             />
                           ) : (
                             <div className="flex items-center justify-center h-full text-muted-foreground">
                               <div className="text-center">
                                 <Eye className="h-8 w-8 mx-auto mb-2" />
-                                <p>Click "Compile" to see preview</p>
+                                <p>Click "Compile" to see PDF preview</p>
                               </div>
                             </div>
                           )}
