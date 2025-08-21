@@ -104,7 +104,7 @@ export function EnhancedLatexEditor({
   useEffect(() => {
     const timer = setTimeout(() => {
       if (editorContent && activeTab === 'preview') {
-        handleCompile()
+        handlePdfPreview()
       }
     }, 1000) // 1 second debounce
 
@@ -127,6 +127,26 @@ export function EnhancedLatexEditor({
       console.error('Compilation failed:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setCompiledContent(createErrorPreview(`Compilation failed: ${errorMessage}`))
+    } finally {
+      setIsCompiling(false)
+    }
+  }, [editorContent, isCompiling])
+
+  const handlePdfPreview = useCallback(async () => {
+    if (!editorContent.trim() || isCompiling) return
+    
+    setIsCompiling(true)
+    try {
+      const pdfBlob = await latexApi.compileLatexToPdf({ latexContent: editorContent })
+      const pdfUrl = URL.createObjectURL(pdfBlob)
+      
+      // Set the PDF URL as compiled content for preview
+      setCompiledContent(`<iframe src="${pdfUrl}" width="100%" height="100%" style="border: none; min-height: 600px;"></iframe>`)
+      
+    } catch (error) {
+      console.error('PDF preview failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      setCompiledContent(createErrorPreview(`PDF compilation failed: ${errorMessage}`))
     } finally {
       setIsCompiling(false)
     }
@@ -171,7 +191,7 @@ export function EnhancedLatexEditor({
   const handleTabChange = (value: string) => {
     setActiveTab(value)
     if (value === 'preview' && editorContent && !compiledContent) {
-      handleCompile()
+      handlePdfPreview()
     }
   }
 
