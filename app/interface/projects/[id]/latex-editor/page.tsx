@@ -36,6 +36,7 @@ import { latexApi } from "@/lib/api/latex-service"
 import { AIChatPanel } from "@/components/latex/AIChatPanel"
 import { AIAssistancePanel } from "@/components/latex/AIAssistancePanel"
 import { LaTeXPDFViewer } from "@/components/latex/LaTeXPDFViewer"
+import { EnhancedLatexEditor } from "@/components/latex/EnhancedLatexEditor"
 
 interface Project {
   id: string
@@ -1013,20 +1014,14 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   <TabsContent value="editor" className="flex-1 m-0">
                     <div className="h-full p-2">
                       <div className="relative w-full h-full">
-                        <textarea
+                        <EnhancedLatexEditor
                           value={editorContent}
-                          onChange={(e) => {
-                            setEditorContent(e.target.value)
+                          onChange={(value) => {
+                            setEditorContent(value)
                             setIsEditing(true)
                           }}
-                          onBlur={() => setIsEditing(false)}
-                          onSelect={handleTextSelection}
-                          onMouseUp={handleTextSelection}
-                          onKeyUp={handleTextSelection}
-                          onClick={handleCursorPosition}
-                          onKeyDown={handleCursorPosition}
-                          className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
                           placeholder="Start writing your LaTeX document..."
+                          className="h-full"
                         />
                         {showAddToChat && (
                           <div className="absolute top-2 right-2 flex space-x-2">
@@ -1089,20 +1084,14 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   <TabsContent value="split" className="flex-1 m-0">
                     <div className="flex gap-2 p-2" style={{ height: 'calc(100vh - 180px)' }}>
                       <div className="flex-1 relative">
-                        <textarea
+                        <EnhancedLatexEditor
                           value={editorContent}
-                          onChange={(e) => {
-                            setEditorContent(e.target.value)
+                          onChange={(value) => {
+                            setEditorContent(value)
                             setIsEditing(true)
                           }}
-                          onBlur={() => setIsEditing(false)}
-                          onSelect={handleTextSelection}
-                          onMouseUp={handleTextSelection}
-                          onKeyUp={handleTextSelection}
-                          onClick={handleCursorPosition}
-                          onKeyDown={handleCursorPosition}
-                          className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
                           placeholder="Start writing your LaTeX document..."
+                          className="h-full"
                         />
                         {showAddToChat && (
                           <div className="absolute top-2 right-2 flex space-x-2">
