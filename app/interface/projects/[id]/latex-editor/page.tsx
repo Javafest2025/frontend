@@ -791,7 +791,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         <ResizablePanelGroup direction="horizontal" className="h-full">
           
           {/* Left Sidebar - Project Explorer */}
-          <ResizablePanel defaultSize={18} minSize={15} maxSize={25}>
+          <ResizablePanel defaultSize={14} minSize={12} maxSize={20}>
             <div className="h-full flex flex-col bg-card border-r border-border">
               <div className="p-2 border-b border-border">
                 <h3 className="font-medium text-sm mb-1">Project</h3>
@@ -897,7 +897,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
           <ResizableHandle />
 
           {/* Center - Editor */}
-          <ResizablePanel defaultSize={50} minSize={30}>
+          <ResizablePanel defaultSize={66} minSize={50}>
             <div className="h-full flex flex-col">
               {/* Show landing page if no documents, otherwise show editor */}
               {documents.length === 0 ? (
@@ -1156,7 +1156,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
           <ResizableHandle />
 
           {/* Right Sidebar - AI Tools */}
-          <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
+          <ResizablePanel defaultSize={20} minSize={16} maxSize={28}>
             <div className="h-full flex flex-col bg-card border-l border-border">
               <Tabs defaultValue="chat" className="h-full flex flex-col">
                 <TabsList className="w-full rounded-none border-b">
