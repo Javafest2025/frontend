@@ -146,6 +146,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         setDocuments(response.data)
         setCurrentDocument(response.data[0])
         setEditorContent(response.data[0].content)
+        setCurrentVersion(response.data[0].version || 1)
+        setIsViewingVersion(false)
         console.log('Documents loaded successfully, current document:', response.data[0].title)
         console.log('Current document content:', response.data[0].content)
       } else {
@@ -187,6 +189,9 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       ))
       
       console.log('Document saved successfully')
+      
+      // Reset version viewing state since we're now viewing the current content
+      setIsViewingVersion(false)
     } catch (error) {
       console.error('Save failed:', error)
     }
@@ -486,14 +491,16 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }
 
   const navigateToPreviousVersion = async () => {
-    if (currentDocument?.id && currentVersion > 1) {
+    if (currentDocument?.id) {
       try {
+        // Previous = Last saved version (older content)
         const response = await latexApi.getPreviousDocumentVersion(currentDocument.id, currentVersion)
         if (response.status === 200) {
           const version = response.data
           setEditorContent(version.content)
           setCurrentVersion(version.versionNumber)
-          console.log('Navigated to previous version:', version.versionNumber)
+          setIsViewingVersion(true)
+          console.log('Navigated to previous version (last saved):', version.versionNumber)
         }
       } catch (error) {
         console.error('Failed to navigate to previous version:', error)
@@ -503,18 +510,34 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }
 
   const navigateToNextVersion = async () => {
-    if (currentDocument?.id && currentVersion < Math.max(...versionHistory.map(v => v.versionNumber), 1)) {
+    if (currentDocument?.id) {
       try {
-        const response = await latexApi.getNextDocumentVersion(currentDocument.id, currentVersion)
-        if (response.status === 200) {
-          const version = response.data
-          setEditorContent(version.content)
-          setCurrentVersion(version.versionNumber)
-          console.log('Navigated to next version:', version.versionNumber)
+        // Next = Current unsaved content (newer content)
+        // This should restore the current editor content that might have been lost
+        if (isViewingVersion) {
+          // If we're viewing a version, restore current document content
+          setEditorContent(currentDocument.content)
+          setCurrentVersion(currentDocument.version || 1)
+          setIsViewingVersion(false)
+          console.log('Restored current document content')
+        } else {
+          // Try to get the next version if available
+          const response = await latexApi.getNextDocumentVersion(currentDocument.id, currentVersion)
+          if (response.status === 200) {
+            const version = response.data
+            setEditorContent(version.content)
+            setCurrentVersion(version.versionNumber)
+            setIsViewingVersion(true)
+            console.log('Navigated to next version:', version.versionNumber)
+          }
         }
       } catch (error) {
         console.error('Failed to navigate to next version:', error)
-        alert('No next version available')
+        // If no next version, just restore current content
+        setEditorContent(currentDocument.content)
+        setCurrentVersion(currentDocument.version || 1)
+        setIsViewingVersion(false)
+        console.log('Restored current document content as fallback')
       }
     }
   };
@@ -588,19 +611,19 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               variant="outline" 
               size="sm"
               onClick={() => navigateToPreviousVersion()}
-              disabled={!currentDocument?.id || currentVersion <= 1}
+              disabled={!currentDocument?.id}
             >
               <ChevronLeft className="h-4 w-4 mr-2" />
-              Previous
+              {isViewingVersion ? 'Last Saved' : 'Previous'}
             </Button>
             <Button 
               variant="outline" 
               size="sm"
               onClick={() => navigateToNextVersion()}
-              disabled={!currentDocument?.id || currentVersion >= Math.max(...versionHistory.map(v => v.versionNumber), 1)}
+              disabled={!currentDocument?.id}
             >
               <ChevronRight className="h-4 w-4 mr-2" />
-              Next
+              {isViewingVersion ? 'Current' : 'Next'}
             </Button>
             <Button 
               variant="outline" 
@@ -642,7 +665,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         <ResizablePanelGroup direction="horizontal" className="h-full">
           
           {/* Left Sidebar - Project Explorer */}
-          <ResizablePanel defaultSize={18} minSize={15} maxSize={25}>
+          <ResizablePanel defaultSize={14} minSize={12} maxSize={20}></ResizablePanel>
             <div className="h-full flex flex-col bg-card border-r border-border">
               <div className="p-2 border-b border-border">
                 <h3 className="font-medium text-sm mb-1">Project</h3>
@@ -681,6 +704,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                             setCurrentDocument(doc)
                             setEditorContent(doc.content)
                             setCurrentVersion(doc.version || 1)
+                            setIsViewingVersion(false)
                             loadVersionHistory(doc.id)
                             console.log('Document selected and content set')
                           }
@@ -747,7 +771,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
           <ResizableHandle />
 
           {/* Center - Editor */}
-          <ResizablePanel defaultSize={50} minSize={30}>
+          <ResizablePanel defaultSize={66} minSize={50}>
             <div className="h-full flex flex-col">
               {/* Show landing page if no documents, otherwise show editor */}
               {documents.length === 0 ? (
@@ -946,7 +970,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
           <ResizableHandle />
 
           {/* Right Sidebar - AI Tools */}
-          <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
+          <ResizablePanel defaultSize={20} minSize={16} maxSize={28}>
             <div className="h-full flex flex-col bg-card border-l border-border">
               <Tabs defaultValue="chat" className="h-full flex flex-col">
                 <TabsList className="w-full rounded-none border-b">

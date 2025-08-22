@@ -236,7 +236,7 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
     return (
         <div className={cn(
             "flex h-screen flex-col bg-background/60 backdrop-blur-xl border-r border-primary/30 transition-all duration-300 relative overflow-hidden",
-            collapsed ? "w-16" : "w-72",
+            collapsed ? "w-12" : "w-56",
             className
         )}
             style={{
