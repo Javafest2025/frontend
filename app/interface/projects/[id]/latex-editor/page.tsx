@@ -1011,35 +1011,33 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                       </div>
                     </div>
                  
-                  <TabsContent value="editor" className="flex-1 m-0">
-                    <div className="h-full p-2">
-                      <div className="relative w-full h-full">
-                        <EnhancedLatexEditor
-                          value={editorContent}
-                          onChange={(value) => {
-                            setEditorContent(value)
-                            setIsEditing(true)
-                          }}
-                          placeholder="Start writing your LaTeX document..."
-                          className="h-full"
-                        />
-                        {showAddToChat && (
-                          <div className="absolute top-2 right-2 flex space-x-2">
-                            <button
-                              onClick={handleAddToChat}
-                              className="px-3 py-1 bg-primary text-primary-foreground text-xs rounded-md hover:bg-primary/90 transition-colors"
-                            >
-                              Add to Chat
-                            </button>
-                            <button
-                              onClick={handleCancelSelection}
-                              className="px-3 py-1 bg-muted text-muted-foreground text-xs rounded-md hover:bg-muted/80 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                  <TabsContent value="editor" className="flex-1 m-0 h-full">
+                    <div className="w-full h-full relative">
+                      <EnhancedLatexEditor
+                        value={editorContent}
+                        onChange={(value) => {
+                          setEditorContent(value)
+                          setIsEditing(true)
+                        }}
+                        placeholder="Start writing your LaTeX document..."
+                        className="w-full h-full"
+                      />
+                      {showAddToChat && (
+                        <div className="absolute top-2 right-2 flex space-x-2 z-10">
+                          <button
+                            onClick={handleAddToChat}
+                            className="px-3 py-1 bg-primary text-primary-foreground text-xs rounded-md hover:bg-primary/90 transition-colors"
+                          >
+                            Add to Chat
+                          </button>
+                          <button
+                            onClick={handleCancelSelection}
+                            className="px-3 py-1 bg-muted text-muted-foreground text-xs rounded-md hover:bg-muted/80 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                  
@@ -1081,9 +1079,9 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                     </div>
                   </TabsContent>
                  
-                  <TabsContent value="split" className="flex-1 m-0">
-                    <div className="flex gap-2 p-2" style={{ height: 'calc(100vh - 180px)' }}>
-                      <div className="flex-1 relative">
+                  <TabsContent value="split" className="flex-1 m-0 h-full">
+                    <div className="flex gap-2 w-full h-full">
+                      <div className="flex-1 relative h-full">
                         <EnhancedLatexEditor
                           value={editorContent}
                           onChange={(value) => {
@@ -1091,7 +1089,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                             setIsEditing(true)
                           }}
                           placeholder="Start writing your LaTeX document..."
-                          className="h-full"
+                          className="w-full h-full"
                         />
                         {showAddToChat && (
                           <div className="absolute top-2 right-2 flex space-x-2">
@@ -1110,8 +1108,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                           </div>
                         )}
                       </div>
-                      <div className="flex-1 border border-border rounded-md bg-white">
-                        <div style={{ height: 'calc(100vh - 240px)', overflow: 'auto' }}>
+                      <div className="flex-1 border border-border rounded-md bg-white h-full">
+                        <div className="h-full overflow-auto">
                           {isCompiling ? (
                             <div className="flex items-center justify-center h-full">
                               <div className="text-center">
