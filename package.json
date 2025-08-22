@@ -12,6 +12,8 @@
     "test:all": "npm run test && npm run test:e2e"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.18.6",
+    "@codemirror/closebrackets": "^0.19.2",
     "@codemirror/highlight": "^0.19.8",
     "@codemirror/language": "^6.11.3",
     "@codemirror/matchbrackets": "^0.19.4",
