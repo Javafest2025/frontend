@@ -35,6 +35,7 @@ import { projectsApi } from "@/lib/api/project-service"
 import { latexApi } from "@/lib/api/latex-service"
 import { AIChatPanel } from "@/components/latex/AIChatPanel"
 import { AIAssistancePanel } from "@/components/latex/AIAssistancePanel"
+import { LaTeXPDFViewer } from "@/components/latex/LaTeXPDFViewer"
 
 interface Project {
   id: string
@@ -67,6 +68,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null)
   const [editorContent, setEditorContent] = useState('')
   const [compiledContent, setCompiledContent] = useState('')
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>('')
   const [isCompiling, setIsCompiling] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
@@ -81,6 +83,18 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [commitMessage, setCommitMessage] = useState('')
   const [currentVersion, setCurrentVersion] = useState<number>(1)
   const [versionHistory, setVersionHistory] = useState<any[]>([])
+  const [isViewingVersion, setIsViewingVersion] = useState<boolean>(false)
+  const [isLoadingVersions, setIsLoadingVersions] = useState<boolean>(false)
+  const [lastVersionCallTime, setLastVersionCallTime] = useState<number>(0)
+
+  // Cleanup PDF URL when component unmounts or PDF changes
+  useEffect(() => {
+    return () => {
+      if (pdfPreviewUrl) {
+        URL.revokeObjectURL(pdfPreviewUrl)
+      }
+    }
+  }, [pdfPreviewUrl])
 
   // Load project data
   useEffect(() => {
@@ -122,6 +136,15 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       loadDocuments(projectId)
     }
   }, [projectId, documents.length])
+
+  // Clear version history when switching documents to prevent stale data
+  useEffect(() => {
+    if (currentDocument?.id) {
+      console.log('Document changed, clearing version history')
+      setVersionHistory([])
+      setIsViewingVersion(false)
+    }
+  }, [currentDocument?.id])
 
   const loadDocuments = async (projectId: string) => {
     try {
@@ -197,6 +220,43 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     }
   }, [currentDocument?.id, editorContent])
 
+  // Test if PDF blob is valid
+  const testPdfBlob = useCallback(async (blob: Blob): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        try {
+          const arrayBuffer = reader.result as ArrayBuffer
+          const uint8Array = new Uint8Array(arrayBuffer)
+          
+          // Check if it starts with PDF magic number
+          const isPdf = uint8Array.length >= 4 && 
+                       uint8Array[0] === 0x25 && // %
+                       uint8Array[1] === 0x50 && // P
+                       uint8Array[2] === 0x44 && // D
+                       uint8Array[3] === 0x46    // F
+          
+          console.log('PDF validation:', { 
+            size: blob.size, 
+            type: blob.type, 
+            isPdf, 
+            firstBytes: Array.from(uint8Array.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' ')
+          })
+          
+          resolve(isPdf)
+        } catch (error) {
+          console.error('PDF validation error:', error)
+          resolve(false)
+        }
+      }
+      reader.onerror = () => {
+        console.error('PDF validation failed to read blob')
+        resolve(false)
+      }
+      reader.readAsArrayBuffer(blob)
+    })
+  }, [])
+
   const handleCompile = useCallback(async () => {
     if (isCompiling) {
       console.log('Compilation already in progress, skipping...')
@@ -205,35 +265,56 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     
     setIsCompiling(true)
     try {
-      console.log('Starting compilation...')
+      console.log('Starting PDF compilation...')
+      console.log('LaTeX content length:', editorContent.length)
+      console.log('LaTeX content preview:', editorContent.substring(0, 200) + '...')
       
-      const result = await latexApi.compileLatex({ latexContent: editorContent })
-      console.log('Compilation succeeded:', result)
+      // Use PDF compilation instead of HTML
+      const pdfBlob = await latexApi.compileLatexToPdf({ latexContent: editorContent })
+      console.log('PDF compilation succeeded:', pdfBlob)
+      console.log('PDF blob size:', pdfBlob.size, 'bytes')
+      console.log('PDF blob type:', pdfBlob.type)
       
-      if (result.data && typeof result.data === 'string' && result.data.length > 0) {
-        setCompiledContent(result.data)
-      } else {
-        console.error('Invalid compiled content received:', result.data)
-        setCompiledContent(`
-          <div style="padding: 20px; background: white; color: black;">
-            <h1>LaTeX Preview</h1>
-            <p style="color: orange;">Invalid compilation result received</p>
-          </div>
-        `)
+      // Validate the PDF blob
+      const isValidPdf = await testPdfBlob(pdfBlob)
+      if (!isValidPdf) {
+        throw new Error('Generated file is not a valid PDF')
       }
       
+      // Create a URL for the PDF blob with proper MIME type
+      const pdfUrl = URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }))
+      console.log('Created PDF blob URL:', pdfUrl)
+      setPdfPreviewUrl(pdfUrl)
+      
+      // Set compiled content to show PDF preview
+      setCompiledContent(`
+        <div style="padding: 20px; background: white; color: black;">
+          <h1>LaTeX PDF Preview</h1>
+          <p style="color: green;">✓ PDF compiled successfully!</p>
+          <p>Your LaTeX document has been compiled to PDF. Use the preview tab to view it.</p>
+          <p><strong>PDF Size:</strong> ${(pdfBlob.size / 1024).toFixed(1)} KB</p>
+          <p><strong>PDF Type:</strong> ${pdfBlob.type}</p>
+        </div>
+      `)
+      
     } catch (error) {
-      console.error('Compilation failed:', error)
+      console.error('PDF compilation failed:', error)
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setCompiledContent(`
         <div style="padding: 20px; background: white; color: black;">
-          <h1>LaTeX Preview</h1>
-          <p style="color: red;">Compilation failed: ${errorMessage}</p>
-          <p>Showing raw content:</p>
-          <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-size: 12px;">${editorContent}</pre>
+          <h1>LaTeX Compilation Error</h1>
+          <p style="color: red;">PDF compilation failed: ${errorMessage}</p>
+          <p>Please check your LaTeX syntax and try again.</p>
+          <details style="margin-top: 10px;">
+            <summary>Raw LaTeX Content</summary>
+            <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-size: 12px; margin-top: 10px;">${editorContent}</pre>
+          </details>
         </div>
       `)
+      
+      // Clear PDF preview URL on error
+      setPdfPreviewUrl('')
     } finally {
       setIsCompiling(false)
     }
@@ -241,10 +322,10 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
 
   // Compile when switching to preview tab
   const handleTabChange = useCallback((value: string) => {
-    if (value === 'preview' && editorContent && !compiledContent) {
+    if (value === 'preview' && editorContent && !pdfPreviewUrl) {
       handleCompile()
     }
-  }, [editorContent, compiledContent, handleCompile])
+  }, [editorContent, pdfPreviewUrl, handleCompile])
 
   const handleTextSelection = () => {
     const selection = window.getSelection()
@@ -372,14 +453,48 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }
 
   const loadVersionHistory = async (documentId: string) => {
+    const now = Date.now()
+    
+    // Debounce: prevent calls within 1 second of each other
+    if (now - lastVersionCallTime < 1000) {
+      console.log('Version history call debounced, skipping...')
+      return
+    }
+    
+    // Prevent duplicate calls for the same document
+    if (versionHistory.length > 0 && currentDocument?.id === documentId) {
+      console.log('Version history already loaded for this document, skipping...')
+      return
+    }
+    
+    // Prevent multiple simultaneous calls
+    if (isLoadingVersions) {
+      console.log('Version history already loading, skipping...')
+      return
+    }
+    
+    // Add a more aggressive check - if we've loaded versions recently, skip
+    const lastLoadTime = sessionStorage.getItem(`versionHistory_${documentId}_lastLoad`)
+    if (lastLoadTime && (now - parseInt(lastLoadTime)) < 5000) { // 5 second cache
+      console.log('Version history loaded recently, using cache...')
+      return
+    }
+    
     try {
+      setLastVersionCallTime(now)
+      setIsLoadingVersions(true)
+      console.log('Loading version history for document:', documentId)
       const response = await latexApi.getDocumentVersions(documentId)
       if (response.status === 200) {
         setVersionHistory(response.data || [])
         console.log('Version history loaded:', response.data)
+        // Cache the load time
+        sessionStorage.setItem(`versionHistory_${documentId}_lastLoad`, now.toString())
       }
     } catch (error) {
       console.error('Failed to load version history:', error)
+    } finally {
+      setIsLoadingVersions(false)
     }
   }
 
@@ -390,6 +505,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         const version = response.data
         setEditorContent(version.content)
         setCurrentVersion(version.versionNumber)
+        setIsViewingVersion(true)
         console.log('Navigated to version:', version.versionNumber)
       }
     } catch (error) {
@@ -463,81 +579,107 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     }
   }
 
-  const handleDownloadPDF = async () => {
-    if (!editorContent.trim()) {
-      alert('No content to download')
+  const handleDownloadPDF = useCallback(async () => {
+    if (!pdfPreviewUrl) {
+      console.log('No PDF available for download')
       return
     }
-
+    
     try {
-      const response = await latexApi.generatePDF({
-        latexContent: editorContent,
-        filename: currentDocument?.title || 'document'
-      })
-
-      // Create download link
-      const url = window.URL.createObjectURL(response)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${currentDocument?.title || 'document'}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      // Create a temporary link element to trigger download
+      const link = document.createElement('a')
+      link.href = pdfPreviewUrl
+      link.download = currentDocument?.title?.replace('.tex', '.pdf') || 'document.pdf'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      console.log('PDF download initiated')
     } catch (error) {
-      console.error('PDF generation failed:', error)
-      alert('Failed to generate PDF')
+      console.error('PDF download failed:', error)
     }
-  }
+  }, [pdfPreviewUrl, currentDocument?.title])
 
   const navigateToPreviousVersion = async () => {
+    console.log('navigateToPreviousVersion called')
+    console.log('currentDocument:', currentDocument)
+    console.log('isViewingVersion:', isViewingVersion)
+    console.log('versionHistory:', versionHistory)
+    
     if (currentDocument?.id) {
       try {
-        // Previous = Last saved version (older content)
-        const response = await latexApi.getPreviousDocumentVersion(currentDocument.id, currentVersion)
-        if (response.status === 200) {
-          const version = response.data
-          setEditorContent(version.content)
-          setCurrentVersion(version.versionNumber)
-          setIsViewingVersion(true)
-          console.log('Navigated to previous version (last saved):', version.versionNumber)
-        }
-      } catch (error) {
-        console.error('Failed to navigate to previous version:', error)
-        alert('No previous version available')
-      }
-    }
-  }
-
-  const navigateToNextVersion = async () => {
-    if (currentDocument?.id) {
-      try {
-        // Next = Current unsaved content (newer content)
-        // This should restore the current editor content that might have been lost
+        // Previous = Current working content (latest/newer content)
         if (isViewingVersion) {
           // If we're viewing a version, restore current document content
           setEditorContent(currentDocument.content)
           setCurrentVersion(currentDocument.version || 1)
           setIsViewingVersion(false)
-          console.log('Restored current document content')
+          console.log('Restored current document content (latest)')
         } else {
-          // Try to get the next version if available
-          const response = await latexApi.getNextDocumentVersion(currentDocument.id, currentVersion)
-          if (response.status === 200) {
-            const version = response.data
-            setEditorContent(version.content)
-            setCurrentVersion(version.versionNumber)
-            setIsViewingVersion(true)
-            console.log('Navigated to next version:', version.versionNumber)
-          }
+          // Already viewing current content, no action needed
+          console.log('Already viewing current content')
         }
       } catch (error) {
-        console.error('Failed to navigate to next version:', error)
-        // If no next version, just restore current content
+        console.error('Failed to navigate to current version:', error)
+        // Fallback: restore current content
         setEditorContent(currentDocument.content)
         setCurrentVersion(currentDocument.version || 1)
         setIsViewingVersion(false)
         console.log('Restored current document content as fallback')
+      }
+    } else {
+      console.log('No currentDocument.id available')
+    }
+  }
+
+  const navigateToNextVersion = async () => {
+    console.log('navigateToNextVersion called')
+    console.log('currentDocument:', currentDocument)
+    console.log('currentVersion:', currentVersion)
+    console.log('versionHistory:', versionHistory)
+    
+    if (currentDocument?.id && versionHistory.length > 0) {
+      try {
+        // Find the current version in the history
+        const currentVersionIndex = versionHistory.findIndex(v => v.versionNumber === currentVersion)
+        console.log('Current version index:', currentVersionIndex)
+        
+        if (currentVersionIndex > 0) {
+          // Get the previous version (older content)
+          const previousVersion = versionHistory[currentVersionIndex - 1]
+          console.log('Previous version found:', previousVersion)
+          
+          setEditorContent(previousVersion.content)
+          setCurrentVersion(previousVersion.versionNumber)
+          setIsViewingVersion(true)
+          console.log('Navigated to previous version (older):', previousVersion.versionNumber)
+        } else {
+          console.log('No previous version available')
+          alert('No previous version available')
+        }
+      } catch (error) {
+        console.error('Failed to navigate to previous version:', error)
+        alert('No previous version available')
+      }
+    } else {
+      console.log('No currentDocument.id or versionHistory available')
+      if (versionHistory.length === 0) {
+        // Load version history only once, then try navigation
+        await loadVersionHistory(currentDocument.id)
+        // Use the updated versionHistory state directly instead of recursive call
+        const updatedHistory = await latexApi.getDocumentVersions(currentDocument.id)
+        if (updatedHistory.status === 200 && updatedHistory.data.length > 0) {
+          setVersionHistory(updatedHistory.data)
+          // Now try to navigate
+          const currentVersionIndex = updatedHistory.data.findIndex(v => v.versionNumber === currentVersion)
+          if (currentVersionIndex > 0) {
+            const previousVersion = updatedHistory.data[currentVersionIndex - 1]
+            setEditorContent(previousVersion.content)
+            setCurrentVersion(previousVersion.versionNumber)
+            setIsViewingVersion(true)
+            console.log('Navigated to previous version after loading history:', previousVersion.versionNumber)
+          }
+        }
       }
     }
   };
@@ -571,9 +713,11 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             <Badge variant="outline" className="text-xs">
               {currentDocument?.documentType || 'LATEX'}
             </Badge>
-            <span className="text-xs text-muted-foreground">
-              Project ID: {projectId || 'Not set'}
-            </span>
+            {isViewingVersion && (
+              <Badge variant="secondary" className="text-xs">
+                v{currentVersion}
+              </Badge>
+            )}
           </div>
           <div className="flex items-center space-x-2">
             <Button 
@@ -610,24 +754,6 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => navigateToPreviousVersion()}
-              disabled={!currentDocument?.id}
-            >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              {isViewingVersion ? 'Last Saved' : 'Previous'}
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => navigateToNextVersion()}
-              disabled={!currentDocument?.id}
-            >
-              <ChevronRight className="h-4 w-4 mr-2" />
-              {isViewingVersion ? 'Current' : 'Next'}
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
               onClick={() => handleRevertVersion()}
               disabled={!currentDocument?.version || currentDocument.version <= 1}
             >
@@ -647,7 +773,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               variant="outline" 
               size="sm"
               onClick={handleDownloadPDF}
-              disabled={!compiledContent}
+              disabled={!pdfPreviewUrl || isCompiling}
             >
               <Download className="h-4 w-4 mr-2" />
               PDF
@@ -665,7 +791,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         <ResizablePanelGroup direction="horizontal" className="h-full">
           
           {/* Left Sidebar - Project Explorer */}
-          <ResizablePanel defaultSize={14} minSize={12} maxSize={20}></ResizablePanel>
+          <ResizablePanel defaultSize={18} minSize={15} maxSize={25}>
             <div className="h-full flex flex-col bg-card border-r border-border">
               <div className="p-2 border-b border-border">
                 <h3 className="font-medium text-sm mb-1">Project</h3>
@@ -771,7 +897,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
           <ResizableHandle />
 
           {/* Center - Editor */}
-          <ResizablePanel defaultSize={66} minSize={50}>
+          <ResizablePanel defaultSize={50} minSize={30}>
             <div className="h-full flex flex-col">
               {/* Show landing page if no documents, otherwise show editor */}
               {documents.length === 0 ? (
@@ -840,11 +966,49 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               ) : (
                 <div className="flex-1 flex">
                   <Tabs defaultValue="editor" className="flex-1 flex flex-col" onValueChange={handleTabChange}>
-                    <TabsList className="w-fit mx-4 mt-1 flex-shrink-0">
-                      <TabsTrigger value="editor">Editor</TabsTrigger>
-                      <TabsTrigger value="preview">Preview</TabsTrigger>
-                      <TabsTrigger value="split">Split</TabsTrigger>
-                    </TabsList>
+                    <div className="flex items-center justify-between mx-4 mt-1 flex-shrink-0">
+                      <TabsList className="w-fit">
+                        <TabsTrigger value="editor">Editor</TabsTrigger>
+                        <TabsTrigger value="preview">Preview</TabsTrigger>
+                        <TabsTrigger value="split">Split</TabsTrigger>
+                      </TabsList>
+                      <div className="flex items-center space-x-2">
+                        {!isViewingVersion ? (
+                          // Initial state: Only show "Check Versions" button
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => navigateToNextVersion()}
+                            disabled={!currentDocument?.id}
+                          >
+                            <ChevronRight className="h-4 w-4 mr-2" />
+                            Check Versions
+                          </Button>
+                        ) : (
+                          // Version viewing state: Show both navigation buttons
+                          <>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => navigateToPreviousVersion()}
+                              disabled={!currentDocument?.id}
+                            >
+                              <ChevronLeft className="h-4 w-4 mr-2" />
+                              Current
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => navigateToNextVersion()}
+                              disabled={!currentDocument?.id}
+                            >
+                              <ChevronRight className="h-4 w-4 mr-2" />
+                              Previously Saved
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
                  
                   <TabsContent value="editor" className="flex-1 m-0">
                     <div className="h-full p-2">
@@ -887,19 +1051,34 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   <TabsContent value="preview" className="flex-1 m-0">
                     <div className="border border-border rounded-md m-2 bg-white" style={{ height: 'calc(100vh - 180px)' }}>
                       <div className="flex items-center justify-between p-2 border-b border-border">
-                        <h3 className="text-sm font-medium">Preview</h3>
+                        <h3 className="text-sm font-medium">PDF Preview</h3>
+                        {isCompiling && (
+                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            <span>Compiling LaTeX to PDF...</span>
+                          </div>
+                        )}
                       </div>
                       <div style={{ height: 'calc(100vh - 240px)', overflow: 'auto' }}>
-                        {compiledContent ? (
-                          <div 
-                            dangerouslySetInnerHTML={{ __html: compiledContent }} 
-                            className="p-4 max-w-none preview-content"
+                        {isCompiling ? (
+                          <div className="flex items-center justify-center h-full">
+                            <div className="text-center">
+                              <RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                              <p className="text-muted-foreground">Compiling LaTeX to PDF...</p>
+                              <p className="text-sm text-muted-foreground mt-1">This may take a few seconds</p>
+                            </div>
+                          </div>
+                        ) : pdfPreviewUrl ? (
+                          <LaTeXPDFViewer
+                            documentUrl={pdfPreviewUrl}
+                            documentName="LaTeX Document"
                           />
                         ) : (
                           <div className="flex items-center justify-center h-full text-muted-foreground">
                             <div className="text-center">
                               <Eye className="h-8 w-8 mx-auto mb-2" />
-                              <p>Click "Compile" to see preview</p>
+                              <p>Click "Compile" to generate PDF preview</p>
+                              <p className="text-sm mt-1">Your LaTeX will be compiled to PDF for preview</p>
                             </div>
                           </div>
                         )}
@@ -944,16 +1123,23 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                       </div>
                       <div className="flex-1 border border-border rounded-md bg-white">
                         <div style={{ height: 'calc(100vh - 240px)', overflow: 'auto' }}>
-                          {compiledContent ? (
-                            <div 
-                              dangerouslySetInnerHTML={{ __html: compiledContent }} 
-                              className="p-4 max-w-none preview-content"
+                          {isCompiling ? (
+                            <div className="flex items-center justify-center h-full">
+                              <div className="text-center">
+                                <RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                                <p className="text-muted-foreground">Compiling...</p>
+                              </div>
+                            </div>
+                          ) : pdfPreviewUrl ? (
+                            <LaTeXPDFViewer
+                              documentUrl={pdfPreviewUrl}
+                              documentName="LaTeX Document"
                             />
                           ) : (
                             <div className="flex items-center justify-center h-full text-muted-foreground">
                               <div className="text-center">
                                 <Eye className="h-8 w-8 mx-auto mb-2" />
-                                <p>Click "Compile" to see preview</p>
+                                <p>Click "Compile" to see PDF preview</p>
                               </div>
                             </div>
                           )}
@@ -970,7 +1156,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
           <ResizableHandle />
 
           {/* Right Sidebar - AI Tools */}
-          <ResizablePanel defaultSize={20} minSize={16} maxSize={28}>
+          <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
             <div className="h-full flex flex-col bg-card border-l border-border">
               <Tabs defaultValue="chat" className="h-full flex flex-col">
                 <TabsList className="w-full rounded-none border-b">

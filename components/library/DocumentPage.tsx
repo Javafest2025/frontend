@@ -1,7 +1,6 @@
 "use client"
 
 import { useDocument } from "@/lib/hooks/useDocument"
-import { DocumentViewer } from "@/components/document/DocumentViewer"
 import { Skeleton } from "@/components/ui/skeleton"
 
 type Props = {
@@ -31,7 +30,11 @@ export function DocumentPage({ docId }: Props) {
   return (
     <div className="p-6">
       <h1 className="mb-4 text-2xl font-bold">{document.title}</h1>
-      <DocumentViewer document={document} />
+      <div className="flex items-center justify-center h-[600px] border rounded-lg">
+        <div className="text-center">
+          <p className="text-muted-foreground">Document viewer temporarily unavailable</p>
+        </div>
+      </div>
     </div>
   )
 }

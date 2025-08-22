@@ -168,6 +168,23 @@ export const latexApi = {
     return response.json()
   },
 
+  // Direct PDF compilation using pdflatex
+  async compileLatexToPdf(request: CompileLatexRequest): Promise<Blob> {
+    const response = await fetch(getProjectServiceUrl('/api/documents/compile-pdf'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to compile LaTeX to PDF: ${response.statusText}`)
+    }
+
+    return response.blob()
+  },
+
   async generatePDF(request: GeneratePDFRequest): Promise<Blob> {
     const response = await fetch(getProjectServiceUrl('/api/documents/generate-pdf'), {
       method: 'POST',
