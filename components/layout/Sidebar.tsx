@@ -84,7 +84,7 @@ const SETTINGS_ITEMS = [
     icon: Settings,
     description: "Application preferences and customization",
     loadingMessage: "Loading settings...",
-    animationClass: "group-hover:animate-spin"
+    animationClass: "group-hover:animate-slow-spin"
   }
 ]
 
@@ -173,14 +173,14 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
           "relative p-1.5 rounded-lg transition-all duration-300",
           isActive
             ? "bg-gradient-to-r from-primary/30 to-accent/20"
-            : "group-hover:bg-primary/10",
-          item.animationClass
+            : "group-hover:bg-primary/10"
         )}>
           <item.icon className={cn(
             "h-4 w-4 transition-all duration-300",
             isActive
               ? "text-primary drop-shadow-glow"
-              : "text-foreground/70 group-hover:text-primary"
+              : "text-foreground/70 group-hover:text-primary",
+            item.animationClass
           )} />
         </div>
         {!collapsed && (

@@ -140,13 +140,22 @@ const config: Config = {
 					'100%': {
 						transform: 'rotate(0deg)',
 					},
+				},
+				'slow-spin': {
+					'0%': {
+						transform: 'rotate(0deg)',
+					},
+					'100%': {
+						transform: 'rotate(360deg)',
+					},
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'blob': 'blob 7s infinite',
-				'bell-vibrate': 'bell-vibrate 0.5s ease-in-out'
+				'bell-vibrate': 'bell-vibrate 0.5s ease-in-out',
+				'slow-spin': 'slow-spin 2s linear infinite'
 			},
 			animationDelay: {
 				'2000': '2s',
