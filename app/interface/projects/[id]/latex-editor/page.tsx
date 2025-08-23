@@ -10,13 +10,13 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { 
-  FileText, 
-  Plus, 
-  Save, 
-  Eye, 
-  MessageSquare, 
-  Settings, 
+import {
+  FileText,
+  Plus,
+  Save,
+  Eye,
+  MessageSquare,
+  Settings,
   Play,
   Folder,
   Search,
@@ -76,12 +76,12 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     const loadData = async () => {
       const resolvedParams = await params
       setProjectId(resolvedParams.id)
-      
+
       try {
         // Load project details
         const projectData = await projectsApi.getProject(resolvedParams.id)
         setProject(projectData)
-        
+
         // Load documents for this project
         await loadDocuments(resolvedParams.id)
       } catch (error) {
@@ -90,7 +90,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         setIsLoading(false)
       }
     }
-    
+
     loadData()
   }, [params])
 
@@ -98,7 +98,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     try {
       console.log('Loading documents for project:', projectId)
       const response = await latexApi.getDocumentsByProjectId(projectId)
-      
+
       if (response.data && response.data.length > 0) {
         setDocuments(response.data)
         setCurrentDocument(response.data[0])
@@ -130,13 +130,13 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         documentId: currentDocument.id,
         content: editorContent
       })
-      
+
       // Update local document state
       setCurrentDocument(prev => prev ? { ...prev, content: editorContent, updatedAt: new Date().toISOString() } : null)
-      setDocuments(prev => prev.map(doc => 
+      setDocuments(prev => prev.map(doc =>
         doc.id === currentDocument.id ? { ...doc, content: editorContent, updatedAt: new Date().toISOString() } : doc
       ))
-      
+
       console.log('Document saved successfully')
     } catch (error) {
       console.error('Save failed:', error)
@@ -148,14 +148,14 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       console.log('Compilation already in progress, skipping...')
       return
     }
-    
+
     setIsCompiling(true)
     try {
       console.log('Starting compilation...')
-      
+
       const result = await latexApi.compileLatex({ latexContent: editorContent })
       console.log('Compilation succeeded:', result)
-      
+
       if (result.data && typeof result.data === 'string' && result.data.length > 0) {
         setCompiledContent(result.data)
       } else {
@@ -167,10 +167,10 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
           </div>
         `)
       }
-      
+
     } catch (error) {
       console.error('Compilation failed:', error)
-      
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setCompiledContent(`
         <div style="padding: 20px; background: white; color: black;">
@@ -247,16 +247,16 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     try {
       const response = await latexApi.createDocumentWithName(projectId, newFileName)
       const newDocument = response.data
-      
+
       // Update documents list
       setDocuments(prev => [newDocument, ...prev])
       setCurrentDocument(newDocument)
       setEditorContent(newDocument.content)
-      
+
       // Close dialog and reset
       setShowCreateDialog(false)
       setNewFileName('')
-      
+
       console.log('Document created successfully:', newDocument.title)
     } catch (error) {
       console.error('Failed to create document:', error)
@@ -322,16 +322,16 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             </Badge>
           </div>
           <div className="flex items-center space-x-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={handleSave}
             >
               <Save className="h-4 w-4 mr-2" />
               Save
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={handleCompile}
               disabled={isCompiling}
@@ -339,8 +339,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               <Play className="h-4 w-4 mr-2" />
               {isCompiling ? 'Compiling...' : 'Compile'}
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={handleDownloadPDF}
               disabled={!compiledContent}
@@ -359,7 +359,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          
+
           {/* Left Sidebar - Project Explorer */}
           <ResizablePanel defaultSize={18} minSize={15} maxSize={25}>
             <div className="h-full flex flex-col bg-card border-r border-border">
@@ -372,12 +372,12 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex-1 p-2">
                 <div className="flex items-center justify-between mb-1">
                   <h4 className="font-medium text-sm">Documents</h4>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={() => setShowCreateDialog(true)}
                   >
@@ -471,8 +471,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                       </Card>
                     </div>
 
-                    <Button 
-                      size="lg" 
+                    <Button
+                      size="lg"
                       onClick={() => setShowCreateDialog(true)}
                       className="bg-primary hover:bg-primary/90"
                     >
@@ -489,108 +489,54 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                       <TabsTrigger value="preview">Preview</TabsTrigger>
                       <TabsTrigger value="split">Split</TabsTrigger>
                     </TabsList>
-                 
-                  <TabsContent value="editor" className="flex-1 m-0">
-                    <div className="h-full p-2">
-                      <div className="relative w-full h-full">
-                        <textarea
-                          value={editorContent}
-                          onChange={(e) => {
-                            setEditorContent(e.target.value)
-                            setIsEditing(true)
-                          }}
-                          onBlur={() => setIsEditing(false)}
-                          onSelect={handleTextSelection}
-                          onMouseUp={handleTextSelection}
-                          onKeyUp={handleTextSelection}
-                          onClick={handleCursorPosition}
-                          onKeyDown={handleCursorPosition}
-                          className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                          placeholder="Start writing your LaTeX document..."
-                        />
-                        {showAddToChat && (
-                          <div className="absolute top-2 right-2 flex space-x-2">
-                            <button
-                              onClick={handleAddToChat}
-                              className="px-3 py-1 bg-primary text-primary-foreground text-xs rounded-md hover:bg-primary/90 transition-colors"
-                            >
-                              Add to Chat
-                            </button>
-                            <button
-                              onClick={handleCancelSelection}
-                              className="px-3 py-1 bg-muted text-muted-foreground text-xs rounded-md hover:bg-muted/80 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </TabsContent>
-                 
-                  <TabsContent value="preview" className="flex-1 m-0">
-                    <div className="border border-border rounded-md m-2 bg-white" style={{ height: 'calc(100vh - 180px)' }}>
-                      <div className="flex items-center justify-between p-2 border-b border-border">
-                        <h3 className="text-sm font-medium">Preview</h3>
-                      </div>
-                      <div style={{ height: 'calc(100vh - 240px)', overflow: 'auto' }}>
-                        {compiledContent ? (
-                          <div 
-                            dangerouslySetInnerHTML={{ __html: compiledContent }} 
-                            className="p-4 max-w-none preview-content"
+
+                    <TabsContent value="editor" className="flex-1 m-0">
+                      <div className="h-full p-2">
+                        <div className="relative w-full h-full">
+                          <textarea
+                            value={editorContent}
+                            onChange={(e) => {
+                              setEditorContent(e.target.value)
+                              setIsEditing(true)
+                            }}
+                            onBlur={() => setIsEditing(false)}
+                            onSelect={handleTextSelection}
+                            onMouseUp={handleTextSelection}
+                            onKeyUp={handleTextSelection}
+                            onClick={handleCursorPosition}
+                            onKeyDown={handleCursorPosition}
+                            className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                            placeholder="Start writing your LaTeX document..."
                           />
-                        ) : (
-                          <div className="flex items-center justify-center h-full text-muted-foreground">
-                            <div className="text-center">
-                              <Eye className="h-8 w-8 mx-auto mb-2" />
-                              <p>Click "Compile" to see preview</p>
+                          {showAddToChat && (
+                            <div className="absolute top-2 right-2 flex space-x-2">
+                              <button
+                                onClick={handleAddToChat}
+                                className="px-3 py-1 bg-primary text-primary-foreground text-xs rounded-md hover:bg-primary/90 transition-colors"
+                              >
+                                Add to Chat
+                              </button>
+                              <button
+                                onClick={handleCancelSelection}
+                                className="px-3 py-1 bg-muted text-muted-foreground text-xs rounded-md hover:bg-muted/80 transition-colors"
+                              >
+                                Cancel
+                              </button>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </TabsContent>
-                 
-                  <TabsContent value="split" className="flex-1 m-0">
-                    <div className="flex gap-2 p-2" style={{ height: 'calc(100vh - 180px)' }}>
-                      <div className="flex-1 relative">
-                        <textarea
-                          value={editorContent}
-                          onChange={(e) => {
-                            setEditorContent(e.target.value)
-                            setIsEditing(true)
-                          }}
-                          onBlur={() => setIsEditing(false)}
-                          onSelect={handleTextSelection}
-                          onMouseUp={handleTextSelection}
-                          onKeyUp={handleTextSelection}
-                          onClick={handleCursorPosition}
-                          onKeyDown={handleCursorPosition}
-                          className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                          placeholder="Start writing your LaTeX document..."
-                        />
-                        {showAddToChat && (
-                          <div className="absolute top-2 right-2 flex space-x-2">
-                            <button
-                              onClick={handleAddToChat}
-                              className="px-3 py-1 bg-primary text-primary-foreground text-xs rounded-md hover:bg-primary/90 transition-colors"
-                            >
-                              Add to Chat
-                            </button>
-                            <button
-                              onClick={handleCancelSelection}
-                              className="px-3 py-1 bg-muted text-muted-foreground text-xs rounded-md hover:bg-muted/80 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 border border-border rounded-md bg-white">
+                    </TabsContent>
+
+                    <TabsContent value="preview" className="flex-1 m-0">
+                      <div className="border border-border rounded-md m-2 bg-white" style={{ height: 'calc(100vh - 180px)' }}>
+                        <div className="flex items-center justify-between p-2 border-b border-border">
+                          <h3 className="text-sm font-medium">Preview</h3>
+                        </div>
                         <div style={{ height: 'calc(100vh - 240px)', overflow: 'auto' }}>
                           {compiledContent ? (
-                            <div 
-                              dangerouslySetInnerHTML={{ __html: compiledContent }} 
+                            <div
+                              dangerouslySetInnerHTML={{ __html: compiledContent }}
                               className="p-4 max-w-none preview-content"
                             />
                           ) : (
@@ -603,8 +549,62 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                           )}
                         </div>
                       </div>
-                    </div>
-                  </TabsContent>
+                    </TabsContent>
+
+                    <TabsContent value="split" className="flex-1 m-0">
+                      <div className="flex gap-2 p-2" style={{ height: 'calc(100vh - 180px)' }}>
+                        <div className="flex-1 relative">
+                          <textarea
+                            value={editorContent}
+                            onChange={(e) => {
+                              setEditorContent(e.target.value)
+                              setIsEditing(true)
+                            }}
+                            onBlur={() => setIsEditing(false)}
+                            onSelect={handleTextSelection}
+                            onMouseUp={handleTextSelection}
+                            onKeyUp={handleTextSelection}
+                            onClick={handleCursorPosition}
+                            onKeyDown={handleCursorPosition}
+                            className="w-full h-full p-4 border border-border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                            placeholder="Start writing your LaTeX document..."
+                          />
+                          {showAddToChat && (
+                            <div className="absolute top-2 right-2 flex space-x-2">
+                              <button
+                                onClick={handleAddToChat}
+                                className="px-3 py-1 bg-primary text-primary-foreground text-xs rounded-md hover:bg-primary/90 transition-colors"
+                              >
+                                Add to Chat
+                              </button>
+                              <button
+                                onClick={handleCancelSelection}
+                                className="px-3 py-1 bg-muted text-muted-foreground text-xs rounded-md hover:bg-muted/80 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 border border-border rounded-md bg-white">
+                          <div style={{ height: 'calc(100vh - 240px)', overflow: 'auto' }}>
+                            {compiledContent ? (
+                              <div
+                                dangerouslySetInnerHTML={{ __html: compiledContent }}
+                                className="p-4 max-w-none preview-content"
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-full text-muted-foreground">
+                                <div className="text-center">
+                                  <Eye className="h-8 w-8 mx-auto mb-2" />
+                                  <p>Click "Compile" to see preview</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
                   </Tabs>
                 </div>
               )}
@@ -621,7 +621,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   <TabsTrigger value="chat" className="flex-1">💬 AI Chat</TabsTrigger>
                   <TabsTrigger value="tools" className="flex-1">🛠️ AI Tools</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="chat" className="flex-1 m-0 p-0 h-full">
                   <AIChatPanel
                     content={editorContent}
@@ -630,7 +630,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                     onApplySuggestion={handleApplySuggestion}
                   />
                 </TabsContent>
-                
+
                 <TabsContent value="tools" className="flex-1 m-0">
                   <div className="p-2">
                     <div className="flex items-center space-x-2 mb-2">
@@ -638,7 +638,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                       <h3 className="font-medium text-sm">AI Writing Tools</h3>
                     </div>
                     <ScrollArea className="h-full">
-                      <AIAssistancePanel 
+                      <AIAssistancePanel
                         content={editorContent}
                         onApplySuggestion={(suggestion) => {
                           setEditorContent(prev => prev + '\n\n' + suggestion)
@@ -677,8 +677,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             />
           </div>
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setShowCreateDialog(false)
                 setNewFileName('')

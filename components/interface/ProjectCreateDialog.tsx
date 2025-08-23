@@ -276,7 +276,7 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                                 onValueChange={field.onChange}
                                                                 suggestions={RESEARCH_DOMAINS}
                                                                 placeholder="Select or type a domain"
-                                                                searchFunction={(query: string, suggestions: string[]) => 
+                                                                searchFunction={(query: string, suggestions: string[]) =>
                                                                     searchSuggestionsAsStrings(query, { kinds: ['domain'] })
                                                                 }
                                                                 disabled={isLoading}
