@@ -318,11 +318,11 @@ export function ProjectsDashboard() {
                         {/* Stats Cards */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
                             {[
-                                { label: "Active", value: stats.activeProjects.toString(), icon: PlayCircle, color: "text-green-500" },
-                                { label: "Papers", value: stats.totalPapers.toString(), icon: BookOpen, color: "text-blue-500" },
-                                { label: "Tasks", value: stats.totalTasks.toString(), icon: Zap, color: "text-purple-500" },
-                                { label: "Shared", value: stats.sharedProjects.toString(), icon: Users, color: "text-blue-500" },
-                                { label: "Total", value: stats.totalProjects.toString(), icon: Database, color: "text-orange-500" }
+                                { label: "Active", value: stats.activeProjects.toString(), icon: PlayCircle, color: "text-green-500", borderColor: "border-green-500/20", shimmerColor: "via-green-500/20", shadowColor: "hover:shadow-green-500/20" },
+                                { label: "Papers", value: stats.totalPapers.toString(), icon: BookOpen, color: "text-blue-500", borderColor: "border-blue-500/20", shimmerColor: "via-blue-500/20", shadowColor: "hover:shadow-blue-500/20" },
+                                { label: "Tasks", value: stats.totalTasks.toString(), icon: Zap, color: "text-purple-500", borderColor: "border-purple-500/20", shimmerColor: "via-purple-500/20", shadowColor: "hover:shadow-purple-500/20" },
+                                { label: "Shared", value: stats.sharedProjects.toString(), icon: Users, color: "text-blue-500", borderColor: "border-blue-500/20", shimmerColor: "via-blue-500/20", shadowColor: "hover:shadow-blue-500/20" },
+                                { label: "Total", value: stats.totalProjects.toString(), icon: Database, color: "text-orange-500", borderColor: "border-orange-500/20", shimmerColor: "via-orange-500/20", shadowColor: "hover:shadow-orange-500/20" }
                             ].map((stat, index) => (
                                 <motion.div
                                     key={stat.label}
@@ -331,8 +331,8 @@ export function ProjectsDashboard() {
                                     transition={{ delay: index * 0.1, duration: 0.6 }}
                                     className="relative group"
                                 >
-                                    <Card className="relative overflow-hidden bg-background/80 backdrop-blur-xl border-2 border-primary/25 shadow-lg hover:shadow-primary/20 transition-all duration-300 group-hover:scale-105">
-                                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    <Card className={`group relative bg-background/40 backdrop-blur-xl border ${stat.borderColor} overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg ${stat.shadowColor}`}>
+                                        <div className={`absolute inset-0 bg-gradient-to-r from-transparent ${stat.shimmerColor} to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out`}></div>
                                         <CardContent className="p-3 relative z-10">
                                             <div className="flex items-center gap-2">
                                                 <stat.icon className={`h-3 w-3 sm:h-4 sm:w-4 ${stat.color}`} />

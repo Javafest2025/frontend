@@ -738,6 +738,39 @@
     }
   }
 
+  @keyframes bell-vibrate {
+
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+      transform: rotate(10deg);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+      transform: rotate(-10deg);
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
   /* Dynamic Scrollbar Styling */
   ::-webkit-scrollbar {
     width: 10px;

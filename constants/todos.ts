@@ -1,22 +1,27 @@
-import { Todo, TodoStatus, TodoPriority, TodoCategory } from "@/types/todo"
-import { 
-  Clock, 
-  AlertTriangle, 
-  CheckCircle, 
-  Target, 
-  GraduationCap, 
-  FileText, 
-  Users, 
+import { Todo } from "@/types/todo"
+import {
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  Target,
+  Users,
   Calendar,
   User,
-  Zap,
   BookOpen,
   PenTool,
   Search,
   MessageSquare,
-  Timer,
   Flag,
-  Circle
+  Circle,
+  FlaskConical,
+  Database,
+  BarChart3,
+  Cpu,
+  Send,
+  Presentation,
+  DollarSign,
+  ClipboardList,
+  HelpCircle
 } from "lucide-react"
 
 // Status configurations
@@ -89,53 +94,138 @@ export const PRIORITY_CONFIG = {
 
 // Category configurations
 export const CATEGORY_CONFIG = {
-  research: {
-    label: "Research",
-    icon: Search,
-    color: "text-blue-500",
-    bgColor: "bg-blue-500/10"
+  // Research Lifecycle
+  literature_review: {
+    label: "Literature Review",
+    icon: BookOpen,
+    color: "text-blue-600",
+    bgColor: "bg-blue-500/10",
+    borderColor: "border-blue-500/20",
+    iconColor: "text-blue-500"
+  },
+  experiment: {
+    label: "Experiment",
+    icon: FlaskConical,
+    color: "text-green-600",
+    bgColor: "bg-green-500/10",
+    borderColor: "border-green-500/20",
+    iconColor: "text-green-500"
+  },
+  data_collection: {
+    label: "Data Collection",
+    icon: Database,
+    color: "text-cyan-600",
+    bgColor: "bg-cyan-500/10",
+    borderColor: "border-cyan-500/20",
+    iconColor: "text-cyan-500"
+  },
+  data_analysis: {
+    label: "Data Analysis",
+    icon: BarChart3,
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-500/10",
+    borderColor: "border-indigo-500/20",
+    iconColor: "text-indigo-500"
+  },
+  modeling: {
+    label: "Modeling",
+    icon: Cpu,
+    color: "text-purple-600",
+    bgColor: "bg-purple-500/10",
+    borderColor: "border-purple-500/20",
+    iconColor: "text-purple-500"
   },
   writing: {
     label: "Writing",
     icon: PenTool,
-    color: "text-green-500",
-    bgColor: "bg-green-500/10"
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-500/10",
+    borderColor: "border-emerald-500/20",
+    iconColor: "text-emerald-500"
   },
   review: {
     label: "Review",
-    icon: BookOpen,
-    color: "text-purple-500",
-    bgColor: "bg-purple-500/10"
+    icon: Search,
+    color: "text-amber-600",
+    bgColor: "bg-amber-500/10",
+    borderColor: "border-amber-500/20",
+    iconColor: "text-amber-500"
   },
-  analysis: {
-    label: "Analysis",
-    icon: Target,
-    color: "text-indigo-500",
-    bgColor: "bg-indigo-500/10"
+  submission: {
+    label: "Submission",
+    icon: Send,
+    color: "text-rose-600",
+    bgColor: "bg-rose-500/10",
+    borderColor: "border-rose-500/20",
+    iconColor: "text-rose-500"
+  },
+  presentation: {
+    label: "Presentation",
+    icon: Presentation,
+    color: "text-violet-600",
+    bgColor: "bg-violet-500/10",
+    borderColor: "border-violet-500/20",
+    iconColor: "text-violet-500"
+  },
+
+  // Project & Collaboration
+  collaboration: {
+    label: "Collaboration",
+    icon: MessageSquare,
+    color: "text-teal-600",
+    bgColor: "bg-teal-500/10",
+    borderColor: "border-teal-500/20",
+    iconColor: "text-teal-500"
   },
   meeting: {
     label: "Meeting",
     icon: Users,
-    color: "text-orange-500",
-    bgColor: "bg-orange-500/10"
+    color: "text-orange-600",
+    bgColor: "bg-orange-500/10",
+    borderColor: "border-orange-500/20",
+    iconColor: "text-orange-500"
   },
   deadline: {
     label: "Deadline",
     icon: Calendar,
-    color: "text-red-500",
-    bgColor: "bg-red-500/10"
+    color: "text-red-600",
+    bgColor: "bg-red-500/10",
+    borderColor: "border-red-500/20",
+    iconColor: "text-red-500"
   },
+  funding: {
+    label: "Funding",
+    icon: DollarSign,
+    color: "text-lime-600",
+    bgColor: "bg-lime-500/10",
+    borderColor: "border-lime-500/20",
+    iconColor: "text-lime-500"
+  },
+  administrative: {
+    label: "Administrative",
+    icon: ClipboardList,
+    color: "text-slate-600",
+    bgColor: "bg-slate-500/10",
+    borderColor: "border-slate-500/20",
+    iconColor: "text-slate-500"
+  },
+
+  // Personal Productivity
   personal: {
     label: "Personal",
     icon: User,
-    color: "text-gray-500",
-    bgColor: "bg-gray-500/10"
+    color: "text-gray-600",
+    bgColor: "bg-gray-500/10",
+    borderColor: "border-gray-500/20",
+    iconColor: "text-gray-500"
   },
-  collaboration: {
-    label: "Collaboration",
-    icon: MessageSquare,
-    color: "text-cyan-500",
-    bgColor: "bg-cyan-500/10"
+  misc: {
+    label: "Miscellaneous",
+    icon: HelpCircle,
+    color: "text-neutral-600",
+    bgColor: "bg-neutral-500/10",
+    borderColor: "border-neutral-500/20",
+    iconColor: "text-neutral-500"
   }
 }
 
@@ -161,7 +251,7 @@ export const MOCK_TODOS: Todo[] = [
     description: "Review 15 recent papers on transformer architectures for the machine learning survey",
     status: "in_progress",
     priority: "high",
-    category: "research",
+    category: "literature_review",
     due_date: "2024-01-20T17:00:00Z",
     created_at: "2024-01-10T10:00:00Z",
     updated_at: "2024-01-15T14:30:00Z",
@@ -246,7 +336,7 @@ export const MOCK_TODOS: Todo[] = [
     description: "Analyze results from the second round of transformer efficiency experiments",
     status: "completed",
     priority: "medium",
-    category: "analysis",
+    category: "data_analysis",
     due_date: "2024-01-15T17:00:00Z",
     created_at: "2024-01-08T14:00:00Z",
     updated_at: "2024-01-15T16:30:00Z",
