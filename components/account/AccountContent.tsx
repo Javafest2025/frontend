@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -38,8 +38,9 @@ import {
 } from "lucide-react"
 import { accountApi, getUserData } from "@/lib/api/user-service"
 import { UserAccount, UserAccountForm } from "@/types/account"
-import { ACCOUNT_SECTIONS, SOCIAL_LINKS } from "@/constants/account"
+import { SOCIAL_LINKS } from "@/constants/account"
 import { useForm } from "react-hook-form"
+import { AvatarUploader } from "./AvatarUploader"
 
 // Custom Calendar Component with Year Picker
 interface EnhancedCalendarProps {
@@ -145,8 +146,8 @@ function EnhancedCalendar({ selected, onSelect, disabled, className }: EnhancedC
 export function AccountContent() {
   const [accountData, setAccountData] = useState<UserAccount | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
 
   const userData = getUserData()
 
@@ -156,7 +157,7 @@ export function AccountContent() {
     setValue,
     watch,
     reset,
-    formState: { errors, isDirty }
+    formState: { isDirty }
   } = useForm<UserAccountForm>()
 
   // Load account data
@@ -222,7 +223,7 @@ export function AccountContent() {
     loadAccountData()
   }, [reset])
 
-    // Handle form submission
+  // Handle form submission
   const onSubmit = async (data: UserAccountForm) => {
     if (!isDirty) {
       setIsEditMode(false)
@@ -231,7 +232,7 @@ export function AccountContent() {
 
     try {
       console.log("Submitting form data:", data)
-      
+
       // Create a clean update object with only changed values
       const updateData: Partial<UserAccountForm> = {}
 
@@ -316,43 +317,14 @@ export function AccountContent() {
     setIsEditMode(false)
   }
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+  const handleAvatarUpdate = (newUrl: string) => {
+    setAccountData(prev => prev ? { ...prev, avatarUrl: newUrl } : null)
+    setIsUploadingImage(false)
+  }
 
-    // Clear the input value to allow re-uploading the same file
-    event.target.value = ''
-
-    // Client-side validation before upload
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp']
-    if (!allowedTypes.includes(file.type)) {
-      toast.error("Please upload a valid image file (JPEG, PNG, or WebP)")
-      return
-    }
-
-    setIsUploadingImage(true)
-    try {
-      const result = await accountApi.uploadProfileImage(file)
-      if (result.success) {
-        setAccountData(prev => prev ? { ...prev, avatarUrl: result.url } : null)
-        toast.success("Profile image updated successfully")
-      } else {
-        toast.error(result.message || "Failed to upload image")
-      }
-    } catch (error) {
-      console.error("Failed to upload image:", error)
-      if (error instanceof Error) {
-        toast.error(
-          error.message.includes("413") || error.message.toLowerCase().includes("too large")
-            ? "Image file is too large. Please choose a smaller image."
-            : error.message || "Failed to upload image"
-        )
-      } else {
-        toast.error("Failed to upload image")
-      }
-    } finally {
-      setIsUploadingImage(false)
-    }
+  const handleAvatarDelete = () => {
+    setAccountData(prev => prev ? { ...prev, avatarUrl: undefined } : null)
+    setIsUploadingImage(false)
   }
 
   const getIcon = (iconName: string) => {
@@ -457,7 +429,17 @@ export function AccountContent() {
                   <Button
                     size="sm"
                     className="absolute -bottom-2 -right-2 h-12 w-12 rounded-full p-0 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-xl border-2 border-border backdrop-blur-sm group-hover:scale-110 transition-all duration-300 shadow-lg hover:shadow-xl"
-                    onClick={() => document.getElementById('profile-image-upload')?.click()}
+                    onClick={() => {
+                      console.log("Camera button clicked")
+                      const avatarUploader = document.querySelector('.avatar-uploader-input') as HTMLInputElement
+                      console.log("Found avatar uploader input:", avatarUploader)
+                      if (avatarUploader) {
+                        avatarUploader.click()
+                        console.log("Clicked avatar uploader input")
+                      } else {
+                        console.error("Avatar uploader input not found")
+                      }
+                    }}
                     disabled={isUploadingImage}
                   >
                     {isUploadingImage ? (
@@ -467,15 +449,7 @@ export function AccountContent() {
                     )}
                   </Button>
 
-                  {/* Hidden file input */}
-                  <input
-                    id="profile-image-upload"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    disabled={isUploadingImage}
-                  />
+
                 </div>
               </motion.div>
 
@@ -546,6 +520,15 @@ export function AccountContent() {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="w-full space-y-6"
         >
+          {/* AvatarUploader for camera button access */}
+          <div className="fixed inset-0 z-50 hidden" id="avatar-uploader-container">
+            <AvatarUploader
+              currentAvatarUrl={accountData?.avatarUrl}
+              onAvatarUpdate={handleAvatarUpdate}
+              onAvatarDelete={handleAvatarDelete}
+              onLoadingChange={setIsUploadingImage}
+            />
+          </div>
           {/* About Section */}
           {(accountData?.bio || isEditMode) && (
             <motion.div
