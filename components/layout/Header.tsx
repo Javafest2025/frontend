@@ -215,9 +215,9 @@ export function Header() {
                         <DropdownMenuTrigger asChild>
                             <Button
                                 size="sm"
-                                className="h-9 w-9 p-0 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300"
+                                className="group relative overflow-hidden h-9 w-9 p-0 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                             >
-                                <Plus className="h-4 w-4" />
+                                <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56 bg-background/80 backdrop-blur-xl border-r border-primary/30 overflow-hidden"

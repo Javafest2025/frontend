@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,7 @@ import {
     getTagSuggestions,
     searchSuggestionsAsStrings
 } from "@/constants/research-data"
-import { Loader2, Sparkles, Brain, Target, Hash, FolderPlus, X } from "lucide-react"
+import { Loader2, Sparkles, Brain, Target, Hash, FolderPlus, X, FileText, BookOpen, Tag, Zap, CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 
 interface ProjectCreateDialogProps {
@@ -38,6 +38,7 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
         reset,
         watch,
         control,
+        setValue,
         formState: { errors }
     } = useForm<ProjectFormData & { domainValue: string, topicsArray: string[], tagsArray: string[] }>({
         defaultValues: {
@@ -54,6 +55,15 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
 
     const watchedDomain = watch("domainValue")
     const watchedTopics = watch("topicsArray")
+    const prevDomainRef = useRef<string>("")
+
+    // Clear topics when domain changes
+    useEffect(() => {
+        if (prevDomainRef.current && prevDomainRef.current !== watchedDomain && watchedTopics.length > 0) {
+            setValue("topicsArray", [])
+        }
+        prevDomainRef.current = watchedDomain
+    }, [watchedDomain, watchedTopics.length, setValue])
 
     const topicSuggestions = useMemo(() => {
         return watchedDomain ? getTopicSuggestions(watchedDomain) : []
@@ -130,17 +140,17 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                 `
                             }}
                         >
-                            <div className="max-w-6xl mx-auto px-6 py-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/20">
-                                            <FolderPlus className="h-5 w-5 text-primary" />
+                            <div className="w-full px-6 py-4">
+                                <div className="flex items-center justify-between w-full">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 via-blue-500/20 to-purple-500/20 border border-primary/30 shadow-lg">
+                                            <FolderPlus className="h-6 w-6 text-primary drop-shadow-sm" />
                                         </div>
                                         <div>
-                                            <h1 className="text-xl font-bold text-gradient-primary">
+                                            <h1 className="text-2xl font-bold text-gradient-primary">
                                                 Create New Project
                                             </h1>
-                                            <p className="text-sm text-muted-foreground">
+                                            <p className="text-sm text-muted-foreground mt-1">
                                                 Set up your AI-powered research workspace with intelligent suggestions
                                             </p>
                                         </div>
@@ -150,7 +160,7 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                         size="icon"
                                         onClick={handleClose}
                                         disabled={isLoading}
-                                        className="h-9 w-9 rounded-lg bg-background/40 backdrop-blur-xl border border-border hover:bg-destructive/10 hover:text-destructive transition-all duration-300"
+                                        className="h-10 w-10 rounded-xl bg-background/40 backdrop-blur-xl border border-border hover:bg-destructive/10 hover:text-destructive hover:scale-105 transition-all duration-300"
                                         style={{
                                             boxShadow: `
                                                 0 0 8px hsl(var(--primary) / 0.08),
@@ -158,7 +168,7 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                             `
                                         }}
                                     >
-                                        <X className="h-4 w-4" />
+                                        <X className="h-5 w-5" />
                                     </Button>
                                 </div>
                             </div>
@@ -176,7 +186,7 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                     <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8">
                                         {/* Left Column */}
                                         <div className="space-y-8 flex flex-col">
-                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg transition-all duration-300 hover:shadow-primary/5"
+                                            <Card className="bg-background/40 backdrop-blur-xl border border-primary/20 shadow-lg transition-all duration-300 hover:shadow-primary/10 hover:border-primary/30"
                                                 style={{
                                                     boxShadow: `
                                                         0 0 20px hsl(var(--primary) / 0.1),
@@ -184,10 +194,15 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                     `
                                                 }}
                                             >
-                                                <CardHeader>
-                                                    <CardTitle className="text-base flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full bg-primary" />
-                                                        Project Name *
+                                                <CardHeader className="pb-3">
+                                                    <CardTitle className="text-base flex items-center gap-3">
+                                                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 border border-primary/20">
+                                                            <FileText className="h-4 w-4 text-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-semibold">Project Name</span>
+                                                            <span className="text-red-500 ml-1">*</span>
+                                                        </div>
                                                     </CardTitle>
                                                 </CardHeader>
                                                 <CardContent>
@@ -210,7 +225,7 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                 </CardContent>
                                             </Card>
 
-                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-primary/5"
+                                            <Card className="bg-background/40 backdrop-blur-xl border border-blue-500/20 shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-blue-500/10 hover:border-blue-500/30"
                                                 style={{
                                                     boxShadow: `
                                                         0 0 20px hsl(var(--primary) / 0.1),
@@ -218,10 +233,12 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                     `
                                                 }}
                                             >
-                                                <CardHeader>
-                                                    <CardTitle className="text-base flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full bg-blue-500" />
-                                                        Description
+                                                <CardHeader className="pb-3">
+                                                    <CardTitle className="text-base flex items-center gap-3">
+                                                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                                                            <BookOpen className="h-4 w-4 text-blue-500" />
+                                                        </div>
+                                                        <span className="font-semibold">Description</span>
                                                     </CardTitle>
                                                 </CardHeader>
                                                 <CardContent className="flex-1 flex flex-col">
@@ -246,7 +263,7 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
 
                                         {/* Right Column */}
                                         <div className="space-y-8 flex flex-col">
-                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg transition-all duration-300 hover:shadow-primary/5"
+                                            <Card className="bg-background/40 backdrop-blur-xl border border-purple-500/20 shadow-lg transition-all duration-300 hover:shadow-purple-500/10 hover:border-purple-500/30"
                                                 style={{
                                                     boxShadow: `
                                                         0 0 20px hsl(var(--primary) / 0.1),
@@ -254,14 +271,16 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                     `
                                                 }}
                                             >
-                                                <CardHeader>
+                                                <CardHeader className="pb-3">
                                                     <CardTitle className="text-base flex items-center justify-between gap-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Brain className="h-4 w-4 text-purple-500" />
-                                                            Research Domain
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                                                                <Brain className="h-4 w-4 text-purple-500" />
+                                                            </div>
+                                                            <span className="font-semibold">Research Domain</span>
                                                         </div>
-                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                            <Sparkles className="h-3 w-3" />
+                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground bg-gradient-to-r from-purple-500/10 to-violet-500/10 px-3 py-1.5 rounded-full border border-purple-500/20">
+                                                            <Sparkles className="h-3 w-3 text-purple-500" />
                                                             Smart suggestions
                                                         </div>
                                                     </CardTitle>
@@ -281,13 +300,14 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                                 }
                                                                 disabled={isLoading}
                                                                 className="w-full"
+                                                                theme="purple"
                                                             />
                                                         )}
                                                     />
                                                 </CardContent>
                                             </Card>
 
-                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-primary/5"
+                                            <Card className="bg-background/40 backdrop-blur-xl border border-green-500/20 shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-green-500/10 hover:border-green-500/30"
                                                 style={{
                                                     boxShadow: `
                                                         0 0 20px hsl(var(--primary) / 0.1),
@@ -295,16 +315,18 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                     `
                                                 }}
                                             >
-                                                <CardHeader>
+                                                <CardHeader className="pb-3">
                                                     <CardTitle className="text-base flex items-center justify-between gap-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Target className="h-4 w-4 text-green-500" />
-                                                            Research Topics
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-green-500/10 border border-green-500/20">
+                                                                <Target className="h-4 w-4 text-green-500" />
+                                                            </div>
+                                                            <span className="font-semibold">Research Topics</span>
                                                         </div>
                                                         {watchedDomain && (
-                                                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                                <Sparkles className="h-3 w-3" />
-                                                                {topicSuggestions.length} suggestions
+                                                            <div className="flex items-center gap-1 text-xs text-muted-foreground bg-gradient-to-r from-green-500/10 to-emerald-500/10 px-3 py-1.5 rounded-full border border-green-500/20">
+                                                                <Sparkles className="h-3 w-3 text-green-500" />
+                                                                Domain-aware topics
                                                             </div>
                                                         )}
                                                     </CardTitle>
@@ -322,13 +344,14 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                                 maxTags={10}
                                                                 disabled={isLoading || !watchedDomain}
                                                                 className="w-full flex-1"
+                                                                theme="green"
                                                             />
                                                         )}
                                                     />
                                                 </CardContent>
                                             </Card>
 
-                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-primary/5"
+                                            <Card className="bg-background/40 backdrop-blur-xl border border-orange-500/20 shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-orange-500/10 hover:border-orange-500/30"
                                                 style={{
                                                     boxShadow: `
                                                         0 0 20px hsl(var(--primary) / 0.1),
@@ -336,14 +359,16 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                     `
                                                 }}
                                             >
-                                                <CardHeader>
+                                                <CardHeader className="pb-3">
                                                     <CardTitle className="text-base flex items-center justify-between gap-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Hash className="h-4 w-4 text-orange-500" />
-                                                            Tags
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                                                                <Tag className="h-4 w-4 text-orange-500" />
+                                                            </div>
+                                                            <span className="font-semibold">Tags</span>
                                                         </div>
-                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                            <Sparkles className="h-3 w-3" />
+                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground bg-gradient-to-r from-orange-500/10 to-amber-500/10 px-3 py-1.5 rounded-full border border-orange-500/20">
+                                                            <Sparkles className="h-3 w-3 text-orange-500" />
                                                             Context-aware suggestions
                                                         </div>
                                                     </CardTitle>
@@ -361,6 +386,7 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                                 maxTags={15}
                                                                 disabled={isLoading}
                                                                 className="w-full flex-1"
+                                                                theme="orange"
                                                             />
                                                         )}
                                                     />
@@ -382,13 +408,13 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                         </motion.div>
                                     )}
 
-                                    <div className="flex flex-col sm:flex-row gap-4 pt-6 mt-auto border-t border-border">
+                                    <div className="flex flex-col sm:flex-row gap-4 pt-8 mt-auto border-t border-border/50">
                                         <Button
                                             type="button"
                                             variant="outline"
                                             onClick={handleClose}
                                             disabled={isLoading}
-                                            className="flex-1 h-11 bg-background/40 backdrop-blur-xl border-border hover:bg-accent transition-all duration-300"
+                                            className="flex-1 h-12 bg-background/40 backdrop-blur-xl border border-border hover:bg-accent hover:scale-105 transition-all duration-300 font-medium"
                                             style={{
                                                 boxShadow: `
                                                     0 0 10px hsl(var(--primary) / 0.08),
@@ -401,7 +427,7 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                         <Button
                                             type="submit"
                                             disabled={isLoading}
-                                            className="flex-1 h-11 gradient-primary-to-accent text-primary-foreground border-0 transition-all duration-300 hover:scale-[1.02]"
+                                            className="flex-1 h-12 gradient-primary-to-accent text-primary-foreground border-0 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/25 font-medium"
                                             style={{
                                                 boxShadow: `
                                                     0 0 15px hsl(var(--primary) / 0.4),
@@ -417,7 +443,7 @@ export function ProjectCreateDialog({ isOpen, onClose, onProjectCreated }: Proje
                                                 </>
                                             ) : (
                                                 <>
-                                                    <Sparkles className="mr-2 h-4 w-4" />
+                                                    <Zap className="mr-2 h-4 w-4" />
                                                     Create Project
                                                 </>
                                             )}

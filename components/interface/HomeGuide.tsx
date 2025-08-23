@@ -31,6 +31,42 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 
+// Helper function to convert Tailwind color classes to RGB values for shimmer effect
+const getShimmerColor = (colorClass: string): string => {
+    const colorMap: { [key: string]: string } = {
+        'text-blue-500': 'rgba(59, 130, 246, 0.2)',
+        'text-green-500': 'rgba(34, 197, 94, 0.2)',
+        'text-purple-500': 'rgba(168, 85, 247, 0.2)',
+        'text-pink-500': 'rgba(236, 72, 153, 0.2)',
+        'text-orange-500': 'rgba(249, 115, 22, 0.2)',
+        'text-indigo-500': 'rgba(99, 102, 241, 0.2)',
+        'text-cyan-500': 'rgba(6, 182, 212, 0.2)',
+        'text-emerald-500': 'rgba(16, 185, 129, 0.2)',
+        'text-amber-500': 'rgba(245, 158, 11, 0.2)',
+        'text-red-500': 'rgba(239, 68, 68, 0.2)',
+        'text-yellow-500': 'rgba(234, 179, 8, 0.2)'
+    }
+    return colorMap[colorClass] || 'rgba(59, 130, 246, 0.2)' // fallback to blue
+}
+
+// Helper function to get border color classes
+const getBorderColor = (colorClass: string): { border: string, hoverBorder: string } => {
+    const colorMap: { [key: string]: { border: string, hoverBorder: string } } = {
+        'text-blue-500': { border: 'border-blue-500/20', hoverBorder: 'hover:border-blue-500/40' },
+        'text-green-500': { border: 'border-green-500/20', hoverBorder: 'hover:border-green-500/40' },
+        'text-purple-500': { border: 'border-purple-500/20', hoverBorder: 'hover:border-purple-500/40' },
+        'text-pink-500': { border: 'border-pink-500/20', hoverBorder: 'hover:border-pink-500/40' },
+        'text-orange-500': { border: 'border-orange-500/20', hoverBorder: 'hover:border-orange-500/40' },
+        'text-indigo-500': { border: 'border-indigo-500/20', hoverBorder: 'hover:border-indigo-500/40' },
+        'text-cyan-500': { border: 'border-cyan-500/20', hoverBorder: 'hover:border-cyan-500/40' },
+        'text-emerald-500': { border: 'border-emerald-500/20', hoverBorder: 'hover:border-emerald-500/40' },
+        'text-amber-500': { border: 'border-amber-500/20', hoverBorder: 'hover:border-amber-500/40' },
+        'text-red-500': { border: 'border-red-500/20', hoverBorder: 'hover:border-red-500/40' },
+        'text-yellow-500': { border: 'border-yellow-500/20', hoverBorder: 'hover:border-yellow-500/40' }
+    }
+    return colorMap[colorClass] || { border: 'border-primary/20', hoverBorder: 'hover:border-primary/40' }
+}
+
 interface User {
     email?: string
     fullName?: string
@@ -163,32 +199,44 @@ const aiFeatures = [
     {
         icon: Brain,
         title: "AI-Powered Analysis",
-        description: "Intelligent paper summarization and insight extraction"
+        description: "Intelligent paper summarization and insight extraction",
+        color: "text-cyan-500",
+        bgColor: "bg-cyan-500/10"
     },
     {
         icon: MessageSquare,
         title: "Interactive Chat",
-        description: "Ask questions and get answers from your research papers"
+        description: "Ask questions and get answers from your research papers",
+        color: "text-emerald-500",
+        bgColor: "bg-emerald-500/10"
     },
     {
         icon: Download,
         title: "Smart Paper Collection",
-        description: "Intelligent AI-based paper fetching and recommendation"
+        description: "Intelligent AI-based paper fetching and recommendation",
+        color: "text-blue-500",
+        bgColor: "bg-blue-500/10"
     },
     {
         icon: Edit3,
         title: "AI Integrated LaTeX Editor",
-        description: "Write academic papers with AI assistance and LaTeX support"
+        description: "Write academic papers with AI assistance and LaTeX support",
+        color: "text-purple-500",
+        bgColor: "bg-purple-500/10"
     },
     {
         icon: Quote,
         title: "AI Based Citation Management",
-        description: "Automated citation generation and bibliography management"
+        description: "Automated citation generation and bibliography management",
+        color: "text-orange-500",
+        bgColor: "bg-orange-500/10"
     },
     {
         icon: Clipboard,
         title: "AI Review and Suggestion",
-        description: "Get intelligent feedback and suggestions for your research"
+        description: "Get intelligent feedback and suggestions for your research",
+        color: "text-pink-500",
+        bgColor: "bg-pink-500/10"
     }
 ]
 
@@ -196,32 +244,44 @@ const researchFeatures = [
     {
         icon: Users,
         title: "Collaboration",
-        description: "Share projects and collaborate with research teams"
+        description: "Share projects and collaborate with research teams",
+        color: "text-indigo-500",
+        bgColor: "bg-indigo-500/10"
     },
     {
         icon: Calendar,
         title: "Progress Tracking",
-        description: "Monitor your research progress and deadlines"
+        description: "Monitor your research progress and deadlines",
+        color: "text-amber-500",
+        bgColor: "bg-amber-500/10"
     },
     {
         icon: Target,
         title: "Research Focus",
-        description: "Stay organized with project-based research management"
+        description: "Stay organized with project-based research management",
+        color: "text-red-500",
+        bgColor: "bg-red-500/10"
     },
     {
         icon: Sparkles,
         title: "Smart Insights",
-        description: "Discover connections and patterns across your papers"
+        description: "Discover connections and patterns across your papers",
+        color: "text-yellow-500",
+        bgColor: "bg-yellow-500/10"
     },
     {
         icon: CheckCircle,
         title: "Task Management",
-        description: "Organize research tasks and reading lists efficiently"
+        description: "Organize research tasks and reading lists efficiently",
+        color: "text-green-500",
+        bgColor: "bg-green-500/10"
     },
     {
         icon: Star,
         title: "Notes & Annotations",
-        description: "Create and manage research notes with smart organization"
+        description: "Create and manage research notes with smart organization",
+        color: "text-pink-500",
+        bgColor: "bg-pink-500/10"
     }
 ]
 
@@ -324,9 +384,9 @@ export function HomeGuide() {
                                             initial={{ opacity: 0, scale: 0.8 }}
                                             animate={{ opacity: 1, scale: 1 }}
                                             exit={{ opacity: 0, scale: 0.8 }}
-                                            className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-blue-400/20 to-blue-500/10 rounded-lg"
+                                            className="absolute inset-0 rounded-lg"
                                             style={{
-                                                background: "linear-gradient(45deg, transparent 30%, rgba(59, 130, 246, 0.1) 50%, transparent 70%)",
+                                                background: `linear-gradient(45deg, transparent 30%, ${getShimmerColor(step.color)} 50%, transparent 70%)`,
                                                 animation: "shimmer 1.5s ease-in-out infinite"
                                             }}
                                         />
@@ -337,8 +397,12 @@ export function HomeGuide() {
                                             <div className={cn(
                                                 "w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center transition-all duration-500",
                                                 step.bgColor,
-                                                currentStep === step.id && "scale-110 shadow-lg shadow-blue-500/30"
-                                            )}>
+                                                currentStep === step.id && "scale-110 shadow-lg"
+                                            )}
+                                                style={currentStep === step.id ? {
+                                                    boxShadow: `0 10px 25px -5px ${getShimmerColor(step.color).replace('0.2', '0.3')}`
+                                                } : {}}
+                                            >
                                                 <step.icon className={cn(
                                                     "h-5 w-5 sm:h-6 sm:w-6 transition-all duration-500",
                                                     step.color,
@@ -402,18 +466,37 @@ export function HomeGuide() {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.6, delay: 0.7 + index * 0.1 }}
                             >
-                                <Card className="group bg-background/20 backdrop-blur-xl border border-primary/20 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:bg-background/30 hover:border-primary/40 relative overflow-hidden">
+                                <Card className={cn(
+                                    "group bg-background/20 backdrop-blur-xl border shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:bg-background/30 relative overflow-hidden",
+                                    getBorderColor(feature.color || 'text-primary').border,
+                                    getBorderColor(feature.color || 'text-primary').hoverBorder
+                                )}>
                                     {/* Glass effect overlay */}
                                     <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                                     {/* Hover glow effect */}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                                        style={{
+                                            background: `linear-gradient(45deg, transparent 30%, ${getShimmerColor(feature.color || 'text-primary')} 50%, transparent 70%)`
+                                        }}
+                                    />
 
                                     <CardContent className="p-4 sm:p-6 relative z-10">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
-                                            <feature.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary group-hover:text-primary/80 transition-colors duration-300" />
+                                        <div className={cn(
+                                            "w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-all duration-300",
+                                            feature.bgColor || "bg-primary/10",
+                                            "group-hover:shadow-lg"
+                                        )}
+                                            style={{
+                                                boxShadow: `0 4px 12px -2px ${getShimmerColor(feature.color || 'text-primary').replace('0.2', '0.3')}`
+                                            }}
+                                        >
+                                            <feature.icon className={cn(
+                                                "h-4 w-4 sm:h-5 sm:w-5 transition-colors duration-300",
+                                                feature.color || "text-primary"
+                                            )} />
                                         </div>
-                                        <h3 className="font-semibold mb-2 text-sm sm:text-base group-hover:text-primary transition-colors duration-300">{feature.title}</h3>
+                                        <h3 className="font-semibold mb-2 text-sm sm:text-base group-hover:text-foreground transition-colors duration-300">{feature.title}</h3>
                                         <p className="text-xs sm:text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors duration-300">{feature.description}</p>
                                     </CardContent>
                                 </Card>
@@ -445,18 +528,37 @@ export function HomeGuide() {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.6, delay: 0.9 + index * 0.1 }}
                             >
-                                <Card className="group bg-background/20 backdrop-blur-xl border border-primary/20 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:bg-background/30 hover:border-primary/40 relative overflow-hidden">
+                                <Card className={cn(
+                                    "group bg-background/20 backdrop-blur-xl border shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:bg-background/30 relative overflow-hidden",
+                                    getBorderColor(feature.color || 'text-primary').border,
+                                    getBorderColor(feature.color || 'text-primary').hoverBorder
+                                )}>
                                     {/* Glass effect overlay */}
                                     <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                                     {/* Hover glow effect */}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                                        style={{
+                                            background: `linear-gradient(45deg, transparent 30%, ${getShimmerColor(feature.color || 'text-primary')} 50%, transparent 70%)`
+                                        }}
+                                    />
 
                                     <CardContent className="p-4 sm:p-6 relative z-10">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
-                                            <feature.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary group-hover:text-primary/80 transition-colors duration-300" />
+                                        <div className={cn(
+                                            "w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-all duration-300",
+                                            feature.bgColor || "bg-primary/10",
+                                            "group-hover:shadow-lg"
+                                        )}
+                                            style={{
+                                                boxShadow: `0 4px 12px -2px ${getShimmerColor(feature.color || 'text-primary').replace('0.2', '0.3')}`
+                                            }}
+                                        >
+                                            <feature.icon className={cn(
+                                                "h-4 w-4 sm:h-5 sm:w-5 transition-colors duration-300",
+                                                feature.color || "text-primary"
+                                            )} />
                                         </div>
-                                        <h3 className="font-semibold mb-2 text-sm sm:text-base group-hover:text-primary transition-colors duration-300">{feature.title}</h3>
+                                        <h3 className="font-semibold mb-2 text-sm sm:text-base group-hover:text-foreground transition-colors duration-300">{feature.title}</h3>
                                         <p className="text-xs sm:text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors duration-300">{feature.description}</p>
                                     </CardContent>
                                 </Card>

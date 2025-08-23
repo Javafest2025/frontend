@@ -50,7 +50,7 @@ import {
 } from "lucide-react"
 import { format, formatDistance, isAfter, isBefore, isToday, isThisWeek, parseISO, startOfDay } from "date-fns"
 import { cn } from "@/lib/utils/cn"
-import { todosApi } from "@/lib/api/todos"
+import { todosApi } from "@/lib/api/project-service/todos"
 import { Todo, TodoFilters, TodoSortOptions, TodoSummary, TodoForm } from "@/types/todo"
 import { STATUS_CONFIG, PRIORITY_CONFIG, CATEGORY_CONFIG, SORT_OPTIONS, MOCK_TODOS } from "@/constants/todos"
 
@@ -543,50 +543,57 @@ export function TodoContent() {
           {/* Summary Stats */}
           {summary && (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
-              <Card className="bg-background/40 backdrop-blur-xl border border-primary/10">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-primary/10 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-primary">{summary.total}</div>
                   <div className="text-xs text-muted-foreground">Total</div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/40 backdrop-blur-xl border border-blue-500/20">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-blue-500/20 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-blue-500">{summary.by_status.pending}</div>
                   <div className="text-xs text-muted-foreground">Pending</div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/40 backdrop-blur-xl border border-yellow-500/20">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-yellow-500/20 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-yellow-500/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-yellow-500">{summary.by_status.in_progress}</div>
                   <div className="text-xs text-muted-foreground">In Progress</div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/40 backdrop-blur-xl border border-green-500/20">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-green-500/20 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-green-500/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-green-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-green-500">{summary.by_status.completed}</div>
                   <div className="text-xs text-muted-foreground">Completed</div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/40 backdrop-blur-xl border border-red-500/20">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-red-500/20 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-red-500/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-red-500">{summary.overdue}</div>
                   <div className="text-xs text-muted-foreground">Overdue</div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/40 backdrop-blur-xl border border-orange-500/20">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-orange-500/20 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-orange-500/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-orange-500">{summary.due_today}</div>
                   <div className="text-xs text-muted-foreground">Due Today</div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/40 backdrop-blur-xl border border-purple-500/20">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-purple-500/20 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-purple-500">{summary.due_this_week}</div>
                   <div className="text-xs text-muted-foreground">This Week</div>
                 </CardContent>

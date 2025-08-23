@@ -12,7 +12,7 @@ import { ProjectCreateDialog } from "@/components/interface/ProjectCreateDialog"
 import { ProjectEditDialog } from "@/components/interface/ProjectEditDialog"
 import { ShareProjectDialog } from "@/components/interface/ShareProjectDialog"
 import { projectsApi } from "@/lib/api/project-service"
-// Library service not ready yet – derive counts from project data
+import { libraryApi } from "@/lib/api/project-service/library"
 import { Project, ProjectStatus } from "@/types/project"
 import { useSharedProjects } from "@/hooks/useSharedProjects"
 import {
@@ -33,7 +33,13 @@ import {
     Edit,
     Loader2,
     Share2,
-    Archive
+    Archive,
+    Layers,
+    Play,
+    Pause,
+    CheckCircle2,
+    Archive as ArchiveIcon,
+    Users2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -111,10 +117,17 @@ export function ProjectsDashboard() {
     }
 
     const loadPaperCounts = async () => {
-        // No external call: use project.totalPapers provided by project-service
+        // Fetch actual paper counts from library stats
         const counts: Record<string, number> = {}
         for (const project of projects) {
-            counts[project.id] = project.totalPapers ?? 0
+            try {
+                const libraryStats = await libraryApi.getProjectLibraryStats(project.id)
+                counts[project.id] = libraryStats.totalPapers
+            } catch (error) {
+                console.error(`Failed to load paper count for project ${project.id}:`, error)
+                // Fallback to project.totalPapers if library stats fail
+                counts[project.id] = project.totalPapers ?? 0
+            }
         }
         setPaperCounts(counts)
     }
@@ -338,7 +351,7 @@ export function ProjectsDashboard() {
                         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                             <EnhancedTooltip content="Search through your projects by name, domain, or tags">
                                 <div className="relative flex-1 max-w-md w-full">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground/70 hover:text-muted-foreground transition-colors duration-200 z-10" />
                                     <Input
                                         placeholder="Search projects, domains, or tags..."
                                         value={searchQuery}
@@ -348,35 +361,81 @@ export function ProjectsDashboard() {
                                 </div>
                             </EnhancedTooltip>
                             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                                {['all', 'active', 'paused', 'completed', 'archived'].map((status) => (
-                                    <Button
-                                        key={status}
-                                        variant={selectedStatus === status ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => setSelectedStatus(status)}
-                                        className={cn(
-                                            selectedStatus === status
-                                                ? "gradient-primary-to-accent text-white"
-                                                : "bg-background/80 backdrop-blur-xl border-2 border-primary/30 hover:bg-primary/5 hover:border-primary/50",
-                                            "text-xs sm:text-sm"
-                                        )}
-                                    >
-                                        <Filter className="mr-1 h-3 w-3" />
-                                        {status === 'paused' ? 'Paused' : status.charAt(0).toUpperCase() + status.slice(1)}
-                                    </Button>
-                                ))}
+                                {['all', 'active', 'paused', 'completed', 'archived'].map((status) => {
+                                    const getStatusIcon = (status: string) => {
+                                        switch (status) {
+                                            case 'all':
+                                                return <Layers className="mr-1 h-3 w-3 text-blue-400" />
+                                            case 'active':
+                                                return <Play className="mr-1 h-3 w-3 text-green-500" />
+                                            case 'paused':
+                                                return <Pause className="mr-1 h-3 w-3 text-yellow-500" />
+                                            case 'completed':
+                                                return <CheckCircle2 className="mr-1 h-3 w-3 text-emerald-500" />
+                                            case 'archived':
+                                                return <ArchiveIcon className="mr-1 h-3 w-3 text-gray-500" />
+                                            default:
+                                                return <Filter className="mr-1 h-3 w-3" />
+                                        }
+                                    }
+
+                                    const getStatusColors = (status: string) => {
+                                        switch (status) {
+                                            case 'all':
+                                                return selectedStatus === status
+                                                    ? "bg-blue-500/20 backdrop-blur-xl border-2 border-blue-400/50 text-blue-100 shadow-lg shadow-blue-500/25"
+                                                    : "bg-background/80 backdrop-blur-xl border-2 border-blue-300/30 hover:bg-blue-500/10 hover:border-blue-400/50"
+                                            case 'active':
+                                                return selectedStatus === status
+                                                    ? "bg-green-500/20 backdrop-blur-xl border-2 border-green-400/50 text-green-100 shadow-lg shadow-green-500/25"
+                                                    : "bg-background/80 backdrop-blur-xl border-2 border-green-300/30 hover:bg-green-500/10 hover:border-green-400/50"
+                                            case 'paused':
+                                                return selectedStatus === status
+                                                    ? "bg-yellow-500/20 backdrop-blur-xl border-2 border-yellow-400/50 text-yellow-100 shadow-lg shadow-yellow-500/25"
+                                                    : "bg-background/80 backdrop-blur-xl border-2 border-yellow-300/30 hover:bg-yellow-500/10 hover:border-yellow-400/50"
+                                            case 'completed':
+                                                return selectedStatus === status
+                                                    ? "bg-emerald-500/20 backdrop-blur-xl border-2 border-emerald-400/50 text-emerald-100 shadow-lg shadow-emerald-500/25"
+                                                    : "bg-background/80 backdrop-blur-xl border-2 border-emerald-300/30 hover:bg-emerald-500/10 hover:border-emerald-400/50"
+                                            case 'archived':
+                                                return selectedStatus === status
+                                                    ? "bg-gray-500/20 backdrop-blur-xl border-2 border-gray-400/50 text-gray-100 shadow-lg shadow-gray-500/25"
+                                                    : "bg-background/80 backdrop-blur-xl border-2 border-gray-300/30 hover:bg-gray-500/10 hover:border-gray-400/50"
+                                            default:
+                                                return selectedStatus === status
+                                                    ? "bg-primary/20 backdrop-blur-xl border-2 border-primary/50 text-primary-100 shadow-lg shadow-primary/25"
+                                                    : "bg-background/80 backdrop-blur-xl border-2 border-primary/30 hover:bg-primary/5 hover:border-primary/50"
+                                        }
+                                    }
+
+                                    return (
+                                        <Button
+                                            key={status}
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setSelectedStatus(status)}
+                                            className={cn(
+                                                getStatusColors(status),
+                                                "text-xs sm:text-sm transition-all duration-200"
+                                            )}
+                                        >
+                                            {getStatusIcon(status)}
+                                            {status === 'paused' ? 'Paused' : status.charAt(0).toUpperCase() + status.slice(1)}
+                                        </Button>
+                                    )
+                                })}
                                 <Button
-                                    variant={showOnlyShared ? "default" : "outline"}
+                                    variant="outline"
                                     size="sm"
                                     onClick={() => setShowOnlyShared(!showOnlyShared)}
                                     className={cn(
                                         showOnlyShared
-                                            ? "gradient-primary text-white"
-                                            : "bg-background/80 backdrop-blur-xl border-2 border-primary/30 hover:bg-primary/5 hover:border-primary/50",
-                                        "text-xs sm:text-sm"
+                                            ? "bg-purple-500/20 backdrop-blur-xl border-2 border-purple-400/50 text-purple-100 shadow-lg shadow-purple-500/25"
+                                            : "bg-background/80 backdrop-blur-xl border-2 border-purple-300/30 hover:bg-purple-500/10 hover:border-purple-400/50",
+                                        "text-xs sm:text-sm transition-all duration-200"
                                     )}
                                 >
-                                    <Users className="mr-1 h-3 w-3" />
+                                    <Users2 className="mr-1 h-3 w-3 text-purple-400" />
                                     Shared Only
                                 </Button>
                             </div>
@@ -474,9 +533,9 @@ export function ProjectsDashboard() {
                                                                 e.stopPropagation()
                                                                 toggleStar(project.id)
                                                             }}
-                                                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 hover:bg-primary/10"
+                                                            className="group/star h-7 w-7 sm:h-8 sm:w-8 p-0 hover:bg-yellow-500/10 hover:scale-110 transition-all duration-200"
                                                         >
-                                                            <Star className={`h-3 w-3 sm:h-4 sm:w-4 transition-colors ${project.isStarred ? 'text-yellow-500 fill-yellow-500' : 'text-muted-foreground hover:text-yellow-500'}`} />
+                                                            <Star className={`h-3 w-3 sm:h-4 sm:w-4 transition-all duration-200 group-hover/star:scale-110 ${project.isStarred ? 'text-yellow-500 fill-yellow-500' : 'text-muted-foreground group-hover/star:text-yellow-500 group-hover/star:fill-yellow-500'}`} />
                                                         </Button>
                                                         <Button
                                                             variant="ghost"
@@ -485,9 +544,9 @@ export function ProjectsDashboard() {
                                                                 e.stopPropagation()
                                                                 handleEditProject(project)
                                                             }}
-                                                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 hover:bg-primary/10"
+                                                            className="group/edit h-7 w-7 sm:h-8 sm:w-8 p-0 hover:bg-blue-500/10 hover:scale-110 transition-all duration-200"
                                                         >
-                                                            <Edit className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                                                            <Edit className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground group-hover/edit:text-blue-500 transition-all duration-200 group-hover/edit:scale-110" />
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -552,7 +611,7 @@ export function ProjectsDashboard() {
                                                     <Button
                                                         size="sm"
                                                         disabled={openingProjectId === project.id}
-                                                        className="flex-1 gradient-primary-to-accent text-white transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden text-xs sm:text-sm"
+                                                        className="group/open flex-1 gradient-primary-to-accent text-white transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden text-xs sm:text-sm hover:scale-105 hover:shadow-lg hover:shadow-primary/25"
                                                         onClick={(e) => {
                                                             e.stopPropagation()
                                                             handleOpenProject(project.id)
@@ -566,45 +625,45 @@ export function ProjectsDashboard() {
                                                             </>
                                                         ) : (
                                                             <>
-                                                                <PlayCircle className="mr-1 h-3 w-3" />
-                                                                Open
+                                                                <PlayCircle className="mr-1 h-3 w-3 group-hover/open:scale-110 group-hover/open:rotate-12 transition-all duration-200" />
+                                                                <span className="group-hover/open:font-semibold transition-all duration-200">Open</span>
                                                             </>
                                                         )}
                                                     </Button>
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        className="bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-primary/5 h-8 w-8 sm:h-9 sm:w-9 p-0"
+                                                        className="group/analytics bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-blue-500/10 hover:border-blue-400/50 hover:scale-110 h-8 w-8 sm:h-9 sm:w-9 p-0 transition-all duration-200"
                                                         onClick={(e) => {
                                                             e.stopPropagation()
                                                             // Analytics/insights for this project
                                                             console.log("Show project analytics for", project.id)
                                                         }}
                                                     >
-                                                        <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
+                                                        <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground group-hover/analytics:text-blue-500 group-hover/analytics:scale-110 transition-all duration-200" />
                                                     </Button>
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        className="bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-primary/5 h-8 w-8 sm:h-9 sm:w-9 p-0"
+                                                        className="group/chat bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-green-500/10 hover:border-green-400/50 hover:scale-110 h-8 w-8 sm:h-9 sm:w-9 p-0 transition-all duration-200"
                                                         onClick={(e) => {
                                                             e.stopPropagation()
                                                             // Open project chat
                                                             console.log("Open chat for", project.id)
                                                         }}
                                                     >
-                                                        <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4" />
+                                                        <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground group-hover/chat:text-green-500 group-hover/chat:scale-110 transition-all duration-200" />
                                                     </Button>
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        className="bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-primary/5 h-8 w-8 sm:h-9 sm:w-9 p-0"
+                                                        className="group/share bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-purple-500/10 hover:border-purple-400/50 hover:scale-110 h-8 w-8 sm:h-9 sm:w-9 p-0 transition-all duration-200"
                                                         onClick={(e) => {
                                                             e.stopPropagation()
                                                             handleShareProject(project)
                                                         }}
                                                     >
-                                                        <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                                                        <Share2 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground group-hover/share:text-purple-500 group-hover/share:scale-110 transition-all duration-200" />
                                                     </Button>
                                                 </div>
                                             </CardContent>
