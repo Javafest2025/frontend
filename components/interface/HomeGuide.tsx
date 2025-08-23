@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { getUserData } from "@/lib/api/user-service"
@@ -16,20 +15,19 @@ import {
     MessageSquare,
     Brain,
     Sparkles,
-    ArrowRight,
     Play,
     Library,
-    Webhook,
-    FileUp,
     Eye,
-    Bot,
-    Zap,
     Target,
     Lightbulb,
     Users,
     Calendar,
     CheckCircle,
-    Star
+    Star,
+    Edit3,
+    Quote,
+    Clipboard,
+    Download
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 
@@ -45,9 +43,7 @@ const workflowSteps = [
         description: "Navigate to the Projects section to manage your research",
         icon: BookOpen,
         color: "text-blue-500",
-        bgColor: "bg-blue-500/10",
-        action: "Go to Projects",
-        href: "/interface/projects"
+        bgColor: "bg-blue-500/10"
     },
     {
         id: 2,
@@ -55,9 +51,7 @@ const workflowSteps = [
         description: "Start a new research project to organize your work",
         icon: Plus,
         color: "text-green-500",
-        bgColor: "bg-green-500/10",
-        action: "Create Project",
-        href: "/interface/projects"
+        bgColor: "bg-green-500/10"
     },
     {
         id: 3,
@@ -65,73 +59,107 @@ const workflowSteps = [
         description: "Access your project workspace and tools",
         icon: Play,
         color: "text-purple-500",
-        bgColor: "bg-purple-500/10",
-        action: "Open Project",
-        href: "/interface/projects"
+        bgColor: "bg-purple-500/10"
     },
     {
         id: 4,
-        title: "Go to Library",
-        description: "Access the project library to manage papers",
-        icon: Library,
-        color: "text-orange-500",
-        bgColor: "bg-orange-500/10",
-        action: "View Library",
-        href: "/interface/projects"
+        title: "Collect Papers",
+        description: "Search web or upload PDFs to add papers to your library",
+        icon: Search,
+        color: "text-pink-500",
+        bgColor: "bg-pink-500/10"
     },
     {
         id: 5,
         title: "Add Papers",
         description: "Search web or upload PDFs to add papers to your library",
-        icon: Search,
-        color: "text-pink-500",
-        bgColor: "bg-pink-500/10",
-        action: "Add Papers",
-        href: "/interface/projects"
+        icon: Upload,
+        color: "text-orange-500",
+        bgColor: "bg-orange-500/10"
     },
     {
         id: 6,
-        title: "Open Paper",
-        description: "Select and open a paper for detailed analysis",
-        icon: FileText,
+        title: "Go to Library",
+        description: "Access the project library to manage papers",
+        icon: Library,
         color: "text-indigo-500",
-        bgColor: "bg-indigo-500/10",
-        action: "Open Paper",
-        href: "/interface/projects"
+        bgColor: "bg-indigo-500/10"
     },
     {
         id: 7,
-        title: "Summarize",
-        description: "Use AI to generate intelligent summaries and insights",
-        icon: Brain,
+        title: "Open Paper",
+        description: "Select and open a paper for detailed analysis",
+        icon: FileText,
         color: "text-cyan-500",
-        bgColor: "bg-cyan-500/10",
-        action: "Summarize",
-        href: "/interface/projects"
+        bgColor: "bg-cyan-500/10"
     },
     {
         id: 8,
-        title: "View PDF",
-        description: "Read and annotate the full PDF document",
-        icon: Eye,
+        title: "Summarize",
+        description: "Use AI to generate intelligent summaries and insights",
+        icon: Brain,
         color: "text-emerald-500",
-        bgColor: "bg-emerald-500/10",
-        action: "View PDF",
-        href: "/interface/projects"
+        bgColor: "bg-emerald-500/10"
     },
     {
         id: 9,
+        title: "View PDF",
+        description: "Read and annotate the full PDF document",
+        icon: Eye,
+        color: "text-amber-500",
+        bgColor: "bg-amber-500/10"
+    },
+    {
+        id: 10,
         title: "Chat",
         description: "Ask questions and get intelligent answers from your papers",
         icon: MessageSquare,
-        color: "text-amber-500",
-        bgColor: "bg-amber-500/10",
-        action: "Start Chat",
-        href: "/interface/projects"
+        color: "text-red-500",
+        bgColor: "bg-red-500/10"
+    },
+    {
+        id: 11,
+        title: "Analyze Gaps",
+        description: "Identify research gaps and opportunities in your field",
+        icon: Target,
+        color: "text-purple-500",
+        bgColor: "bg-purple-500/10"
+    },
+    {
+        id: 12,
+        title: "Get Topic Suggestions",
+        description: "AI-powered research topic recommendations based on your papers",
+        icon: Lightbulb,
+        color: "text-yellow-500",
+        bgColor: "bg-yellow-500/10"
+    },
+    {
+        id: 13,
+        title: "Write Papers",
+        description: "AI-integrated LaTeX editor for academic writing",
+        icon: FileText,
+        color: "text-blue-500",
+        bgColor: "bg-blue-500/10"
+    },
+    {
+        id: 14,
+        title: "Manage Todo",
+        description: "Organize research tasks and reading lists",
+        icon: CheckCircle,
+        color: "text-green-500",
+        bgColor: "bg-green-500/10"
+    },
+    {
+        id: 15,
+        title: "Notes & Annotations",
+        description: "Create and manage research notes and annotations",
+        icon: Star,
+        color: "text-pink-500",
+        bgColor: "bg-pink-500/10"
     }
 ]
 
-const features = [
+const aiFeatures = [
     {
         icon: Brain,
         title: "AI-Powered Analysis",
@@ -143,14 +171,32 @@ const features = [
         description: "Ask questions and get answers from your research papers"
     },
     {
+        icon: Download,
+        title: "Smart Paper Collection",
+        description: "Intelligent AI-based paper fetching and recommendation"
+    },
+    {
+        icon: Edit3,
+        title: "AI Integrated LaTeX Editor",
+        description: "Write academic papers with AI assistance and LaTeX support"
+    },
+    {
+        icon: Quote,
+        title: "AI Based Citation Management",
+        description: "Automated citation generation and bibliography management"
+    },
+    {
+        icon: Clipboard,
+        title: "AI Review and Suggestion",
+        description: "Get intelligent feedback and suggestions for your research"
+    }
+]
+
+const researchFeatures = [
+    {
         icon: Users,
         title: "Collaboration",
         description: "Share projects and collaborate with research teams"
-    },
-    {
-        icon: Target,
-        title: "Research Focus",
-        description: "Stay organized with project-based research management"
     },
     {
         icon: Calendar,
@@ -158,14 +204,28 @@ const features = [
         description: "Monitor your research progress and deadlines"
     },
     {
+        icon: Target,
+        title: "Research Focus",
+        description: "Stay organized with project-based research management"
+    },
+    {
         icon: Sparkles,
         title: "Smart Insights",
         description: "Discover connections and patterns across your papers"
+    },
+    {
+        icon: CheckCircle,
+        title: "Task Management",
+        description: "Organize research tasks and reading lists efficiently"
+    },
+    {
+        icon: Star,
+        title: "Notes & Annotations",
+        description: "Create and manage research notes with smart organization"
     }
 ]
 
 export function HomeGuide() {
-    const router = useRouter()
     const [user, setUser] = useState<User | null>(null)
     const [currentStep, setCurrentStep] = useState(0)
 
@@ -174,9 +234,14 @@ export function HomeGuide() {
         setUser(userData)
     }, [])
 
-    const handleAction = (href: string) => {
-        router.push(href)
-    }
+    // Step illumination animation effect
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentStep((prev) => (prev + 1) % 16) // 0-15, then back to 0
+        }, 2000) // Move to next step every 2000ms (much slower)
+
+        return () => clearInterval(interval)
+    }, [])
 
     const getGreeting = () => {
         if (user?.fullName) {
@@ -187,6 +252,12 @@ export function HomeGuide() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 relative overflow-hidden">
+            <style jsx>{`
+                @keyframes shimmer {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(100%); }
+                }
+            `}</style>
             {/* Background Effects */}
             <div className="absolute inset-0 bg-grid-pattern opacity-5" />
             <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-primary/10 via-purple-500/5 to-transparent rounded-full blur-3xl" />
@@ -222,40 +293,84 @@ export function HomeGuide() {
                     transition={{ duration: 0.8, delay: 0.2 }}
                     className="mb-8 sm:mb-12"
                 >
-                    <h2 className="text-xl sm:text-2xl font-semibold text-center mb-6 sm:mb-8">Research Workflow</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div className="flex items-center justify-center mb-6 sm:mb-8">
+                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-primary/30 to-primary/30" />
+                        <div className="flex items-center gap-3 mx-4">
+                            <div className="w-2 h-2 bg-primary rounded-full" />
+                            <h2 className="text-xl sm:text-2xl font-semibold text-center">Research Workflow</h2>
+                            <div className="w-2 h-2 bg-primary rounded-full" />
+                        </div>
+                        <div className="flex-1 h-px bg-gradient-to-l from-transparent via-primary/30 to-primary/30" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 relative">
+
                         {workflowSteps.map((step, index) => (
                             <motion.div
                                 key={step.id}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.6, delay: 0.3 + index * 0.1 }}
+                                className="relative"
                             >
-                                <Card className="bg-background/40 backdrop-blur-xl border border-primary/10 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group h-full"
-                                    onClick={() => handleAction(step.href)}>
-                                    <CardContent className="p-4 sm:p-6">
+                                <Card
+                                    className={cn(
+                                        "bg-background/40 backdrop-blur-xl border border-primary/10 shadow-lg hover:shadow-xl transition-all duration-500 group h-full relative overflow-hidden",
+                                        currentStep === step.id && "border-primary/50 shadow-primary/20 bg-background/60"
+                                    )}
+                                >
+                                    {/* Electric current overlay */}
+                                    {currentStep === step.id && (
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-blue-400/20 to-blue-500/10 rounded-lg"
+                                            style={{
+                                                background: "linear-gradient(45deg, transparent 30%, rgba(59, 130, 246, 0.1) 50%, transparent 70%)",
+                                                animation: "shimmer 1.5s ease-in-out infinite"
+                                            }}
+                                        />
+                                    )}
+
+                                    <CardContent className="p-4 sm:p-6 relative z-10">
                                         <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-                                            <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center", step.bgColor)}>
-                                                <step.icon className={cn("h-5 w-5 sm:h-6 sm:w-6", step.color)} />
+                                            <div className={cn(
+                                                "w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center transition-all duration-500",
+                                                step.bgColor,
+                                                currentStep === step.id && "scale-110 shadow-lg shadow-blue-500/30"
+                                            )}>
+                                                <step.icon className={cn(
+                                                    "h-5 w-5 sm:h-6 sm:w-6 transition-all duration-500",
+                                                    step.color,
+                                                    currentStep === step.id && "scale-110 drop-shadow-lg"
+                                                )} />
                                             </div>
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <Badge variant="outline" className="text-xs">Step {step.id}</Badge>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={cn(
+                                                            "text-xs transition-all duration-500",
+                                                            currentStep === step.id && "bg-primary/20 border-primary/50 text-primary"
+                                                        )}
+                                                    >
+                                                        Step {step.id}
+                                                    </Badge>
                                                 </div>
-                                                <h3 className="text-base sm:text-lg font-semibold group-hover:text-primary transition-colors duration-300">{step.title}</h3>
+                                                <h3 className={cn(
+                                                    "text-base sm:text-lg font-semibold group-hover:text-primary transition-all duration-500",
+                                                    currentStep === step.id && "text-primary drop-shadow-sm"
+                                                )}>
+                                                    {step.title}
+                                                </h3>
                                             </div>
                                         </div>
-                                        <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">{step.description}</p>
-                                        <Button
-                                            className="w-full gradient-primary-to-accent text-white text-xs sm:text-sm"
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                handleAction(step.href)
-                                            }}
-                                        >
-                                            {step.action}
-                                            <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
-                                        </Button>
+                                        <p className={cn(
+                                            "text-xs sm:text-sm text-muted-foreground transition-all duration-500",
+                                            currentStep === step.id && "text-foreground/80"
+                                        )}>
+                                            {step.description}
+                                        </p>
                                     </CardContent>
                                 </Card>
                             </motion.div>
@@ -263,28 +378,43 @@ export function HomeGuide() {
                     </div>
                 </motion.div>
 
-                {/* Features Overview */}
+                {/* AI Features */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.6 }}
+                    className="mb-12"
                 >
-                    <h2 className="text-xl sm:text-2xl font-semibold text-center mb-6 sm:mb-8">Powerful Features</h2>
+                    <div className="flex items-center justify-center mb-6 sm:mb-8">
+                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-primary/30 to-primary/30" />
+                        <div className="flex items-center gap-3 mx-4">
+                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                            <h2 className="text-xl sm:text-2xl font-semibold text-center">Powerful AI Features</h2>
+                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                        </div>
+                        <div className="flex-1 h-px bg-gradient-to-l from-transparent via-primary/30 to-primary/30" />
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                        {features.map((feature, index) => (
+                        {aiFeatures.map((feature, index) => (
                             <motion.div
                                 key={feature.title}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.6, delay: 0.7 + index * 0.1 }}
                             >
-                                <Card className="bg-background/40 backdrop-blur-xl border border-primary/10 shadow-lg hover:shadow-xl transition-all duration-300">
-                                    <CardContent className="p-4 sm:p-6">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 sm:mb-4">
-                                            <feature.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                                <Card className="group bg-background/20 backdrop-blur-xl border border-primary/20 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:bg-background/30 hover:border-primary/40 relative overflow-hidden">
+                                    {/* Glass effect overlay */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                                    {/* Hover glow effect */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                                    <CardContent className="p-4 sm:p-6 relative z-10">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
+                                            <feature.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary group-hover:text-primary/80 transition-colors duration-300" />
                                         </div>
-                                        <h3 className="font-semibold mb-2 text-sm sm:text-base">{feature.title}</h3>
-                                        <p className="text-xs sm:text-sm text-muted-foreground">{feature.description}</p>
+                                        <h3 className="font-semibold mb-2 text-sm sm:text-base group-hover:text-primary transition-colors duration-300">{feature.title}</h3>
+                                        <p className="text-xs sm:text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors duration-300">{feature.description}</p>
                                     </CardContent>
                                 </Card>
                             </motion.div>
@@ -292,31 +422,50 @@ export function HomeGuide() {
                     </div>
                 </motion.div>
 
-                {/* Call to Action */}
+                {/* Research Management Features */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.8 }}
-                    className="text-center mt-8 sm:mt-12"
                 >
-                    <Card className="bg-gradient-to-r from-primary/10 to-purple-500/10 border border-primary/20 max-w-2xl mx-auto">
-                        <CardContent className="p-6 sm:p-8">
-                            <Lightbulb className="h-8 w-8 sm:h-12 sm:w-12 text-primary mx-auto mb-3 sm:mb-4" />
-                            <h3 className="text-lg sm:text-xl font-semibold mb-2">Ready to Begin Your Research Journey?</h3>
-                            <p className="text-muted-foreground mb-4 sm:mb-6 text-sm sm:text-base">
-                                Follow the workflow above to start exploring, analyzing, and discovering insights with AI-powered research tools.
-                            </p>
-                            <Button
-                                size="lg"
-                                className="gradient-primary-to-accent text-white text-sm sm:text-base"
-                                onClick={() => handleAction("/interface/projects")}
+                    <div className="flex items-center justify-center mb-6 sm:mb-8">
+                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-primary/30 to-primary/30" />
+                        <div className="flex items-center gap-3 mx-4">
+                            <div className="w-2 h-2 bg-primary rounded-full" />
+                            <h2 className="text-xl sm:text-2xl font-semibold text-center">Research Management Tools</h2>
+                            <div className="w-2 h-2 bg-primary rounded-full" />
+                        </div>
+                        <div className="flex-1 h-px bg-gradient-to-l from-transparent via-primary/30 to-primary/30" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        {researchFeatures.map((feature, index) => (
+                            <motion.div
+                                key={feature.title}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.6, delay: 0.9 + index * 0.1 }}
                             >
-                                <Play className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                                Start Research Workflow
-                            </Button>
-                        </CardContent>
-                    </Card>
+                                <Card className="group bg-background/20 backdrop-blur-xl border border-primary/20 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:bg-background/30 hover:border-primary/40 relative overflow-hidden">
+                                    {/* Glass effect overlay */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                                    {/* Hover glow effect */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                                    <CardContent className="p-4 sm:p-6 relative z-10">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
+                                            <feature.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary group-hover:text-primary/80 transition-colors duration-300" />
+                                        </div>
+                                        <h3 className="font-semibold mb-2 text-sm sm:text-base group-hover:text-primary transition-colors duration-300">{feature.title}</h3>
+                                        <p className="text-xs sm:text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors duration-300">{feature.description}</p>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+                        ))}
+                    </div>
                 </motion.div>
+
+
             </div>
         </div>
     )
