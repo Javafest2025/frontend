@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState } from "react"
 import { Sidebar } from "@/components/layout/Sidebar"
+import { Header } from "@/components/layout/Header"
 import { EditorArea } from "@/components/layout/EditorArea"
 import { ChatPanel } from "@/components/layout/ChatPanel"
 import { TooltipProvider } from "@/components/ui/enhanced-tooltip"
@@ -66,14 +67,19 @@ export function MainLayout({ children }: Props) {
 
         {/* Main Content Area */}
         <div className="flex flex-1 flex-col min-w-0">
+          {/* Global Header */}
+          <Header />
+
           {/* Editor Area with Tabs */}
-          <EditorArea
-            onChatToggle={() => setIsChatOpen(!isChatOpen)}
-            onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
-            showMobileMenu={isMobile}
-          >
-            {children}
-          </EditorArea>
+          <div className="flex-1 overflow-hidden">
+            <EditorArea
+              onChatToggle={() => setIsChatOpen(!isChatOpen)}
+              onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
+              showMobileMenu={isMobile}
+            >
+              {children}
+            </EditorArea>
+          </div>
         </div>
 
         {/* Chat Panel - Full screen on mobile, side panel on larger screens */}

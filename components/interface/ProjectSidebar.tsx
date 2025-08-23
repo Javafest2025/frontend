@@ -1,44 +1,38 @@
 "use client"
 
 import { usePathname, useRouter } from "next/navigation"
-import Link from "next/link"
+
 import { useState, useEffect } from "react"
 import {
     BookOpen,
-    Settings,
-    Bell,
-    User,
+
     ChevronLeft,
     ChevronRight,
-    Target,
-    Brain,
-    Lightbulb,
-    BarChart3,
-    LogOut,
+
     ArrowLeft,
     Sparkles,
     Database,
     Zap,
-    Calendar,
+
     Users,
     MessageSquare,
-    GraduationCap,
+
     FileText
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { isValidUUID } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { EnhancedTooltip } from "@/components/ui/enhanced-tooltip"
-import { Badge } from "@/components/ui/badge"
+
 import { projectsApi } from "@/lib/api/project-service"
 import { Project } from "@/types/project"
 import { useLoading } from "@/contexts/LoadingContext"
 
 type Props = {
-    projectId: string
-    collapsed: boolean
-    onToggle: () => void
-    className?: string
+    readonly projectId: string
+    readonly collapsed: boolean
+    readonly onToggle: () => void
+    readonly className?: string
 }
 
 const PROJECT_NAV_ITEMS = [
@@ -50,10 +44,17 @@ const PROJECT_NAV_ITEMS = [
         loadingMessage: "Loading project overview..."
     },
     {
+        name: "Collect Papers",
+        href: "/collect-papers",
+        icon: Zap,
+        description: "Search and upload research papers",
+        loadingMessage: "Loading paper collection tools..."
+    },
+    {
         name: "Library",
         href: "/library",
         icon: Database,
-        description: "Research paper library with advanced search and filters",
+        description: "Research paper library and management",
         loadingMessage: "Loading research library..."
     },
     {

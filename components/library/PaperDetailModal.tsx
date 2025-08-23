@@ -45,6 +45,8 @@ import { downloadPdfWithAuth } from "@/lib/api/pdf"
 import type { Paper } from "@/types/websearch"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { AuthorDialog } from "@/components/interface/AuthorDialog"
+import { useAuthorDialog } from "@/hooks/useAuthorDialog"
 
 
 interface PaperDetailModalProps {
@@ -59,6 +61,7 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
     const router = useRouter()
     const [copiedField, setCopiedField] = useState<string | null>(null)
     const [isDownloading, setIsDownloading] = useState(false)
+    const { authorName, isOpen: isAuthorDialogOpen, openAuthorDialog, closeAuthorDialog, setIsOpen: setIsAuthorDialogOpen } = useAuthorDialog()
 
 
     if (!isOpen || !paper) return null
@@ -606,7 +609,15 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
                                 {paper.authors && paper.authors.length > 0 ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {paper.authors.map((author, index) => (
-                                            <Card key={index} className="bg-gradient-to-br from-muted/20 to-muted/40 border-muted/50 hover:shadow-lg transition-all duration-300">
+                                            <Card
+                                                key={index}
+                                                className="bg-gradient-to-br from-muted/20 to-muted/40 border-muted/50 hover:shadow-lg transition-all duration-300 cursor-pointer hover:border-primary/40 hover:shadow-primary/10"
+                                                onClick={() => {
+                                                    if (author.name) {
+                                                        openAuthorDialog(author.name)
+                                                    }
+                                                }}
+                                            >
                                                 <CardContent className="p-6">
                                                     <div className="flex items-start gap-4">
                                                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/30 to-primary/60 flex items-center justify-center flex-shrink-0 shadow-lg">
@@ -615,7 +626,7 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
                                                             </span>
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="font-semibold text-foreground mb-2">
+                                                            <p className="font-semibold text-foreground mb-2 hover:text-primary transition-colors">
                                                                 {author.name || 'Name not available'}
                                                             </p>
                                                             {author.affiliation && (
@@ -632,9 +643,12 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
                                                             )}
                                                             {!author.affiliation && !author.orcid && (
                                                                 <p className="text-sm text-muted-foreground/70 italic">
-                                                                    No additional information
+                                                                    Click to view author profile
                                                                 </p>
                                                             )}
+                                                        </div>
+                                                        <div className="flex-shrink-0">
+                                                            <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                                         </div>
                                                     </div>
                                                 </CardContent>
@@ -692,6 +706,13 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
 
                 </div>
             </ScrollArea>
+
+            {/* Author Dialog */}
+            <AuthorDialog
+                authorName={authorName}
+                open={isAuthorDialogOpen}
+                onOpenChange={setIsAuthorDialogOpen}
+            />
         </div>
     )
 }

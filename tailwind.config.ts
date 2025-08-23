@@ -91,11 +91,66 @@ const config: Config = {
 					to: {
 						height: '0'
 					}
+				},
+				'blob': {
+					'0%': {
+						transform: 'translate(0px, 0px) scale(1)',
+					},
+					'33%': {
+						transform: 'translate(30px, -50px) scale(1.1)',
+					},
+					'66%': {
+						transform: 'translate(-20px, 20px) scale(0.9)',
+					},
+					'100%': {
+						transform: 'translate(0px, 0px) scale(1)',
+					},
+				},
+				'bell-vibrate': {
+					'0%': {
+						transform: 'rotate(0deg)',
+					},
+					'10%': {
+						transform: 'rotate(10deg)',
+					},
+					'20%': {
+						transform: 'rotate(-8deg)',
+					},
+					'30%': {
+						transform: 'rotate(6deg)',
+					},
+					'40%': {
+						transform: 'rotate(-4deg)',
+					},
+					'50%': {
+						transform: 'rotate(2deg)',
+					},
+					'60%': {
+						transform: 'rotate(-1deg)',
+					},
+					'70%': {
+						transform: 'rotate(0.5deg)',
+					},
+					'80%': {
+						transform: 'rotate(-0.25deg)',
+					},
+					'90%': {
+						transform: 'rotate(0.1deg)',
+					},
+					'100%': {
+						transform: 'rotate(0deg)',
+					},
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'blob': 'blob 7s infinite',
+				'bell-vibrate': 'bell-vibrate 0.5s ease-in-out'
+			},
+			animationDelay: {
+				'2000': '2s',
+				'4000': '4s'
 			}
 		}
 	},

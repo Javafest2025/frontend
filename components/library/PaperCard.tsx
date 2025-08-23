@@ -22,6 +22,9 @@ import { cn } from "@/lib/utils"
 import type { Paper } from "@/types/websearch"
 import { useState, useEffect } from "react"
 import { generatePdfThumbnail, downloadPdfWithAuth } from "@/lib/api/pdf"
+import { useRouter } from "next/navigation"
+import { AuthorDialog } from "@/components/interface/AuthorDialog"
+import { useAuthorDialog } from "@/hooks/useAuthorDialog"
 
 interface PaperCardProps {
     paper: Paper
@@ -31,8 +34,10 @@ interface PaperCardProps {
 }
 
 export function PaperCard({ paper, index, onSelect, onViewPdf }: PaperCardProps) {
+    const router = useRouter()
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null)
     const [thumbnailLoading, setThumbnailLoading] = useState(false)
+    const { authorName, isOpen: isAuthorDialogOpen, openAuthorDialog, closeAuthorDialog, setIsOpen: setIsAuthorDialogOpen } = useAuthorDialog()
 
     // Generate a gradient for the thumbnail based on paper title (fallback)
     const getGradientFromTitle = (title: string) => {
@@ -196,10 +201,25 @@ The methodology employed in this study combines quantitative and qualitative app
                                     {/* Authors */}
                                     <div className="flex items-center gap-2 mb-3">
                                         <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                        <p className="text-sm text-muted-foreground line-clamp-1">
-                                            {paper.authors.slice(0, 4).map(a => a.name).join(", ")}
-                                            {paper.authors.length > 4 && ` +${paper.authors.length - 4} more`}
-                                        </p>
+                                        <div className="text-sm text-muted-foreground line-clamp-1 flex flex-wrap items-center gap-1">
+                                            {paper.authors.slice(0, 4).map((author, authorIndex) => (
+                                                <span key={authorIndex}>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            openAuthorDialog(author.name)
+                                                        }}
+                                                        className="hover:text-primary hover:underline transition-colors cursor-pointer"
+                                                    >
+                                                        {author.name}
+                                                    </button>
+                                                    {authorIndex < Math.min(paper.authors.length, 4) - 1 && ", "}
+                                                </span>
+                                            ))}
+                                            {paper.authors.length > 4 && (
+                                                <span> +{paper.authors.length - 4} more</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -301,6 +321,13 @@ The methodology employed in this study combines quantitative and qualitative app
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Author Dialog */}
+            <AuthorDialog
+                authorName={authorName}
+                open={isAuthorDialogOpen}
+                onOpenChange={setIsAuthorDialogOpen}
+            />
         </motion.div>
     )
 } 
