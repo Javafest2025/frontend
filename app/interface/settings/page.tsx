@@ -171,7 +171,7 @@ export default function SettingsPage() {
                                 onClick={handleSaveSettings}
                                 disabled={!hasUnsavedChanges}
                                 className={`transition-all duration-200 ${hasUnsavedChanges
-                                    ? 'gradient-primary-to-accent hover:gradient-accent text-white shadow-lg shadow-primary/25'
+                                    ? 'bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-primary/10 hover:border-primary/50 text-foreground font-semibold shadow-lg hover:shadow-xl'
                                     : 'bg-muted text-muted-foreground cursor-not-allowed'
                                     }`}
                             >

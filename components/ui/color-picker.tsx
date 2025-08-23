@@ -47,6 +47,8 @@ export function ColorPicker({
     const [activeTab, setActiveTab] = useState('presets')
 
     const hueRef = useRef<HTMLDivElement>(null)
+    const [isDragging, setIsDragging] = useState(false)
+    const [dragType, setDragType] = useState<'hue' | 'saturation' | 'lightness' | null>(null)
 
     const updateFromValue = useCallback((newValue: string) => {
         if (!newValue) return
@@ -90,32 +92,38 @@ export function ColorPicker({
         onChange(newColor)
     }, [disabled, onChange, updateFromValue])
 
-    const handleComplete = useCallback(() => {
-        onChangeComplete?.(currentColor)
-        setIsOpen(false)
-    }, [currentColor, onChangeComplete])
+
 
     const handleHslChange = useCallback((newHsl: Partial<HSLColor>) => {
         const updatedHsl = { ...hsl, ...newHsl }
         const hslString = hslToCssString(updatedHsl.h, updatedHsl.s, updatedHsl.l)
-        handleColorChange(hslString)
-    }, [hsl, handleColorChange])
+        setCurrentColor(hslString)
+        updateFromValue(hslString)
+        onChange(hslString)
+    }, [hsl, updateFromValue, onChange])
 
     const handleRgbChange = useCallback((newRgb: Partial<RGBColor>) => {
         const updatedRgb = { ...rgb, ...newRgb }
         const hexString = rgbToHex(updatedRgb.r, updatedRgb.g, updatedRgb.b)
-        handleColorChange(hexString, 'hex')
-    }, [rgb, handleColorChange])
+        setCurrentColor(hexString)
+        updateFromValue(hexString)
+        onChange(hexString)
+    }, [rgb, updateFromValue, onChange])
 
     const handleHexChange = useCallback((newHex: string) => {
         if (isValidHex(newHex)) {
-            handleColorChange(newHex, 'hex')
+            setCurrentColor(newHex)
+            updateFromValue(newHex)
+            onChange(newHex)
         }
-    }, [handleColorChange])
+    }, [updateFromValue, onChange])
 
     const handlePresetSelect = useCallback((preset: typeof COLOR_PRESETS[0]) => {
-        handleColorChange(preset.color)
-    }, [handleColorChange])
+        // Apply the color immediately when preset is selected
+        setCurrentColor(preset.color)
+        updateFromValue(preset.color)
+        onChange(preset.color)
+    }, [updateFromValue, onChange])
 
     const handleCanvasInteraction = useCallback((
         canvas: HTMLDivElement | null,
@@ -126,16 +134,58 @@ export function ColorPicker({
 
         const rect = canvas.getBoundingClientRect()
         const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
-        const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
 
-        if (type === 'saturation') {
-            handleHslChange({ s: Math.round(x * 100), l: Math.round((1 - y) * 100) })
-        } else if (type === 'hue') {
+        if (type === 'hue') {
             handleHslChange({ h: Math.round(x * 360) })
+        } else if (type === 'saturation') {
+            handleHslChange({ s: Math.round(x * 100) })
         } else if (type === 'lightness') {
-            handleHslChange({ l: Math.round((1 - y) * 100) })
+            handleHslChange({ l: Math.round(x * 100) })
         }
     }, [disabled, handleHslChange])
+
+    const handleMouseDown = useCallback((event: React.MouseEvent, type: 'hue' | 'saturation' | 'lightness') => {
+        if (disabled) return
+        setIsDragging(true)
+        setDragType(type)
+        event.preventDefault()
+    }, [disabled])
+
+    const handleMouseMove = useCallback((event: MouseEvent) => {
+        if (!isDragging || !dragType || disabled) return
+
+        let targetElement: HTMLElement | null = null
+
+        if (dragType === 'hue') {
+            targetElement = hueRef.current
+        } else {
+            // For saturation and lightness, find the closest slider
+            const sliders = document.querySelectorAll('[data-slider-type]')
+            targetElement = Array.from(sliders).find(el =>
+                el.getAttribute('data-slider-type') === dragType
+            ) as HTMLElement
+        }
+
+        if (targetElement) {
+            handleCanvasInteraction(targetElement, event, dragType)
+        }
+    }, [isDragging, dragType, disabled, handleCanvasInteraction])
+
+    const handleMouseUp = useCallback(() => {
+        setIsDragging(false)
+        setDragType(null)
+    }, [])
+
+    useEffect(() => {
+        if (isDragging) {
+            document.addEventListener('mousemove', handleMouseMove)
+            document.addEventListener('mouseup', handleMouseUp)
+            return () => {
+                document.removeEventListener('mousemove', handleMouseMove)
+                document.removeEventListener('mouseup', handleMouseUp)
+            }
+        }
+    }, [isDragging, handleMouseMove, handleMouseUp])
 
     const resetToDefault = useCallback(() => {
         const defaultColor = COLOR_PRESETS[0].color
@@ -193,14 +243,24 @@ export function ColorPicker({
                                             onClick={() => handlePresetSelect(preset)}
                                             className={cn(
                                                 "w-12 h-12 rounded-lg border-2 border-border hover:border-primary transition-all duration-200 hover:scale-105 relative group",
-                                                currentColor === preset.color && "border-primary ring-2 ring-primary/20"
+                                                (() => {
+                                                    // Compare colors by converting both to hex for accurate comparison
+                                                    const currentHex = currentColor.startsWith('#') ? currentColor : hslToHex(hsl.h, hsl.s, hsl.l)
+                                                    const presetHex = preset.color.startsWith('#') ? preset.color : hslToHex(hexToHsl(preset.color).h, hexToHsl(preset.color).s, hexToHsl(preset.color).l)
+                                                    return currentHex === presetHex
+                                                })() && "border-primary ring-2 ring-primary/20"
                                             )}
                                             style={{ backgroundColor: preset.color }}
                                             title={preset.name}
                                         >
-                                            {currentColor === preset.color && (
-                                                <Check className="w-4 h-4 text-white absolute inset-0 m-auto drop-shadow-sm" />
-                                            )}
+                                            {(() => {
+                                                // Compare colors by converting both to hex for accurate comparison
+                                                const currentHex = currentColor.startsWith('#') ? currentColor : hslToHex(hsl.h, hsl.s, hsl.l)
+                                                const presetHex = preset.color.startsWith('#') ? preset.color : hslToHex(hexToHsl(preset.color).h, hexToHsl(preset.color).s, hexToHsl(preset.color).l)
+                                                return currentHex === presetHex
+                                            })() && (
+                                                    <Check className="w-4 h-4 text-white absolute inset-0 m-auto drop-shadow-sm" />
+                                                )}
                                         </button>
                                     ))}
                                 </div>
@@ -237,10 +297,12 @@ export function ColorPicker({
                                         <button
                                             ref={hueRef}
                                             type="button"
-                                            className="w-full h-4 rounded border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                                            data-slider-type="hue"
+                                            className="w-full h-4 rounded border border-border focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer select-none"
                                             style={{
                                                 background: 'linear-gradient(to right, hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%), hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%))'
                                             }}
+                                            onMouseDown={(e) => handleMouseDown(e, 'hue')}
                                             onClick={(e) => handleCanvasInteraction(hueRef.current, e, 'hue')}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'ArrowLeft') {
@@ -254,8 +316,12 @@ export function ColorPicker({
                                             aria-label={`Hue slider, current value ${hsl.h} degrees`}
                                         >
                                             <div
-                                                className="w-2 h-full bg-white border border-gray-300 rounded-sm shadow-sm pointer-events-none"
-                                                style={{ marginLeft: `${(hsl.h / 360) * 100}%`, transform: 'translateX(-50%)' }}
+                                                className="w-2 h-full bg-white border border-gray-300 rounded-sm shadow-sm pointer-events-none transition-transform duration-75 ease-out"
+                                                style={{
+                                                    marginLeft: `${(hsl.h / 360) * 100}%`,
+                                                    transform: 'translateX(-50%)',
+                                                    transition: isDragging ? 'none' : 'transform 0.075s ease-out'
+                                                }}
                                             />
                                         </button>
                                     </div>
@@ -264,10 +330,12 @@ export function ColorPicker({
                                         <Label className="text-xs">Saturation: {hsl.s}%</Label>
                                         <button
                                             type="button"
-                                            className="w-full h-4 rounded border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                                            data-slider-type="saturation"
+                                            className="w-full h-4 rounded border border-border focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer select-none"
                                             style={{
                                                 background: `linear-gradient(to right, hsl(${hsl.h},0%,${hsl.l}%), hsl(${hsl.h},100%,${hsl.l}%))`
                                             }}
+                                            onMouseDown={(e) => handleMouseDown(e, 'saturation')}
                                             onClick={(e) => handleCanvasInteraction(e.currentTarget, e, 'saturation')}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'ArrowLeft') {
@@ -281,8 +349,12 @@ export function ColorPicker({
                                             aria-label={`Saturation slider, current value ${hsl.s} percent`}
                                         >
                                             <div
-                                                className="w-2 h-full bg-white border border-gray-300 rounded-sm shadow-sm pointer-events-none"
-                                                style={{ marginLeft: `${hsl.s}%`, transform: 'translateX(-50%)' }}
+                                                className="w-2 h-full bg-white border border-gray-300 rounded-sm shadow-sm pointer-events-none transition-transform duration-75 ease-out"
+                                                style={{
+                                                    marginLeft: `${hsl.s}%`,
+                                                    transform: 'translateX(-50%)',
+                                                    transition: isDragging ? 'none' : 'transform 0.075s ease-out'
+                                                }}
                                             />
                                         </button>
                                     </div>
@@ -291,10 +363,12 @@ export function ColorPicker({
                                         <Label className="text-xs">Lightness: {hsl.l}%</Label>
                                         <button
                                             type="button"
-                                            className="w-full h-4 rounded border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                                            data-slider-type="lightness"
+                                            className="w-full h-4 rounded border border-border focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer select-none"
                                             style={{
                                                 background: `linear-gradient(to right, hsl(${hsl.h},${hsl.s}%,0%), hsl(${hsl.h},${hsl.s}%,50%), hsl(${hsl.h},${hsl.s}%,100%))`
                                             }}
+                                            onMouseDown={(e) => handleMouseDown(e, 'lightness')}
                                             onClick={(e) => handleCanvasInteraction(e.currentTarget, e, 'lightness')}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'ArrowLeft') {
@@ -308,8 +382,12 @@ export function ColorPicker({
                                             aria-label={`Lightness slider, current value ${hsl.l} percent`}
                                         >
                                             <div
-                                                className="w-2 h-full bg-white border border-gray-300 rounded-sm shadow-sm pointer-events-none"
-                                                style={{ marginLeft: `${hsl.l}%`, transform: 'translateX(-50%)' }}
+                                                className="w-2 h-full bg-white border border-gray-300 rounded-sm shadow-sm pointer-events-none transition-transform duration-75 ease-out"
+                                                style={{
+                                                    marginLeft: `${hsl.l}%`,
+                                                    transform: 'translateX(-50%)',
+                                                    transition: isDragging ? 'none' : 'transform 0.075s ease-out'
+                                                }}
                                             />
                                         </button>
                                     </div>
@@ -381,14 +459,7 @@ export function ColorPicker({
                                 onClick={() => setIsOpen(false)}
                                 className="flex-1"
                             >
-                                Cancel
-                            </Button>
-                            <Button
-                                size="sm"
-                                onClick={handleComplete}
-                                className="flex-1"
-                            >
-                                Apply
+                                Close
                             </Button>
                         </div>
                     </CardContent>

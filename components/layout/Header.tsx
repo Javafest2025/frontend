@@ -35,6 +35,7 @@ import { accountApi } from "@/lib/api/user-service"
 import { UserAccount } from "@/types/account"
 import { cn } from "@/lib/utils/cn"
 import { EnhancedTooltip } from "@/components/ui/enhanced-tooltip"
+import { useSettings } from "@/contexts/SettingsContext"
 
 interface BreadcrumbItem {
     label: string
@@ -74,6 +75,7 @@ const getBreadcrumbs = (pathname: string): BreadcrumbItem[] => {
 }
 
 const getPageIcon = (pathname: string) => {
+    if (pathname.includes('/settings')) return Settings
     if (pathname.includes('/account')) return User
     if (pathname.includes('/projects')) return FileText
     if (pathname.includes('/todo')) return CheckSquare
@@ -85,11 +87,11 @@ export function Header() {
     const router = useRouter()
     const pathname = usePathname()
     const userData = getUserData()
+    const { settings, updateSetting } = useSettings()
 
     const [searchQuery, setSearchQuery] = useState("")
     const [isSearchFocused, setIsSearchFocused] = useState(false)
     const [notifications] = useState(3) // Mock notification count
-    const [isDarkMode, setIsDarkMode] = useState(true) // Mock theme state
     const [accountData, setAccountData] = useState<UserAccount | null>(null)
 
     // Fetch account data to get profile picture
@@ -136,8 +138,8 @@ export function Header() {
     }
 
     const toggleTheme = () => {
-        setIsDarkMode(!isDarkMode)
-        // TODO: Implement actual theme toggle
+        const newTheme = settings.theme === 'dark' ? 'light' : 'dark'
+        updateSetting('theme', newTheme)
     }
 
     return (
@@ -510,43 +512,43 @@ export function Header() {
                                         }}
                                     >
                                         <div className="relative p-1.5 rounded-lg transition-all duration-300 group-hover:bg-primary/10 group-hover:scale-110 group-hover:rotate-12">
-                                            {isDarkMode ? (
+                                            {settings.theme === 'dark' ? (
                                                 <Sun className="h-4 w-4 text-foreground/70 group-hover:text-primary transition-all duration-300" />
                                             ) : (
                                                 <Moon className="h-4 w-4 text-foreground/70 group-hover:text-primary transition-all duration-300" />
                                             )}
                                         </div>
-                                        <span className="truncate font-medium">{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+                                        <span className="truncate font-medium">{settings.theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
                                     </DropdownMenuItem>
 
                                     <DropdownMenuItem
                                         onClick={handleLogout}
-                                        className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border-2 w-full text-left hover:bg-destructive/10 hover:border-destructive/50 text-destructive/80 hover:text-destructive border-destructive/20 bg-background/20"
+                                        className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border-2 w-full text-left hover:bg-red-500/15 hover:border-red-500/60 text-red-500 hover:text-red-400 border-red-500/30 bg-background/20"
                                         style={{
                                             boxShadow: `
-                                                0 0 10px hsl(var(--destructive) / 0.1),
+                                                0 0 15px rgba(239, 68, 68, 0.15),
                                                 0 2px 8px rgba(0, 0, 0, 0.05),
-                                                0 0 0 1px hsl(var(--destructive) / 0.05)
+                                                0 0 0 1px rgba(239, 68, 68, 0.1)
                                             `
                                         }}
                                         onMouseEnter={(e) => {
                                             e.currentTarget.style.boxShadow = `
-                                                0 0 20px hsl(var(--destructive) / 0.2),
-                                                0 0 40px hsl(var(--destructive) / 0.1),
-                                                0 4px 20px hsl(var(--destructive) / 0.15),
-                                                0 0 0 1px hsl(var(--destructive) / 0.15)
+                                                0 0 25px rgba(239, 68, 68, 0.25),
+                                                0 0 50px rgba(239, 68, 68, 0.1),
+                                                0 4px 20px rgba(239, 68, 68, 0.2),
+                                                0 0 0 1px rgba(239, 68, 68, 0.2)
                                             `
                                         }}
                                         onMouseLeave={(e) => {
                                             e.currentTarget.style.boxShadow = `
-                                                0 0 10px hsl(var(--destructive) / 0.1),
+                                                0 0 15px rgba(239, 68, 68, 0.15),
                                                 0 2px 8px rgba(0, 0, 0, 0.05),
-                                                0 0 0 1px hsl(var(--destructive) / 0.05)
+                                                0 0 0 1px rgba(239, 68, 68, 0.1)
                                             `
                                         }}
                                     >
-                                        <div className="relative p-1.5 rounded-lg transition-all duration-300 group-hover:bg-destructive/10 group-hover:scale-110 group-hover:rotate-12">
-                                            <LogOut className="h-4 w-4 text-destructive/70 group-hover:text-destructive transition-all duration-300" />
+                                        <div className="relative p-1.5 rounded-lg transition-all duration-300 group-hover:bg-red-500/15 group-hover:scale-110 group-hover:rotate-12">
+                                            <LogOut className="h-4 w-4 text-red-500 group-hover:text-red-400 transition-all duration-300" />
                                         </div>
                                         <span className="truncate font-medium">Logout</span>
                                     </DropdownMenuItem>
