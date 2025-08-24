@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -29,6 +30,7 @@ import {
     CheckSquare,
     GraduationCap,
     Bot,
+    Brain,
     MessageSquare,
     Send,
     X
@@ -102,12 +104,58 @@ export function Header() {
         {
             id: '1',
             type: 'bot',
-            content: "Hello! I'm ScholarBot, your AI research assistant. I can help you with literature reviews, research questions, academic writing, and more. How can I assist you today?",
+            content: "Welcome back! I'm ScholarBot — your AI Research Assistant.\nI can help you track progress, organize tasks, manage notes, and explore any questions you have for your projects\n\nTry asking:\n• \"Summarize todos due this week\"\n• \"Create a todo for submitting the draft\"\n• \"Search papers on protein folding\"\n\nWhat would you like to work on right now?",
             timestamp: new Date()
         }
     ])
     const [chatInput, setChatInput] = useState("")
     const [isTyping, setIsTyping] = useState(false)
+
+    // Add drag functionality for chat interface
+    const chatPanelRef = useRef<HTMLDivElement>(null)
+    const [chatWidth, setChatWidth] = useState(384) // Default width (w-96 = 384px)
+    const [isDragging, setIsDragging] = useState(false)
+
+    // Handle mouse dragging for resizing the chat interface
+    const handleChatMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        console.log("Mouse down on resize handle")
+        setIsDragging(true)
+    }
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isDragging) return
+
+            console.log("Mouse move, dragging:", isDragging, "clientX:", e.clientX)
+
+            // Calculate new width based on mouse position
+            const newWidth = Math.max(320, Math.min(800, window.innerWidth - e.clientX))
+            setChatWidth(newWidth)
+
+            if (chatPanelRef.current) {
+                document.body.style.cursor = "ew-resize"
+            }
+        }
+
+        const handleMouseUp = () => {
+            console.log("Mouse up, stopping drag")
+            setIsDragging(false)
+            document.body.style.cursor = ""
+        }
+
+        if (isDragging) {
+            window.addEventListener("mousemove", handleMouseMove)
+            window.addEventListener("mouseup", handleMouseUp)
+        }
+
+        return () => {
+            window.removeEventListener("mousemove", handleMouseMove)
+            window.removeEventListener("mouseup", handleMouseUp)
+            document.body.style.cursor = ""
+        }
+    }, [isDragging])
 
     // Fetch account data to get profile picture
     useEffect(() => {
@@ -231,30 +279,32 @@ export function Header() {
                     {/* Center Section - Global Search */}
                     <div className="flex-1 max-w-2xl mx-8">
                         <form onSubmit={handleSearch} className="relative">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    type="text"
-                                    placeholder="Search projects, papers, todos..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onFocus={() => setIsSearchFocused(true)}
-                                    onBlur={() => setIsSearchFocused(false)}
-                                    className={cn(
-                                        "pl-10 pr-4 h-10 bg-background/50 border-border/50 focus:border-primary/50 transition-all duration-300",
-                                        isSearchFocused && "ring-2 ring-primary/20 border-primary/50"
+                            <EnhancedTooltip content="Global search - Find projects, papers, todos, and more">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        type="text"
+                                        placeholder="Search projects, papers, todos..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onFocus={() => setIsSearchFocused(true)}
+                                        onBlur={() => setIsSearchFocused(false)}
+                                        className={cn(
+                                            "pl-10 pr-4 h-10 bg-background/50 border-border/50 focus:border-primary/50 transition-all duration-300",
+                                            isSearchFocused && "ring-2 ring-primary/20 border-primary/50"
+                                        )}
+                                    />
+                                    {searchQuery && (
+                                        <Button
+                                            type="submit"
+                                            size="sm"
+                                            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 px-3 bg-primary hover:bg-primary/90"
+                                        >
+                                            Search
+                                        </Button>
                                     )}
-                                />
-                                {searchQuery && (
-                                    <Button
-                                        type="submit"
-                                        size="sm"
-                                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 px-3 bg-primary hover:bg-primary/90"
-                                    >
-                                        Search
-                                    </Button>
-                                )}
-                            </div>
+                                </div>
+                            </EnhancedTooltip>
                         </form>
                     </div>
 
@@ -263,12 +313,14 @@ export function Header() {
                         {/* Quick Actions */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button
-                                    size="sm"
-                                    className="group relative overflow-hidden h-9 w-9 p-0 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-                                >
-                                    <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
-                                </Button>
+                                <EnhancedTooltip content="Quick Actions - Create new items">
+                                    <Button
+                                        size="sm"
+                                        className="group relative overflow-hidden h-9 w-9 p-0 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                                    >
+                                        <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
+                                    </Button>
+                                </EnhancedTooltip>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56 bg-background/80 backdrop-blur-xl border-r border-primary/30 overflow-hidden"
                                 style={{
@@ -378,20 +430,22 @@ export function Header() {
                         {/* Notifications */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-9 w-9 p-0 relative bg-gradient-to-r from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30 border border-primary/30 hover:border-primary/50 transition-all duration-300 shadow-lg hover:shadow-xl group"
-                                >
-                                    <Bell className="h-4 w-4 text-primary-foreground/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] group-hover:text-primary-foreground group-hover:animate-bell-vibrate transition-colors duration-300" />
-                                    {notifications > 0 && (
-                                        <Badge
-                                            className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-gradient-to-r from-red-500 to-pink-500 text-white border border-red-400/50 shadow-lg"
-                                        >
-                                            {notifications > 9 ? '9+' : notifications}
-                                        </Badge>
-                                    )}
-                                </Button>
+                                <EnhancedTooltip content={`Notifications (${notifications} new)`}>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-9 w-9 p-0 relative bg-gradient-to-r from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30 border border-primary/30 hover:border-primary/50 transition-all duration-300 shadow-lg hover:shadow-xl group"
+                                    >
+                                        <Bell className="h-4 w-4 text-primary-foreground/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] group-hover:text-primary-foreground group-hover:animate-bell-vibrate transition-colors duration-300" />
+                                        {notifications > 0 && (
+                                            <Badge
+                                                className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-gradient-to-r from-red-500 to-pink-500 text-white border border-red-400/50 shadow-lg"
+                                            >
+                                                {notifications > 9 ? '9+' : notifications}
+                                            </Badge>
+                                        )}
+                                    </Button>
+                                </EnhancedTooltip>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-80 bg-card/90 backdrop-blur-xl border border-border shadow-xl">
                                 <DropdownMenuLabel className="text-foreground">Notifications</DropdownMenuLabel>
@@ -405,37 +459,48 @@ export function Header() {
                         </DropdownMenu>
 
                         {/* ScholarBot Button */}
-                        <Button
-                            onClick={() => setShowScholarBot(!showScholarBot)}
-                            variant="ghost"
-                            size="sm"
-                            className={cn(
-                                "h-9 w-9 p-0 relative bg-gradient-to-r from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30 border border-primary/30 hover:border-primary/50 transition-all duration-300 shadow-lg hover:shadow-xl group",
-                                showScholarBot && "from-primary/40 to-accent/40 border-primary/50 shadow-primary/20"
-                            )}
-                        >
-                            <Bot className="h-4 w-4 text-primary-foreground/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] group-hover:text-primary-foreground group-hover:animate-pulse transition-colors duration-300" />
-                            <div className="absolute -top-1 -right-1 h-2 w-2 bg-green-400 rounded-full animate-pulse"></div>
-                        </Button>
+                        <EnhancedTooltip content="Chat with ScholarBot - AI Research Assistant">
+                            <button
+                                onClick={() => setShowScholarBot(!showScholarBot)}
+                                className={cn(
+                                    "h-9 w-9 p-0 relative group transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/20 rounded-lg",
+                                    showScholarBot && "scale-110"
+                                )}
+                            >
+                                {/* ScholarBot image */}
+                                <Image
+                                    src="/assets/scholarbot.png"
+                                    alt="ScholarBot"
+                                    width={36}
+                                    height={36}
+                                    className="h-9 w-9 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] group-hover:animate-pulse group-hover:scale-110 transition-all duration-300"
+                                />
+
+                                {/* Online indicator */}
+                                <div className="absolute -top-1 -right-1 h-2 w-2 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse shadow-lg"></div>
+                            </button>
+                        </EnhancedTooltip>
 
                         {/* Profile Dropdown */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    className="h-9 w-9 p-0 rounded-full border border-border/50 hover:border-border transition-all duration-300"
-                                >
-                                    <Avatar className="h-9 w-9">
-                                        <AvatarImage
-                                            src={accountData?.avatarUrl || ""}
-                                            alt="Profile"
-                                            className="object-cover"
-                                        />
-                                        <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20 text-primary-foreground">
-                                            <User className="h-4 w-4" />
-                                        </AvatarFallback>
-                                    </Avatar>
-                                </Button>
+                                <EnhancedTooltip content={`Profile - ${accountData?.fullName || userData?.fullName || "User"}`}>
+                                    <Button
+                                        variant="ghost"
+                                        className="h-9 w-9 p-0 rounded-full border border-border/50 hover:border-border transition-all duration-300"
+                                    >
+                                        <Avatar className="h-9 w-9">
+                                            <AvatarImage
+                                                src={accountData?.avatarUrl || ""}
+                                                alt="Profile"
+                                                className="object-cover"
+                                            />
+                                            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20 text-primary-foreground">
+                                                <User className="h-4 w-4" />
+                                            </AvatarFallback>
+                                        </Avatar>
+                                    </Button>
+                                </EnhancedTooltip>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56 bg-background/80 backdrop-blur-xl border-r border-primary/30 overflow-hidden"
                                 style={{
@@ -628,34 +693,52 @@ export function Header() {
             <AnimatePresence>
                 {showScholarBot && (
                     <motion.div
+                        ref={chatPanelRef}
                         initial={{ x: "100%", opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: "100%", opacity: 0 }}
                         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                        className="fixed top-0 right-0 h-full w-96 bg-background/95 backdrop-blur-xl border-l border-purple-500/20 shadow-2xl z-50 flex flex-col"
+                        className="fixed top-0 right-0 h-full bg-background/95 backdrop-blur-xl border-l border-pink-500/30 shadow-2xl z-50 flex flex-col"
                         style={{
+                            width: `${chatWidth}px`,
                             boxShadow: `
-                            -10px 0 30px rgba(168, 85, 247, 0.1),
-                            -5px 0 15px rgba(59, 130, 246, 0.1),
-                            0 0 0 1px rgba(168, 85, 247, 0.1)
+                            -10px 0 30px rgba(236, 72, 153, 0.15),
+                            -5px 0 15px rgba(168, 85, 247, 0.1),
+                            -2px 0 10px rgba(59, 130, 246, 0.1),
+                            0 0 0 1px rgba(236, 72, 153, 0.2)
                         `
                         }}
                     >
+                        {/* Resize handle */}
+                        <div
+                            className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-pink-500/50 transition-colors z-50"
+                            onMouseDown={handleChatMouseDown}
+                        />
                         {/* Background Effects */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-transparent" />
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-purple-500/10 to-transparent rounded-full blur-3xl animate-pulse" />
-                        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-blue-500/10 to-transparent rounded-full blur-3xl animate-pulse" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 via-purple-500/5 to-blue-500/5" />
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(236,72,153,0.1),transparent_50%)]" />
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(59,130,246,0.1),transparent_50%)]" />
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-magenta-500/10 via-purple-500/10 to-transparent rounded-full blur-3xl animate-pulse" />
+                        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-teal-500/10 via-sky-500/10 to-transparent rounded-full blur-3xl animate-pulse" />
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-pink-500/5 via-purple-500/5 to-blue-500/5 rounded-full blur-3xl animate-pulse" />
 
                         {/* Header */}
-                        <div className="relative z-10 flex items-center justify-between p-4 border-b border-purple-500/20 bg-background/50 backdrop-blur-sm">
+                        <div className="relative z-10 flex items-center justify-between p-4 border-b border-pink-500/30 bg-background/50 backdrop-blur-sm">
                             <div className="flex items-center gap-3">
-                                <div className="relative p-2 rounded-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30">
-                                    <Bot className="h-5 w-5 text-purple-400" />
-                                    <div className="absolute -top-1 -right-1 h-2 w-2 bg-green-400 rounded-full animate-pulse"></div>
+                                <div className="relative">
+                                    <Image
+                                        src="/assets/scholarbot.png"
+                                        alt="ScholarBot"
+                                        width={24}
+                                        height={24}
+                                        className="h-6 w-6"
+                                    />
+                                    <div className="absolute -top-1 -right-1 h-2 w-2 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse shadow-lg"></div>
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-lg bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                                        ScholarBot
+                                    <h3 className="font-bold text-lg">
+                                        <span className="text-pink-400">S</span>
+                                        <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-teal-400 bg-clip-text text-transparent">cholarBot</span>
                                     </h3>
                                     <p className="text-xs text-muted-foreground">AI Research Assistant</p>
                                 </div>
@@ -678,17 +761,61 @@ export function Header() {
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.3 }}
-                                    className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                                    className={`flex items-start gap-3 ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                                 >
+                                    {/* Avatar */}
+                                    <div className="flex-shrink-0">
+                                        {message.type === 'bot' ? (
+                                            <div className="relative">
+                                                <Image
+                                                    src="/assets/scholarbot.png"
+                                                    alt="ScholarBot"
+                                                    width={32}
+                                                    height={32}
+                                                    className="h-8 w-8 rounded-full"
+                                                />
+                                                <div className="absolute -top-1 -right-1 h-2 w-2 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse shadow-lg"></div>
+                                            </div>
+                                        ) : (
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarImage
+                                                    src={accountData?.avatarUrl || ""}
+                                                    alt="User"
+                                                    className="object-cover"
+                                                />
+                                                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20 text-primary-foreground text-xs">
+                                                    <User className="h-3 w-3" />
+                                                </AvatarFallback>
+                                            </Avatar>
+                                        )}
+                                    </div>
+
+                                    {/* Message Content */}
                                     <div
                                         className={cn(
-                                            "max-w-[80%] rounded-2xl px-4 py-3 shadow-lg",
+                                            "max-w-[70%] rounded-2xl px-4 py-3 shadow-lg",
                                             message.type === 'user'
-                                                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white"
-                                                : "bg-background/50 backdrop-blur-sm border border-purple-500/20"
+                                                ? "bg-gradient-to-r from-pink-500 via-purple-500 to-teal-500 text-white"
+                                                : "bg-background/50 backdrop-blur-sm border border-pink-500/20"
                                         )}
                                     >
-                                        <p className="text-sm leading-relaxed">{message.content}</p>
+                                        <p className="text-sm leading-relaxed whitespace-pre-line">
+                                            {message.type === 'bot' && message.content.includes("ScholarBot") ? (
+                                                message.content.split("ScholarBot").map((part, index, array) => {
+                                                    if (index === 0) return part;
+                                                    return (
+                                                        <span key={index}>
+                                                            <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-teal-400 bg-clip-text text-transparent font-semibold">
+                                                                ScholarBot
+                                                            </span>
+                                                            {part}
+                                                        </span>
+                                                    );
+                                                })
+                                            ) : (
+                                                message.content
+                                            )}
+                                        </p>
                                         <p className={cn(
                                             "text-xs mt-2",
                                             message.type === 'user' ? "text-purple-100" : "text-muted-foreground"
@@ -703,14 +830,29 @@ export function Header() {
                                 <motion.div
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="flex justify-start"
+                                    className="flex items-start gap-3"
                                 >
-                                    <div className="bg-background/50 backdrop-blur-sm border border-purple-500/20 rounded-2xl px-4 py-3 shadow-lg">
+                                    {/* ScholarBot Avatar */}
+                                    <div className="flex-shrink-0">
+                                        <div className="relative">
+                                            <Image
+                                                src="/assets/scholarbot.png"
+                                                alt="ScholarBot"
+                                                width={32}
+                                                height={32}
+                                                className="h-8 w-8 rounded-full"
+                                            />
+                                            <div className="absolute -top-1 -right-1 h-2 w-2 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse shadow-lg"></div>
+                                        </div>
+                                    </div>
+
+                                    {/* Typing Indicator */}
+                                    <div className="bg-background/50 backdrop-blur-sm border border-pink-500/20 rounded-2xl px-4 py-3 shadow-lg">
                                         <div className="flex items-center gap-2">
                                             <div className="flex space-x-1">
-                                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                                <div className="w-2 h-2 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full animate-bounce"></div>
+                                                <div className="w-2 h-2 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                                <div className="w-2 h-2 bg-gradient-to-r from-blue-400 to-teal-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                                             </div>
                                             <span className="text-xs text-muted-foreground">ScholarBot is typing...</span>
                                         </div>
@@ -720,7 +862,7 @@ export function Header() {
                         </div>
 
                         {/* Chat Input */}
-                        <div className="relative z-10 p-4 border-t border-purple-500/20 bg-background/50 backdrop-blur-sm">
+                        <div className="relative z-10 p-4 border-t border-pink-500/30 bg-background/50 backdrop-blur-sm">
                             <div className="flex items-center gap-2">
                                 <div className="flex-1 relative">
                                     <textarea
@@ -728,11 +870,12 @@ export function Header() {
                                         onChange={(e) => setChatInput(e.target.value)}
                                         onKeyPress={handleKeyPress}
                                         placeholder="Ask ScholarBot anything about research..."
-                                        className="w-full min-h-[40px] max-h-32 px-4 py-2 bg-background/50 border border-purple-500/30 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 text-sm placeholder:text-muted-foreground"
+                                        className="w-full min-h-[40px] max-h-32 px-4 py-2 bg-background/50 border border-pink-500/30 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 text-sm placeholder:text-muted-foreground"
                                         style={{
                                             boxShadow: `
-                                            0 0 10px rgba(168, 85, 247, 0.1),
-                                            0 0 0 1px rgba(168, 85, 247, 0.1)
+                                            0 0 10px rgba(236, 72, 153, 0.15),
+                                            0 0 20px rgba(168, 85, 247, 0.1),
+                                            0 0 0 1px rgba(236, 72, 153, 0.2)
                                         `
                                         }}
                                     />
@@ -741,7 +884,7 @@ export function Header() {
                                     onClick={handleSendMessage}
                                     disabled={!chatInput.trim() || isTyping}
                                     size="sm"
-                                    className="h-10 w-10 p-0 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                                    className="h-10 w-10 p-0 bg-gradient-to-r from-pink-500 via-purple-500 to-teal-500 hover:from-pink-600 hover:via-purple-600 hover:to-teal-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                                 >
                                     <Send className="h-4 w-4" />
                                 </Button>
