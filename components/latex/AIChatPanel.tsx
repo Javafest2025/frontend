@@ -12,7 +12,10 @@ import {
   X,
   Lightbulb,
   FileText,
-  ChevronDown
+  ChevronDown,
+  MapPin,
+  Edit3,
+  Trash2
 } from 'lucide-react'
 import { latexApi } from '@/lib/api/latex-service'
 
@@ -23,21 +26,34 @@ interface ChatMessage {
   timestamp: Date
   latexSuggestion?: string
   isAccepted?: boolean
+  position?: number
+  selectionRange?: { from: number; to: number }
+  actionType?: 'add' | 'replace' | 'delete' | 'modify'
 }
 
 interface AIChatPanelProps {
   content: string
-  onApplySuggestion: (suggestion: string, position?: number) => void
+  onApplySuggestion: (suggestion: string, position?: number, actionType?: string, selectionRange?: { from: number; to: number }) => void
   selectedText?: string
   cursorPosition?: number
+  onSetPositionMarker?: (position: number, label: string) => void
+  onClearPositionMarkers?: () => void
 }
 
-export function AIChatPanel({ content, onApplySuggestion, selectedText, cursorPosition }: AIChatPanelProps) {
+export function AIChatPanel({ 
+  content, 
+  onApplySuggestion, 
+  selectedText, 
+  cursorPosition,
+  onSetPositionMarker,
+  onClearPositionMarkers
+}: AIChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [selectedTextDisplay, setSelectedTextDisplay] = useState<string>('')
   const [showScrollButton, setShowScrollButton] = useState(false)
+  const [positionMarkers, setPositionMarkers] = useState<Array<{ position: number; label: string; blinking: boolean }>>([])
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -87,7 +103,9 @@ export function AIChatPanel({ content, onApplySuggestion, selectedText, cursorPo
       id: Date.now().toString(),
       text: inputValue,
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date(),
+      position: cursorPosition,
+      selectionRange: selectedText ? { from: 0, to: selectedText.length } : undefined
     }
 
     setMessages(prev => [...prev, userMessage])
@@ -95,21 +113,43 @@ export function AIChatPanel({ content, onApplySuggestion, selectedText, cursorPo
     setIsLoading(true)
 
     try {
+      // Enhanced context for AI
+      const context = {
+        selectedText: selectedText || '',
+        userRequest: inputValue,
+        fullDocument: content,
+        cursorPosition: cursorPosition || 0,
+        positionMarkers: positionMarkers.map(m => ({ position: m.position, label: m.label }))
+      }
+
       const response = await latexApi.processChatRequest({
         selectedText: selectedText || '',
         userRequest: inputValue,
         fullDocument: content
       })
 
+      // Parse AI response to extract action type and position
+      const { actionType, suggestion, position, label } = parseAIResponse(response.data, inputValue, cursorPosition, selectedText)
+
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         text: response.data,
         sender: 'ai',
         timestamp: new Date(),
-        latexSuggestion: response.data
+        latexSuggestion: suggestion,
+        actionType,
+        position,
+        selectionRange: selectedText ? { from: 0, to: selectedText.length } : undefined
       }
 
       setMessages(prev => [...prev, aiMessage])
+
+      // Set position marker if AI suggests a specific location
+      if (position !== undefined && label && onSetPositionMarker) {
+        onSetPositionMarker(position, label)
+        setPositionMarkers(prev => [...prev, { position, label, blinking: true }])
+      }
+
     } catch (error) {
       console.error('AI chat request failed:', error)
       const errorMessage: ChatMessage = {
@@ -124,16 +164,54 @@ export function AIChatPanel({ content, onApplySuggestion, selectedText, cursorPo
     }
   }
 
-  const handleAcceptSuggestion = (messageId: string, suggestion: string) => {
+  // Parse AI response to understand what action to take
+  const parseAIResponse = (response: string, userRequest: string, cursorPos?: number, selectedText?: string) => {
+    const lowerRequest = userRequest.toLowerCase()
+    const lowerResponse = response.toLowerCase()
+    
+    let actionType: 'add' | 'replace' | 'delete' | 'modify' = 'add'
+    let suggestion = response
+    let position = cursorPos
+    let label = 'AI Edit'
+
+    // Determine action type based on user request
+    if (lowerRequest.includes('replace') || lowerRequest.includes('change') || lowerRequest.includes('modify')) {
+      actionType = 'replace'
+      if (selectedText) {
+        label = 'Replace Selection'
+      }
+    } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
+      actionType = 'delete'
+      if (selectedText) {
+        label = 'Delete Selection'
+      }
+    } else if (lowerRequest.includes('add') || lowerRequest.includes('insert')) {
+      actionType = 'add'
+      label = 'Add Content'
+    } else if (lowerRequest.includes('make') || lowerRequest.includes('convert')) {
+      actionType = 'modify'
+      label = 'Modify Content'
+    }
+
+    // Extract LaTeX code from response if present
+    const latexMatch = response.match(/```latex\n([\s\S]*?)\n```/)
+    if (latexMatch) {
+      suggestion = latexMatch[1]
+    }
+
+    return { actionType, suggestion, position, label }
+  }
+
+  const handleAcceptSuggestion = (messageId: string, suggestion: string, actionType?: string, position?: number, selectionRange?: { from: number; to: number }) => {
     setMessages(prev => prev.map(msg => 
       msg.id === messageId ? { ...msg, isAccepted: true } : msg
     ))
     
-    if (cursorPosition !== undefined) {
-      onApplySuggestion(suggestion, cursorPosition)
-    } else {
-      onApplySuggestion(suggestion)
-    }
+    // Apply the suggestion based on action type
+    onApplySuggestion(suggestion, position, actionType, selectionRange)
+    
+    // Clear blinking position markers after applying
+    setPositionMarkers(prev => prev.map(m => ({ ...m, blinking: false })))
   }
 
   const handleRejectSuggestion = (messageId: string) => {
@@ -157,6 +235,11 @@ export function AIChatPanel({ content, onApplySuggestion, selectedText, cursorPo
     }
   }
 
+  const clearPositionMarkers = () => {
+    setPositionMarkers([])
+    onClearPositionMarkers?.()
+  }
+
   const renderMessage = (message: ChatMessage) => {
     const isAI = message.sender === 'ai'
     const hasSuggestion = message.latexSuggestion && message.latexSuggestion.trim()
@@ -169,10 +252,23 @@ export function AIChatPanel({ content, onApplySuggestion, selectedText, cursorPo
           {hasSuggestion && (
             <div className="mt-3">
               <div className="flex items-center justify-between mb-2">
-                <Badge variant="outline" className="text-xs">
-                  <FileText className="h-3 w-3 mr-1" />
-                  LaTeX Suggestion
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    <FileText className="h-3 w-3 mr-1" />
+                    LaTeX Suggestion
+                  </Badge>
+                  {message.actionType && (
+                    <Badge variant="secondary" className="text-xs">
+                      {message.actionType.toUpperCase()}
+                    </Badge>
+                  )}
+                  {message.position !== undefined && (
+                    <Badge variant="outline" className="text-xs">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      Pos: {message.position}
+                    </Badge>
+                  )}
+                </div>
                 <div className="flex items-center space-x-1">
                   <Button
                     variant="ghost"
@@ -187,7 +283,13 @@ export function AIChatPanel({ content, onApplySuggestion, selectedText, cursorPo
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleAcceptSuggestion(message.id, message.latexSuggestion!)}
+                        onClick={() => handleAcceptSuggestion(
+                          message.id, 
+                          message.latexSuggestion!, 
+                          message.actionType,
+                          message.position,
+                          message.selectionRange
+                        )}
                         className="h-6 w-6 p-0 text-green-600"
                       >
                         <Check className="h-3 w-3" />
@@ -236,16 +338,78 @@ export function AIChatPanel({ content, onApplySuggestion, selectedText, cursorPo
           <MessageSquare className="h-5 w-5" />
           AI Chat Assistant
         </div>
-        {selectedTextDisplay && (
-          <div className="mt-2">
-            <Badge variant="secondary" className="text-xs mb-2">
-              Selected Text
-            </Badge>
-            <div className="text-sm bg-muted p-2 rounded border max-h-20 overflow-y-auto">
-              "{selectedTextDisplay}"
+        
+        {/* Context Information */}
+        <div className="mt-2 space-y-2">
+          {selectedTextDisplay && (
+            <div>
+              <Badge variant="secondary" className="text-xs mb-2">
+                Selected Text
+              </Badge>
+              <div className="text-sm bg-muted p-2 rounded border max-h-20 overflow-y-auto">
+                "{selectedTextDisplay}"
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          
+          {cursorPosition !== undefined && (
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                <MapPin className="h-3 w-3 mr-1" />
+                Cursor: {cursorPosition}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onSetPositionMarker?.(cursorPosition, 'Cursor Position')}
+                className="h-6 text-xs"
+              >
+                <MapPin className="h-3 w-3 mr-1" />
+                Mark
+              </Button>
+            </div>
+          )}
+
+          {positionMarkers.length > 0 && (
+            <div className="mt-2">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="outline" className="text-xs">
+                  <MapPin className="h-3 w-3 mr-1" />
+                  {positionMarkers.length} Position(s) Marked
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearPositionMarkers}
+                  className="h-6 text-xs text-red-600"
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Clear All
+                </Button>
+              </div>
+              
+              {/* Show individual position markers */}
+              <div className="space-y-1">
+                {positionMarkers.map((marker, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 bg-muted rounded text-xs">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-3 w-3" />
+                      <span className={marker.blinking ? 'animate-pulse' : ''}>
+                        {marker.label}
+                      </span>
+                      <Badge variant="secondary" className="text-xs">
+                        Pos: {marker.position}
+                      </Badge>
+                    </div>
+                    {marker.blinking && (
+                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       
       {/* Messages Area */}
@@ -264,6 +428,15 @@ export function AIChatPanel({ content, onApplySuggestion, selectedText, cursorPo
                 <Lightbulb className="h-8 w-8 mx-auto mb-2" />
                 <p className="text-sm">Start a conversation with AI to get LaTeX editing help</p>
                 <p className="text-xs mt-1">Select text and ask for changes, or request new content</p>
+                <div className="mt-4 space-y-2 text-xs">
+                  <p className="font-medium">Try these commands:</p>
+                  <div className="space-y-1 text-muted-foreground">
+                    <p>• "Make this table 5x5 instead of 4x4"</p>
+                    <p>• "Add a new section here"</p>
+                    <p>• "Replace this paragraph with better wording"</p>
+                    <p>• "Delete this line"</p>
+                  </div>
+                </div>
               </div>
             )}
             {messages.map(renderMessage)}

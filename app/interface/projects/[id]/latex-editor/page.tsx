@@ -75,6 +75,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [selectedText, setSelectedText] = useState<string>('')
   const [cursorPosition, setCursorPosition] = useState<number | undefined>(undefined)
+  const [positionMarkers, setPositionMarkers] = useState<Array<{ position: number; label: string; blinking: boolean }>>([])
 
   const [showAddToChat, setShowAddToChat] = useState(false)
   const [tempSelectedText, setTempSelectedText] = useState<string>('')
@@ -362,16 +363,176 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     setCursorPosition(target.selectionStart)
   }
 
-  const handleApplySuggestion = (suggestion: string, position?: number) => {
-    if (position !== undefined) {
-      // Insert at specific cursor position
-      const before = editorContent.substring(0, position)
-      const after = editorContent.substring(position)
-      setEditorContent(before + suggestion + after)
-    } else {
-      // Append to end
-      setEditorContent(prev => prev + '\n\n' + suggestion)
+  // Enhanced AI suggestion application with different action types
+  const handleApplySuggestion = (suggestion: string, position?: number, actionType?: string, selectionRange?: { from: number; to: number }) => {
+    let newContent = editorContent
+
+    switch (actionType) {
+      case 'replace':
+        if (selectionRange && selectedText) {
+          // Replace selected text
+          const before = editorContent.substring(0, selectionRange.from)
+          const after = editorContent.substring(selectionRange.to)
+          newContent = before + suggestion + after
+        } else if (position !== undefined) {
+          // Replace at specific position
+          const before = editorContent.substring(0, position)
+          const after = editorContent.substring(position + (selectedText?.length || 0))
+          newContent = before + suggestion + after
+        }
+        break
+
+      case 'delete':
+        if (selectionRange) {
+          // Delete selected text
+          const before = editorContent.substring(0, selectionRange.from)
+          const after = editorContent.substring(selectionRange.to)
+          newContent = before + after
+        }
+        break
+
+      case 'modify':
+        if (selectionRange && selectedText) {
+          // Modify selected text
+          const before = editorContent.substring(0, selectionRange.from)
+          const after = editorContent.substring(selectionRange.to)
+          newContent = before + suggestion + after
+        }
+        break
+
+      case 'add':
+      default:
+        if (position !== undefined) {
+          // Insert at specific cursor position
+          const before = editorContent.substring(0, position)
+          const after = editorContent.substring(position)
+          newContent = before + suggestion + after
+        } else {
+          // Append to end
+          newContent = editorContent + '\n\n' + suggestion
+        }
+        break
     }
+
+    setEditorContent(newContent)
+    setIsEditing(true)
+    
+    // Clear selection after applying
+    setSelectedText('')
+    setShowAddToChat(false)
+  }
+
+  // Position marker management
+  const handleSetPositionMarker = (position: number, label: string) => {
+    // Clear previous markers first
+    const cleanContent = editorContent.replace(/% 🎯.*last position.*/gi, '')
+    
+    // Insert a simple inline marker at the specified position
+    if (position >= 0) {
+      const markerText = `% 🎯 <-last position`
+      const newContent = cleanContent.slice(0, position) + markerText + cleanContent.slice(position)
+      setEditorContent(newContent)
+      setIsEditing(true)
+      
+      // Update position markers (only one marker at a time)
+      setPositionMarkers([{ position, label, blinking: true }])
+    }
+  }
+
+  const handleClearPositionMarkers = () => {
+    setPositionMarkers([])
+  }
+
+  // Enhanced text selection handling
+  const handleEditorSelectionChange = (selection: { text: string; from: number; to: number }) => {
+    if (selection.text.trim()) {
+      setSelectedText(selection.text)
+      setShowAddToChat(true)
+    } else {
+      setSelectedText('')
+      setShowAddToChat(false)
+    }
+  }
+
+
+
+  // Handle editor focus loss - automatically mark cursor position
+  const handleEditorFocusLost = (data: { cursorPosition: number }) => {
+    // Clear previous markers first
+    const cleanContent = editorContent.replace(/% 🎯.*last position.*/gi, '')
+    
+    // Insert a simple inline marker at the current cursor position
+    if (cursorPosition !== undefined && cursorPosition >= 0) {
+      const markerText = `% 🎯 <-last position`
+      
+      // Ensure we don't insert in the middle of LaTeX commands
+      const beforeCursor = cleanContent.slice(0, cursorPosition)
+      const afterCursor = cleanContent.slice(cursorPosition)
+      
+      // Add a space before marker if needed
+      const spaceBefore = beforeCursor.endsWith(' ') ? '' : ' '
+      const newContent = beforeCursor + spaceBefore + markerText + afterCursor
+      
+      setEditorContent(newContent)
+      setIsEditing(true)
+      
+      // Update position markers
+      setPositionMarkers([{ 
+        position: cursorPosition, 
+        label: 'Last Cursor Position', 
+        blinking: true 
+      }])
+    }
+  }
+
+  // Handle editor blur event (when focus changes)
+  const handleEditorBlur = () => {
+    // When editor loses focus, mark the current cursor position
+    if (cursorPosition !== undefined) {
+      const existingMarker = positionMarkers.find(m => m.position === cursorPosition)
+      if (!existingMarker) {
+        setPositionMarkers(prev => [...prev, { 
+          position: cursorPosition, 
+          label: 'Last Cursor Position', 
+          blinking: true 
+        }])
+      }
+    }
+  }
+
+  // Handle editor focus - remove markers when user clicks back in editor
+  const handleEditorFocus = () => {
+    // Remove all markers when editor gains focus
+    const cleanContent = editorContent.replace(/% 🎯.*last position.*/gi, '')
+    if (cleanContent !== editorContent) {
+      setEditorContent(cleanContent)
+      setIsEditing(true)
+      setPositionMarkers([])
+    }
+  }
+
+  // Also remove markers when cursor position changes significantly
+  const handleEditorCursorPositionChange = (position: number) => {
+    setCursorPosition(position)
+    
+    // If cursor moved significantly, remove old markers
+    if (positionMarkers.length > 0) {
+      const lastMarker = positionMarkers[positionMarkers.length - 1]
+      if (Math.abs(position - lastMarker.position) > 10) {
+        const cleanContent = editorContent.replace(/% 🎯.*last position.*/gi, '')
+        if (cleanContent !== editorContent) {
+          setEditorContent(cleanContent)
+          setIsEditing(true)
+          setPositionMarkers([])
+        }
+      }
+    }
+  }
+
+  // Clear selection when clicking elsewhere in editor
+  const handleEditorClick = () => {
+    // Selection will be automatically cleared by the editor plugin
+    // This is just for any additional UI updates if needed
   }
 
   const handleCreateDocument = async () => {
@@ -1021,6 +1182,13 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                         }}
                         placeholder="Start writing your LaTeX document..."
                         className="w-full h-full"
+                        onSelectionChange={handleEditorSelectionChange}
+                        onCursorPositionChange={handleEditorCursorPositionChange}
+                        onSetPositionMarker={handleSetPositionMarker}
+                        onClearPositionMarkers={handleClearPositionMarkers}
+                        onFocusLost={handleEditorFocusLost}
+                        onClick={handleEditorClick}
+                        onBlur={handleEditorBlur}
                       />
                       {showAddToChat && (
                         <div className="absolute top-2 right-2 flex space-x-2 z-10">
@@ -1090,6 +1258,14 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                           }}
                           placeholder="Start writing your LaTeX document..."
                           className="w-full h-full"
+                          onSelectionChange={handleEditorSelectionChange}
+                          onCursorPositionChange={handleEditorCursorPositionChange}
+                          onSetPositionMarker={handleSetPositionMarker}
+                          onClearPositionMarkers={handleClearPositionMarkers}
+                          onFocusLost={handleEditorFocusLost}
+                          onClick={handleEditorClick}
+                          onBlur={handleEditorBlur}
+                          onFocus={handleEditorFocus}
                         />
                         {showAddToChat && (
                           <div className="absolute top-2 right-2 flex space-x-2">
@@ -1157,6 +1333,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                     selectedText={selectedText}
                     cursorPosition={cursorPosition}
                     onApplySuggestion={handleApplySuggestion}
+                    onSetPositionMarker={handleSetPositionMarker}
+                    onClearPositionMarkers={handleClearPositionMarkers}
                   />
                 </TabsContent>
                 
