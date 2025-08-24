@@ -11,9 +11,7 @@ import { autocompletion, CompletionContext } from '@codemirror/autocomplete'
 import { closeBrackets } from '@codemirror/autocomplete'
 import { bracketMatching } from '@codemirror/language'
 import { indentOnInput } from '@codemirror/language'
-import { StateField, StateEffect, RangeSetBuilder } from '@codemirror/state'
-import { Decoration, DecorationSet, ViewPlugin, ViewUpdate } from '@codemirror/view'
-import { WidgetType } from '@codemirror/view'
+import { ViewPlugin, ViewUpdate } from '@codemirror/view'
 
 interface EnhancedLatexEditorProps {
   value: string
@@ -32,108 +30,9 @@ interface EnhancedLatexEditorProps {
   onFocus?: () => void
 }
 
-// Custom decorations for highlighting and markers
-const highlightMark = Decoration.mark({ class: "cm-selection-highlight" })
 
-class PositionMarkerWidget extends WidgetType {
-  constructor(private label: string, private blinking: boolean) { 
-    super() 
-  }
-  
-  toDOM() {
-    const span = document.createElement("span")
-    span.className = `position-marker ${this.blinking ? 'blinking' : ''}`
-    span.textContent = this.label
-    span.style.cssText = `
-      background: #ff6b6b;
-      color: white;
-      padding: 2px 6px;
-      border-radius: 12px;
-      font-size: 10px;
-      font-weight: bold;
-      position: absolute;
-      left: -8px;
-      top: -8px;
-      z-index: 1000;
-      animation: ${this.blinking ? 'blink 1s infinite' : 'none'};
-    `
-    return span
-  }
-}
 
-const positionMarker = (label: string, blinking: boolean) => Decoration.widget({ 
-  widget: new PositionMarkerWidget(label, blinking),
-  side: 1
-})
 
-// State field for managing decorations
-const highlightField = StateField.define<DecorationSet>({
-  create() { return Decoration.none },
-  update(decorations, tr) {
-    decorations = decorations.map(tr.changes)
-    return decorations
-  },
-  provide: f => EditorView.decorations.from(f)
-})
-
-// State field for position markers
-const positionMarkerField = StateField.define<DecorationSet>({
-  create() { return Decoration.none },
-  update(decorations, tr) {
-    decorations = decorations.map(tr.changes)
-    return decorations
-  },
-  provide: f => EditorView.decorations.from(f)
-})
-
-// Function to create position marker decorations
-const createPositionMarkers = (markers: Array<{ position: number; label: string; blinking: boolean }>) => {
-  const builder = new RangeSetBuilder<Decoration>()
-  
-  markers.forEach(marker => {
-    const widget = new PositionMarkerWidget(marker.label, marker.blinking)
-    builder.add(marker.position, marker.position, Decoration.widget({ 
-      widget,
-      side: 1
-    }))
-  })
-  
-  return builder.finish()
-}
-
-// Plugin to handle position marker updates
-const positionMarkerPlugin = ViewPlugin.fromClass(class {
-  private view: EditorView
-  private markers: Array<{ position: number; label: string; blinking: boolean }> = []
-
-  constructor(view: EditorView) {
-    this.view = view
-  }
-
-  update(update: ViewUpdate) {
-    // Check if positionMarkers prop changed
-    if (update.docChanged || update.viewportChanged) {
-      this.updateMarkers()
-    }
-  }
-
-  setMarkers(markers: Array<{ position: number; label: string; blinking: boolean }>) {
-    this.markers = markers
-    this.updateMarkers()
-  }
-
-  private updateMarkers() {
-    if (this.markers.length > 0) {
-      const decorations = createPositionMarkers(this.markers)
-      this.view.dispatch({
-        effects: StateEffect.reconfigure.of([
-          ...this.view.state.facet(EditorView.decorations.of(positionMarkerField)),
-          positionMarkerField.init(() => decorations)
-        ])
-      })
-    }
-  }
-})
 
 // Plugin to handle selection changes and cursor position
 const selectionPlugin = ViewPlugin.fromClass(class {
@@ -158,13 +57,29 @@ const selectionPlugin = ViewPlugin.fromClass(class {
       this.lastCursorPosition = pos
       this.hasSelection = false
       this.notifyCursorPosition(pos)
+      
+      // Remove selection highlighting
+      this.removeSelectionHighlighting()
     } else {
       // Text selected
       const { from, to } = selection.main
       const text = view.state.doc.sliceString(from, to)
       this.hasSelection = true
       this.notifySelectionChange({ text, from, to })
+      
+      // Add selection highlighting
+      this.addSelectionHighlighting(from, to)
     }
+  }
+
+  private addSelectionHighlighting(from: number, to: number) {
+    // CodeMirror handles selection highlighting automatically
+    // We just need to ensure the selection is properly set
+    // The built-in selection highlighting will show the selected text
+  }
+
+  private removeSelectionHighlighting() {
+    // CodeMirror handles this automatically
   }
 
   private notifySelectionChange(selection: { text: string; from: number; to: number }) {
@@ -211,16 +126,38 @@ const focusPlugin = ViewPlugin.fromClass(class {
 
   private setupClickHandler() {
     const handleClick = (event: MouseEvent) => {
-      // Only handle clicks within the editor
+      // Only handle clicks within the editor DOM
       if (event.target && this.view.dom.contains(event.target as Node)) {
+        // Check if we're clicking on a UI element (button, input, etc.)
+        const target = event.target as HTMLElement
+        if (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || 
+            target.closest('button') || target.closest('input') || target.closest('textarea')) {
+          // Don't clear selection when clicking on UI elements
+          return
+        }
+        
         // If we had a selection and clicked elsewhere, clear it
         if (this.selectionPlugin && this.selectionPlugin.hasActiveSelection()) {
-          // Clear selection by setting cursor to click position
+          // Get click position
           const coords = this.view.posAtCoords({ x: event.clientX, y: event.clientY })
           if (coords !== null) {
-            this.view.dispatch({
-              selection: { anchor: coords, head: coords }
-            })
+            // Get current selection range
+            const currentSelection = this.view.state.selection
+            const selectionFrom = currentSelection.main.from
+            const selectionTo = currentSelection.main.to
+            
+            // Only clear selection if clicking significantly outside the selected text
+            // This prevents accidental clearing when clicking near the selection
+            const buffer = 5 // 5 character buffer around selection
+            if (coords < (selectionFrom - buffer) || coords > (selectionTo + buffer)) {
+              // Clear selection by setting cursor to click position
+              this.view.dispatch({
+                selection: { anchor: coords, head: coords }
+              })
+              
+              // Notify that selection was cleared
+              this.notifySelectionCleared()
+            }
           }
         }
       }
@@ -244,6 +181,13 @@ const focusPlugin = ViewPlugin.fromClass(class {
           const lastPos = this.selectionPlugin.getLastCursorPosition()
           this.notifyFocusLost(lastPos)
         }
+      } else {
+        // Editor gained focus - check if we should clear selection
+        // Only clear if user explicitly clicked in editor (not just regained focus)
+        if (this.selectionPlugin && this.selectionPlugin.hasActiveSelection()) {
+          // Don't auto-clear selection when gaining focus
+          // Selection will only be cleared by explicit clicks
+        }
       }
     }
   }
@@ -252,6 +196,14 @@ const focusPlugin = ViewPlugin.fromClass(class {
     // Dispatch custom event for focus loss
     const event = new CustomEvent('latex-focus-lost', { 
       detail: { cursorPosition },
+      bubbles: true 
+    })
+    document.dispatchEvent(event)
+  }
+
+  private notifySelectionCleared() {
+    // Dispatch custom event for selection cleared
+    const event = new CustomEvent('latex-selection-cleared', { 
       bubbles: true 
     })
     document.dispatchEvent(event)
@@ -480,8 +432,6 @@ const latexExtensions: Extension[] = [
   indentOnInput(),
   latexAutocompletion,
   EditorView.lineWrapping,
-  highlightField,
-  positionMarkerField,
   selectionPlugin,
   focusPlugin,
 ]

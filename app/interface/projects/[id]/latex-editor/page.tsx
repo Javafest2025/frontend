@@ -73,7 +73,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [isCompiling, setIsCompiling] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
-  const [selectedText, setSelectedText] = useState<string>('')
+  const [selectedText, setSelectedText] = useState<{ text: string; from: number; to: number }>({ text: '', from: 0, to: 0 })
   const [cursorPosition, setCursorPosition] = useState<number | undefined>(undefined)
   const [positionMarkers, setPositionMarkers] = useState<Array<{ position: number; label: string; blinking: boolean }>>([])
 
@@ -147,6 +147,26 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       setIsViewingVersion(false)
     }
   }, [currentDocument?.id])
+
+  // Listen for selection changes and clearing from the editor
+  useEffect(() => {
+    const handleSelectionChange = (event: Event) => {
+      const customEvent = event as CustomEvent
+      setSelectedText(customEvent.detail as { text: string; from: number; to: number })
+    }
+
+    const handleSelectionCleared = () => {
+      setSelectedText({ text: '', from: 0, to: 0 })
+    }
+
+    document.addEventListener('latex-selection-change', handleSelectionChange)
+    document.addEventListener('latex-selection-cleared', handleSelectionCleared)
+
+    return () => {
+      document.removeEventListener('latex-selection-change', handleSelectionChange)
+      document.removeEventListener('latex-selection-cleared', handleSelectionCleared)
+    }
+  }, [])
 
   const loadDocuments = async (projectId: string) => {
     try {
@@ -342,7 +362,9 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }
 
   const handleAddToChat = () => {
-    setSelectedText(tempSelectedText)
+    // Use the current selectedText from the editor instead of tempSelectedText
+    // This preserves the actual selection positions
+    console.log('Adding to chat:', selectedText)
     setShowAddToChat(false)
     // Switch to chat tab in the right sidebar
     setTimeout(() => {
@@ -365,38 +387,51 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
 
   // Enhanced AI suggestion application with different action types
   const handleApplySuggestion = (suggestion: string, position?: number, actionType?: string, selectionRange?: { from: number; to: number }) => {
+    console.log('=== APPLY SUGGESTION DEBUG ===')
+    console.log('Suggestion:', suggestion)
+    console.log('Position:', position)
+    console.log('Action Type:', actionType)
+    console.log('Selection Range:', selectionRange)
+    console.log('Current selectedText:', selectedText)
+    console.log('Editor content length:', editorContent.length)
+    
     let newContent = editorContent
 
     switch (actionType) {
       case 'replace':
-        if (selectionRange && selectedText) {
-          // Replace selected text
+      case 'modify':
+        if (selectedText.text && selectedText.from !== selectedText.to) {
+          // Use the actual selected text positions
+          console.log('Replacing selection from', selectedText.from, 'to', selectedText.to)
+          const before = editorContent.substring(0, selectedText.from)
+          const after = editorContent.substring(selectedText.to)
+          newContent = before + suggestion + after
+          console.log('New content created with replace')
+        } else if (selectionRange && selectionRange.from !== selectionRange.to) {
+          // Fallback to selectionRange if available
+          console.log('Using fallback selectionRange:', selectionRange)
           const before = editorContent.substring(0, selectionRange.from)
           const after = editorContent.substring(selectionRange.to)
           newContent = before + suggestion + after
         } else if (position !== undefined) {
-          // Replace at specific position
+          // Insert at specific position
+          console.log('Inserting at position:', position)
           const before = editorContent.substring(0, position)
-          const after = editorContent.substring(position + (selectedText?.length || 0))
+          const after = editorContent.substring(position)
           newContent = before + suggestion + after
         }
         break
 
       case 'delete':
-        if (selectionRange) {
+        if (selectedText.text && selectedText.from !== selectedText.to) {
           // Delete selected text
+          const before = editorContent.substring(0, selectedText.from)
+          const after = editorContent.substring(selectedText.to)
+          newContent = before + after
+        } else if (selectionRange) {
           const before = editorContent.substring(0, selectionRange.from)
           const after = editorContent.substring(selectionRange.to)
           newContent = before + after
-        }
-        break
-
-      case 'modify':
-        if (selectionRange && selectedText) {
-          // Modify selected text
-          const before = editorContent.substring(0, selectionRange.from)
-          const after = editorContent.substring(selectionRange.to)
-          newContent = before + suggestion + after
         }
         break
 
@@ -414,11 +449,15 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         break
     }
 
+    console.log('Original content length:', editorContent.length)
+    console.log('New content length:', newContent.length)
+    console.log('Content changed:', newContent !== editorContent)
+    
     setEditorContent(newContent)
     setIsEditing(true)
     
     // Clear selection after applying
-    setSelectedText('')
+    setSelectedText({ text: '', from: 0, to: 0 })
     setShowAddToChat(false)
   }
 
@@ -445,12 +484,15 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
 
   // Enhanced text selection handling
   const handleEditorSelectionChange = (selection: { text: string; from: number; to: number }) => {
+    console.log('Editor selection changed:', selection)
     if (selection.text.trim()) {
-      setSelectedText(selection.text)
+      setSelectedText(selection)
       setShowAddToChat(true)
+      console.log('Selection set:', selection)
     } else {
-      setSelectedText('')
+      setSelectedText({ text: '', from: 0, to: 0 })
       setShowAddToChat(false)
+      console.log('Selection cleared')
     }
   }
 

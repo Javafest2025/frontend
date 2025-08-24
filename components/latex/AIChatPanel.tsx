@@ -34,7 +34,7 @@ interface ChatMessage {
 interface AIChatPanelProps {
   content: string
   onApplySuggestion: (suggestion: string, position?: number, actionType?: string, selectionRange?: { from: number; to: number }) => void
-  selectedText?: string
+  selectedText?: { text: string; from: number; to: number }
   cursorPosition?: number
   onSetPositionMarker?: (position: number, label: string) => void
   onClearPositionMarkers?: () => void
@@ -59,8 +59,8 @@ export function AIChatPanel({
 
   // Update selected text display when prop changes
   useEffect(() => {
-    if (selectedText && selectedText.trim()) {
-      setSelectedTextDisplay(selectedText.trim())
+    if (selectedText && selectedText.text && selectedText.text.trim()) {
+      setSelectedTextDisplay(selectedText.text.trim())
     } else {
       setSelectedTextDisplay('')
     }
@@ -99,14 +99,14 @@ export function AIChatPanel({
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return
 
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      text: inputValue,
-      sender: 'user',
-      timestamp: new Date(),
-      position: cursorPosition,
-      selectionRange: selectedText ? { from: 0, to: selectedText.length } : undefined
-    }
+          const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        text: inputValue,
+        sender: 'user',
+        timestamp: new Date(),
+        position: cursorPosition,
+        selectionRange: selectedText ? { from: selectedText.from, to: selectedText.to } : undefined
+      }
 
     setMessages(prev => [...prev, userMessage])
     setInputValue('')
@@ -123,7 +123,7 @@ export function AIChatPanel({
       }
 
       const response = await latexApi.processChatRequest({
-        selectedText: selectedText || '',
+        selectedText: selectedText?.text || '',
         userRequest: inputValue,
         fullDocument: content
       })
@@ -139,7 +139,7 @@ export function AIChatPanel({
         latexSuggestion: suggestion,
         actionType,
         position,
-        selectionRange: selectedText ? { from: 0, to: selectedText.length } : undefined
+        selectionRange: selectedText ? { from: selectedText.from, to: selectedText.to } : undefined
       }
 
       setMessages(prev => [...prev, aiMessage])
@@ -152,9 +152,23 @@ export function AIChatPanel({
 
     } catch (error) {
       console.error('AI chat request failed:', error)
+      
+      // Provide more specific error information
+      let errorText = 'Sorry, I encountered an error processing your request. Please try again.'
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to fetch')) {
+          errorText = 'Unable to connect to AI service. Please check if the backend is running.'
+        } else if (error.message.includes('Failed to process chat request')) {
+          errorText = 'AI service is currently unavailable. Please try again later.'
+        } else {
+          errorText = `Error: ${error.message}`
+        }
+      }
+      
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        text: 'Sorry, I encountered an error processing your request. Please try again.',
+        text: errorText,
         sender: 'ai',
         timestamp: new Date()
       }
@@ -174,29 +188,50 @@ export function AIChatPanel({
     let position = cursorPos
     let label = 'AI Edit'
 
-    // Determine action type based on user request
-    if (lowerRequest.includes('replace') || lowerRequest.includes('change') || lowerRequest.includes('modify')) {
-      actionType = 'replace'
-      if (selectedText) {
+    // Determine action type based on user request and context
+    if (selectedText && selectedText.text) {
+      // If there's selected text, default to replace mode
+      if (lowerRequest.includes('replace') || lowerRequest.includes('change') || lowerRequest.includes('modify') || 
+          lowerRequest.includes('make') || lowerRequest.includes('convert') || lowerRequest.includes('table')) {
+        actionType = 'replace'
         label = 'Replace Selection'
-      }
-    } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
-      actionType = 'delete'
-      if (selectedText) {
+        // Use cursor position from selection
+        position = selectedText.from
+      } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
+        actionType = 'delete'
         label = 'Delete Selection'
+      } else {
+        // Default to replace when there's selection
+        actionType = 'replace'
+        label = 'Replace Selection'
+        position = selectedText.from
       }
-    } else if (lowerRequest.includes('add') || lowerRequest.includes('insert')) {
-      actionType = 'add'
-      label = 'Add Content'
-    } else if (lowerRequest.includes('make') || lowerRequest.includes('convert')) {
-      actionType = 'modify'
-      label = 'Modify Content'
+    } else {
+      // No selection, determine action type from request
+      if (lowerRequest.includes('replace') || lowerRequest.includes('change') || lowerRequest.includes('modify')) {
+        actionType = 'replace'
+      } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
+        actionType = 'delete'
+      } else if (lowerRequest.includes('add') || lowerRequest.includes('insert')) {
+        actionType = 'add'
+        label = 'Add Content'
+      } else if (lowerRequest.includes('make') || lowerRequest.includes('convert')) {
+        actionType = 'modify'
+        label = 'Modify Content'
+      }
     }
 
     // Extract LaTeX code from response if present
     const latexMatch = response.match(/```latex\n([\s\S]*?)\n```/)
     if (latexMatch) {
       suggestion = latexMatch[1]
+    } else {
+      // If no code blocks, try to extract just the LaTeX part
+      // Look for content after "Here's the modified LaTeX code:" or similar
+      const modifiedMatch = response.match(/(?:Here's the modified LaTeX code:|Here's the LaTeX code:|Modified code:)\s*\n([\s\S]*?)(?:\n\n|$)/i)
+      if (modifiedMatch) {
+        suggestion = modifiedMatch[1].trim()
+      }
     }
 
     return { actionType, suggestion, position, label }
@@ -246,81 +281,93 @@ export function AIChatPanel({
 
     return (
       <div key={message.id} className={`flex ${isAI ? 'justify-start' : 'justify-end'} mb-4`}>
-        <div className={`max-w-[80%] ${isAI ? 'bg-muted' : 'bg-primary text-primary-foreground'} rounded-lg p-3`}>
-          <div className="text-sm whitespace-pre-wrap">{message.text}</div>
+                 <div className={`max-w-[80%] ${isAI ? 'bg-muted' : 'bg-primary text-primary-foreground'} rounded-lg p-3`}>
+           {/* For AI messages, only show the explanation text, not the full response */}
+           <div className="text-sm whitespace-pre-wrap">
+             {isAI && message.latexSuggestion ? 
+               // If there's a suggestion, show only the explanation part
+               message.text.split('```')[0].trim() || message.text
+               : 
+               // For user messages or AI messages without suggestions, show full text
+               message.text
+             }
+           </div>
           
-          {hasSuggestion && (
-            <div className="mt-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
-                    <FileText className="h-3 w-3 mr-1" />
-                    LaTeX Suggestion
-                  </Badge>
-                  {message.actionType && (
-                    <Badge variant="secondary" className="text-xs">
-                      {message.actionType.toUpperCase()}
-                    </Badge>
-                  )}
-                  {message.position !== undefined && (
-                    <Badge variant="outline" className="text-xs">
-                      <MapPin className="h-3 w-3 mr-1" />
-                      Pos: {message.position}
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleCopySuggestion(message.latexSuggestion!)}
-                    className="h-6 w-6 p-0"
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                  {message.isAccepted === undefined && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleAcceptSuggestion(
-                          message.id, 
-                          message.latexSuggestion!, 
-                          message.actionType,
-                          message.position,
-                          message.selectionRange
-                        )}
-                        className="h-6 w-6 p-0 text-green-600"
-                      >
-                        <Check className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRejectSuggestion(message.id)}
-                        className="h-6 w-6 p-0 text-red-600"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </>
-                  )}
-                  {message.isAccepted === true && (
-                    <Badge variant="default" className="text-xs bg-green-600">
-                      Applied
-                    </Badge>
-                  )}
-                  {message.isAccepted === false && (
-                    <Badge variant="destructive" className="text-xs">
-                      Rejected
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              <div className="bg-background border rounded p-2 font-mono text-xs overflow-x-auto">
-                {message.latexSuggestion}
-              </div>
-            </div>
-          )}
+                     {hasSuggestion && (
+             <div className="mt-3">
+               {/* Action buttons - positioned above the suggestion box */}
+               <div className="flex flex-wrap items-center gap-2 mb-3">
+                 <Badge variant="outline" className="text-xs">
+                   <FileText className="h-3 w-3 mr-1" />
+                   LaTeX Suggestion
+                 </Badge>
+                 {message.actionType && (
+                   <Badge variant="secondary" className="text-xs">
+                     {message.actionType.toUpperCase()}
+                   </Badge>
+                 )}
+                 {message.position !== undefined && (
+                   <Badge variant="outline" className="text-xs">
+                     <MapPin className="h-3 w-3 mr-1" />
+                     Pos: {message.position}
+                   </Badge>
+                 )}
+                 
+                 {/* Action buttons in a separate row if needed */}
+                 <div className="flex items-center gap-1 ml-auto">
+                   <Button
+                     variant="ghost"
+                     size="sm"
+                     onClick={() => handleCopySuggestion(message.latexSuggestion!)}
+                     className="h-6 w-6 p-0"
+                   >
+                     <Copy className="h-3 w-3" />
+                   </Button>
+                   {message.isAccepted === undefined && (
+                     <>
+                       <Button
+                         variant="ghost"
+                         size="sm"
+                         onClick={() => handleAcceptSuggestion(
+                           message.id, 
+                           message.latexSuggestion!, 
+                           message.actionType,
+                           message.position,
+                           message.selectionRange
+                         )}
+                         className="h-6 w-6 p-0 text-green-600"
+                       >
+                         <Check className="h-3 w-3" />
+                       </Button>
+                       <Button
+                         variant="ghost"
+                         size="sm"
+                         onClick={() => handleRejectSuggestion(message.id)}
+                         className="h-6 w-6 p-0 text-red-600"
+                       >
+                         <X className="h-3 w-3" />
+                       </Button>
+                     </>
+                   )}
+                   {message.isAccepted === true && (
+                     <Badge variant="default" className="text-xs bg-green-600">
+                       Applied
+                     </Badge>
+                   )}
+                   {message.isAccepted === false && (
+                     <Badge variant="destructive" className="text-xs">
+                       Rejected
+                     </Badge>
+                   )}
+                 </div>
+               </div>
+               
+               {/* LaTeX suggestion box */}
+               <div className="bg-background border rounded p-3 font-mono text-xs overflow-x-auto">
+                 {message.latexSuggestion}
+               </div>
+             </div>
+           )}
           
           <div className={`text-xs mt-2 ${isAI ? 'text-muted-foreground' : 'text-primary-foreground/70'}`}>
             {message.timestamp.toLocaleTimeString()}
