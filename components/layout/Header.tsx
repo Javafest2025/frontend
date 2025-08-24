@@ -16,6 +16,11 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
     Search,
     Plus,
     Bell,
@@ -48,9 +53,10 @@ import { useSettings } from "@/contexts/SettingsContext"
 interface BreadcrumbItem {
     label: string
     href?: string
+    fullLabel?: string // For tooltip on truncated items
 }
 
-const getBreadcrumbs = (pathname: string): BreadcrumbItem[] => {
+const getBreadcrumbs = async (pathname: string): Promise<BreadcrumbItem[]> => {
     const segments = pathname.split('/').filter(Boolean)
 
     if (segments.length === 0) {
@@ -60,24 +66,114 @@ const getBreadcrumbs = (pathname: string): BreadcrumbItem[] => {
     const breadcrumbs: BreadcrumbItem[] = []
     let currentPath = ''
 
-    segments.forEach((segment, index) => {
+    for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i]
         currentPath += `/${segment}`
 
         // Map segment to readable label
         let label = segment.charAt(0).toUpperCase() + segment.slice(1)
+        let fullLabel = label
 
         // Special cases for better labels
-        if (segment === 'interface') label = 'Dashboard'
-        if (segment === 'account') label = 'Account'
-        if (segment === 'projects') label = 'Projects'
-        if (segment === 'todo') label = 'ToDo'
-        if (segment === 'call4paper') label = 'Call4Paper'
+        if (segment === 'interface') {
+            label = 'Dashboard'
+            fullLabel = 'Dashboard'
+        } else if (segment === 'account') {
+            label = 'Account'
+            fullLabel = 'Account'
+        } else if (segment === 'projects') {
+            label = 'Projects'
+            fullLabel = 'Projects'
+        } else if (segment === 'todo') {
+            label = 'ToDo'
+            fullLabel = 'ToDo'
+        } else if (segment === 'call4paper') {
+            label = 'Call4Paper'
+            fullLabel = 'Call4Paper'
+        } else if (segment === 'overview') {
+            label = 'Overview'
+            fullLabel = 'Overview'
+        } else if (segment === 'collect-papers') {
+            label = 'Collect Papers'
+            fullLabel = 'Collect Papers'
+        } else if (segment === 'reading-list') {
+            label = 'Reading List'
+            fullLabel = 'Reading List'
+        } else if (segment === 'notes') {
+            label = 'Notes'
+            fullLabel = 'Notes'
+        } else if (segment === 'latex-editor') {
+            label = 'LaTeX Editor'
+            fullLabel = 'LaTeX Editor'
+        } else if (segment === 'collaboration') {
+            label = 'Collaboration'
+            fullLabel = 'Collaboration'
+        } else if (segment === 'library') {
+            label = 'Library'
+            fullLabel = 'Library'
+        } else if (segment === 'settings') {
+            label = 'Settings'
+            fullLabel = 'Settings'
+        } else if (segment === 'analytics') {
+            label = 'Analytics'
+            fullLabel = 'Analytics'
+        } else if (segment === 'insights') {
+            label = 'Insights'
+            fullLabel = 'Insights'
+        } else if (segment === 'tasks') {
+            label = 'Tasks'
+            fullLabel = 'Tasks'
+        } else if (segment === 'notifications') {
+            label = 'Notifications'
+            fullLabel = 'Notifications'
+        } else if (segment === 'agents') {
+            label = 'Agents'
+            fullLabel = 'Agents'
+        } else if (segment === 'workflows') {
+            label = 'Workflows'
+            fullLabel = 'Workflows'
+        } else if (segment === 'search') {
+            label = 'Search'
+            fullLabel = 'Search'
+        } else if (segment === 'ai') {
+            label = 'AI'
+            fullLabel = 'AI'
+        } else if (segment === 'authors') {
+            label = 'Authors'
+            fullLabel = 'Authors'
+        } else if (segment === 'papercall') {
+            label = 'Paper Call'
+            fullLabel = 'Paper Call'
+        } else if (segment === 'dashboard') {
+            label = 'Dashboard'
+            fullLabel = 'Dashboard'
+        } else if (segment === 'home') {
+            label = 'Home'
+            fullLabel = 'Home'
+        } else {
+            // Check if this is a project ID (UUID format)
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+            if (uuidRegex.test(segment)) {
+                try {
+                    // Try to fetch project name from API
+                    const { projectsApi } = await import('@/lib/api/project-service')
+                    const project = await projectsApi.getProject(segment)
+                    label = project.name
+                    fullLabel = project.name
+                } catch (error) {
+                    // Fallback to truncated ID if API fails
+                    label = `${segment.substring(0, 8)}...`
+                    fullLabel = segment
+                }
+            }
+        }
 
         breadcrumbs.push({
             label,
-            href: index === segments.length - 1 ? undefined : currentPath
+            fullLabel,
+            href: i === segments.length - 1 ? undefined : currentPath
         })
-    })
+    }
 
     return breadcrumbs
 }
@@ -102,6 +198,7 @@ export function Header() {
     const [notifications] = useState(3) // Mock notification count
     const [accountData, setAccountData] = useState<UserAccount | null>(null)
     const [showScholarBot, setShowScholarBot] = useState(false)
+    const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([])
     const [chatMessages, setChatMessages] = useState<Array<{ id: string, type: 'user' | 'bot', content: string, timestamp: Date }>>([
         {
             id: '1',
@@ -173,8 +270,27 @@ export function Header() {
         loadAccountData()
     }, [])
 
-    const breadcrumbs = getBreadcrumbs(pathname)
     const PageIcon = getPageIcon(pathname)
+
+    // Load breadcrumbs when pathname changes
+    useEffect(() => {
+        const loadBreadcrumbs = async () => {
+            try {
+                const breadcrumbData = await getBreadcrumbs(pathname)
+                setBreadcrumbs(breadcrumbData)
+            } catch (error) {
+                console.error('Error loading breadcrumbs:', error)
+                // Fallback to basic breadcrumbs
+                const segments = pathname.split('/').filter(Boolean)
+                const fallbackBreadcrumbs = segments.map((segment, index) => ({
+                    label: segment.charAt(0).toUpperCase() + segment.slice(1),
+                    fullLabel: segment.charAt(0).toUpperCase() + segment.slice(1)
+                }))
+                setBreadcrumbs(fallbackBreadcrumbs)
+            }
+        }
+        loadBreadcrumbs()
+    }, [pathname])
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault()
@@ -305,7 +421,14 @@ export function Header() {
                                     ) : (
                                         <div className="flex items-center space-x-2 px-2 py-1">
                                             <PageIcon className="h-4 w-4 text-primary" />
-                                            <span className="font-medium text-foreground">{crumb.label}</span>
+                                            <EnhancedTooltip
+                                                content={crumb.fullLabel && crumb.fullLabel !== crumb.label ? crumb.fullLabel : ""}
+                                                side="bottom"
+                                            >
+                                                <span className="font-medium text-foreground max-w-32 truncate">
+                                                    {crumb.label}
+                                                </span>
+                                            </EnhancedTooltip>
                                         </div>
                                     )}
                                 </div>
@@ -349,16 +472,19 @@ export function Header() {
                     <div className="flex items-center space-x-3">
                         {/* Quick Actions */}
                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <EnhancedTooltip content="Quick Actions - Create new items">
-                                    <Button
-                                        size="sm"
-                                        className="group relative overflow-hidden h-9 w-9 p-0 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-                                    >
-                                        <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
-                                    </Button>
-                                </EnhancedTooltip>
-                            </DropdownMenuTrigger>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            size="sm"
+                                            className="group relative overflow-hidden h-9 w-9 p-0 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                                        >
+                                            <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>Quick Actions - Create new items</TooltipContent>
+                            </Tooltip>
                             <DropdownMenuContent align="end" className="w-56 bg-background/80 backdrop-blur-xl border-r border-primary/30 overflow-hidden"
                                 style={{
                                     boxShadow: `
@@ -466,24 +592,27 @@ export function Header() {
 
                         {/* Notifications */}
                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <EnhancedTooltip content={`Notifications (${notifications} new)`}>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-9 w-9 p-0 relative bg-gradient-to-r from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30 border border-primary/30 hover:border-primary/50 transition-all duration-300 shadow-lg hover:shadow-xl group"
-                                    >
-                                        <Bell className="h-4 w-4 text-primary-foreground/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] group-hover:text-primary-foreground group-hover:animate-bell-vibrate transition-colors duration-300" />
-                                        {notifications > 0 && (
-                                            <Badge
-                                                className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-gradient-to-r from-red-500 to-pink-500 text-white border border-red-400/50 shadow-lg"
-                                            >
-                                                {notifications > 9 ? '9+' : notifications}
-                                            </Badge>
-                                        )}
-                                    </Button>
-                                </EnhancedTooltip>
-                            </DropdownMenuTrigger>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-9 w-9 p-0 relative bg-gradient-to-r from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30 border border-primary/30 hover:border-primary/50 transition-all duration-300 shadow-lg hover:shadow-xl group"
+                                        >
+                                            <Bell className="h-4 w-4 text-primary-foreground/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] group-hover:text-primary-foreground group-hover:animate-bell-vibrate transition-colors duration-300" />
+                                            {notifications > 0 && (
+                                                <Badge
+                                                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-gradient-to-r from-red-500 to-pink-500 text-white border border-red-400/50 shadow-lg"
+                                                >
+                                                    {notifications > 9 ? '9+' : notifications}
+                                                </Badge>
+                                            )}
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>Notifications ({notifications} new)</TooltipContent>
+                            </Tooltip>
                             <DropdownMenuContent align="end" className="w-80 bg-card/90 backdrop-blur-xl border border-border shadow-xl">
                                 <DropdownMenuLabel className="text-foreground">Notifications</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
@@ -520,25 +649,30 @@ export function Header() {
 
                         {/* Profile Dropdown */}
                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <EnhancedTooltip content={`Profile - ${accountData?.fullName || userData?.fullName || "User"}`}>
-                                    <Button
-                                        variant="ghost"
-                                        className="h-9 w-9 p-0 rounded-full border border-border/50 hover:border-border transition-all duration-300"
-                                    >
-                                        <Avatar className="h-9 w-9">
-                                            <AvatarImage
-                                                src={accountData?.avatarUrl || ""}
-                                                alt="Profile"
-                                                className="object-cover"
-                                            />
-                                            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20 text-primary-foreground">
-                                                <User className="h-4 w-4" />
-                                            </AvatarFallback>
-                                        </Avatar>
-                                    </Button>
-                                </EnhancedTooltip>
-                            </DropdownMenuTrigger>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            className="h-9 w-9 p-0 rounded-full border border-border/50 hover:border-border transition-all duration-300"
+                                        >
+                                            <Avatar className="h-9 w-9">
+                                                <AvatarImage
+                                                    src={accountData?.avatarUrl || ""}
+                                                    alt="Profile"
+                                                    className="object-cover"
+                                                />
+                                                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20 text-primary-foreground">
+                                                    <User className="h-4 w-4" />
+                                                </AvatarFallback>
+                                            </Avatar>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    Profile — {accountData?.fullName || userData?.fullName || "User"}
+                                </TooltipContent>
+                            </Tooltip>
                             <DropdownMenuContent align="end" className="w-56 bg-background/80 backdrop-blur-xl border-r border-primary/30 overflow-hidden"
                                 style={{
                                     boxShadow: `

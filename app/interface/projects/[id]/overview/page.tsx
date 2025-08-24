@@ -139,7 +139,7 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 relative overflow-hidden">
+        <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 relative overflow-hidden pb-8">
             {/* Background Effects */}
             <div className="absolute inset-0 bg-grid-pattern opacity-5" />
             <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-primary/10 via-purple-500/5 to-transparent rounded-full blur-3xl" />
@@ -155,8 +155,8 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                 >
                     <div className="flex items-start justify-between">
                         <div className="flex-1">
-                            <h1 className="text-5xl font-bold text-gradient-primary flex items-center gap-6 mb-6">
-                                <Sparkles className="h-12 w-12 text-primary animate-pulse" />
+                            <h1 className="text-4xl font-bold text-gradient-primary flex items-center gap-6 mb-6">
+                                <Sparkles className="h-10 w-10 text-primary animate-pulse" />
                                 {project.name}
                             </h1>
                             <p className="text-xl text-muted-foreground max-w-4xl leading-relaxed">
@@ -192,7 +192,6 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                 <Share2 className="mr-2 h-4 w-4" />
                                 Share Project
                             </Button>
-
                         </div>
                     </div>
                 </motion.div>
@@ -218,7 +217,7 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                             >
                                 <CardHeader className="pb-6">
                                     <CardTitle className="flex items-center gap-3 text-xl">
-                                        <Globe className="h-6 w-6 text-primary group-hover:scale-110 transition-transform duration-300" />
+                                        <Globe className="h-6 w-6 text-blue-500 group-hover:scale-110 transition-transform duration-300" />
                                         Project Information
                                     </CardTitle>
                                     <CardDescription className="text-base">
@@ -230,21 +229,21 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                         <div className="space-y-6">
                                             <div>
                                                 <label className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-3">
-                                                    <User className="h-4 w-4" />
+                                                    <User className="h-4 w-4 text-green-500" />
                                                     Project Creator
                                                 </label>
                                                 <p className="text-foreground font-medium text-lg">{getUserDisplayName()}</p>
                                             </div>
                                             <div>
                                                 <label className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-3">
-                                                    <Calendar className="h-4 w-4" />
+                                                    <Calendar className="h-4 w-4 text-orange-500" />
                                                     Created Date
                                                 </label>
                                                 <p className="text-foreground text-lg">{new Date(project.createdAt).toLocaleDateString()}</p>
                                             </div>
                                             <div>
                                                 <label className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-3">
-                                                    <Clock className="h-4 w-4" />
+                                                    <Clock className="h-4 w-4 text-purple-500" />
                                                     Last Updated
                                                 </label>
                                                 <p className="text-foreground text-lg">{new Date(project.updatedAt).toLocaleDateString()}</p>
@@ -253,7 +252,7 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                         <div className="space-y-6">
                                             <div>
                                                 <label className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-3">
-                                                    <CheckCircle className="h-4 w-4" />
+                                                    <CheckCircle className="h-4 w-4 text-emerald-500" />
                                                     Project Status
                                                 </label>
                                                 <Badge className="bg-green-500/10 text-green-500 border-green-500/20 px-3 py-1">
@@ -263,14 +262,14 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                             </div>
                                             <div>
                                                 <label className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-3">
-                                                    <Globe className="h-4 w-4" />
+                                                    <Globe className="h-4 w-4 text-cyan-500" />
                                                     Domain
                                                 </label>
                                                 <p className="text-foreground text-lg">{project.domain || "Computer Science Research"}</p>
                                             </div>
                                             <div>
                                                 <label className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-3">
-                                                    <Users className="h-4 w-4" />
+                                                    <Users className="h-4 w-4 text-indigo-500" />
                                                     Collaborators
                                                 </label>
                                                 <p className="text-foreground text-lg">Solo Project</p>
@@ -298,7 +297,7 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                             >
                                 <CardHeader className="pb-6">
                                     <CardTitle className="flex items-center gap-3 text-xl">
-                                        <Target className="h-6 w-6 text-primary group-hover:scale-110 transition-transform duration-300" />
+                                        <Target className="h-6 w-6 text-red-500 group-hover:scale-110 transition-transform duration-300" />
                                         Research Focus
                                     </CardTitle>
                                     <CardDescription className="text-base">
@@ -309,7 +308,7 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                     <div className="space-y-4">
                                         <div>
                                             <label className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-3">
-                                                <Tag className="h-4 w-4" />
+                                                <Tag className="h-4 w-4 text-yellow-500" />
                                                 Research Topics
                                             </label>
                                             <div className="flex flex-wrap gap-2">
@@ -337,14 +336,14 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
 
                     {/* Right Column - Statistics (2/5 width) */}
                     <div className="xl:col-span-2 space-y-8">
-                        {/* Enhanced Project Statistics */}
+                        {/* Enhanced Project Statistics with Glassy Shimmer */}
                         <motion.div
                             initial={{ opacity: 0, y: 30 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.8, delay: 0.6 }}
                         >
                             <Card
-                                className="bg-background/50 backdrop-blur-xl border border-border shadow-2xl hover:shadow-primary/20 transition-all duration-500 group"
+                                className="bg-background/50 backdrop-blur-xl border border-border shadow-2xl hover:shadow-primary/20 transition-all duration-500 group relative overflow-hidden"
                                 style={{
                                     boxShadow: `
                                         0 0 40px hsl(var(--primary) / 0.1),
@@ -352,7 +351,7 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                     `
                                 }}
                             >
-                                <CardHeader className="pb-6">
+                                <CardHeader className="pb-6 relative z-10">
                                     <CardTitle className="flex items-center gap-3 text-xl">
                                         <BarChart3 className="h-6 w-6 text-primary group-hover:scale-110 transition-transform duration-300" />
                                         Project Statistics
@@ -361,18 +360,22 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                         Key metrics and progress overview
                                     </CardDescription>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="relative z-10">
                                     <div className="space-y-6">
                                         <div className="grid grid-cols-2 gap-4">
-                                            <div className="text-center p-4 rounded-lg bg-background/30 border border-border">
-                                                <BookOpen className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-                                                <div className="text-2xl font-bold text-foreground">{libraryStats?.totalPapers || 0}</div>
-                                                <div className="text-sm text-muted-foreground">Total Papers</div>
+                                            <div className="text-center p-4 rounded-lg bg-background/30 border border-border relative overflow-hidden group">
+                                                {/* Shimmer effect for Total Papers - only on hover */}
+                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                                <BookOpen className="h-8 w-8 text-blue-500 mx-auto mb-2 relative z-10" />
+                                                <div className="text-2xl font-bold text-foreground relative z-10">{libraryStats?.totalPapers || 0}</div>
+                                                <div className="text-sm text-muted-foreground relative z-10">Total Papers</div>
                                             </div>
-                                            <div className="text-center p-4 rounded-lg bg-background/30 border border-border">
-                                                <ListTodo className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
-                                                <div className="text-2xl font-bold text-foreground">{readingListStats?.totalItems || 0}</div>
-                                                <div className="text-sm text-muted-foreground">Reading List</div>
+                                            <div className="text-center p-4 rounded-lg bg-background/30 border border-border relative overflow-hidden group">
+                                                {/* Shimmer effect for Reading List - only on hover */}
+                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                                <ListTodo className="h-8 w-8 text-yellow-500 mx-auto mb-2 relative z-10" />
+                                                <div className="text-2xl font-bold text-foreground relative z-10">{readingListStats?.totalItems || 0}</div>
+                                                <div className="text-sm text-muted-foreground relative z-10">Reading List</div>
                                             </div>
                                         </div>
                                         <div className="space-y-3">
@@ -385,10 +388,12 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                                 <Progress value={project.progress || 0} className="flex-1" />
                                             </div>
                                         </div>
-                                        <div className="text-center p-4 rounded-lg bg-background/30 border border-border">
-                                            <MessageSquare className="h-8 w-8 text-purple-500 mx-auto mb-2" />
-                                            <div className="text-2xl font-bold text-foreground">{notesCount}</div>
-                                            <div className="text-sm text-muted-foreground">Notes</div>
+                                        <div className="text-center p-4 rounded-lg bg-background/30 border border-border relative overflow-hidden group">
+                                            {/* Shimmer effect for Notes - only on hover */}
+                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                            <MessageSquare className="h-8 w-8 text-purple-500 mx-auto mb-2 relative z-10" />
+                                            <div className="text-2xl font-bold text-foreground relative z-10">{notesCount}</div>
+                                            <div className="text-sm text-muted-foreground relative z-10">Notes</div>
                                         </div>
                                         <Separator />
                                         <div className="text-center">
