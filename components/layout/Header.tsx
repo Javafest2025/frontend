@@ -33,11 +33,13 @@ import {
     Brain,
     MessageSquare,
     Send,
-    X
+    X,
+    RefreshCw
 } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
-import { getUserData } from "@/lib/api/user-service/auth"
+import { getUserData, isAuthenticated } from "@/lib/api/user-service/auth"
 import { accountApi } from "@/lib/api/user-service"
+import { scholarbotApi } from "@/lib/api/project-service/scholarbot"
 import { UserAccount } from "@/types/account"
 import { cn } from "@/lib/utils/cn"
 import { EnhancedTooltip } from "@/components/ui/enhanced-tooltip"
@@ -216,20 +218,42 @@ export function Header() {
         }
 
         setChatMessages(prev => [...prev, userMessage])
+        const messageToSend = chatInput.trim()
         setChatInput("")
         setIsTyping(true)
 
-        // Simulate bot response
-        setTimeout(() => {
+        try {
+            console.log("🤖 Sending message to ScholarBot:", messageToSend)
+            console.log("🔐 User authenticated:", isAuthenticated())
+            console.log("👤 User data:", getUserData())
+
+            // Call the real ScholarBot API
+            const response = await scholarbotApi.sendMessage(messageToSend)
+
+            console.log("✅ ScholarBot response:", response)
+
             const botResponse = {
                 id: (Date.now() + 1).toString(),
                 type: 'bot' as const,
-                content: "I understand your question about research. Let me help you with that. Could you provide more specific details about what you're working on?",
+                content: response.message || "I received your message but couldn't process it properly. Please try again.",
                 timestamp: new Date()
             }
+
             setChatMessages(prev => [...prev, botResponse])
+        } catch (error) {
+            console.error("❌ ScholarBot API error:", error)
+
+            const errorResponse = {
+                id: (Date.now() + 1).toString(),
+                type: 'bot' as const,
+                content: "Sorry, I'm having trouble connecting to my services right now. Please try again later or check your connection.",
+                timestamp: new Date()
+            }
+
+            setChatMessages(prev => [...prev, errorResponse])
+        } finally {
             setIsTyping(false)
-        }, 1500)
+        }
     }
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -237,6 +261,19 @@ export function Header() {
             e.preventDefault()
             handleSendMessage()
         }
+    }
+
+    const handleRefreshChat = () => {
+        setChatMessages([
+            {
+                id: '1',
+                type: 'bot',
+                content: "Welcome back! I'm ScholarBot — your AI Research Assistant.\nI can help you track progress, organize tasks, manage notes, and explore any questions you have for your projects\n\nTry asking:\n• \"Summarize todos due this week\"\n• \"Create a todo for submitting the draft\"\n• \"Search papers on protein folding\"\n\nWhat would you like to work on right now?",
+                timestamp: new Date()
+            }
+        ])
+        setChatInput("")
+        setIsTyping(false)
     }
 
     return (
@@ -743,14 +780,26 @@ export function Header() {
                                     <p className="text-xs text-muted-foreground">AI Research Assistant</p>
                                 </div>
                             </div>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setShowScholarBot(false)}
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-purple-500/10"
-                            >
-                                <X className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleRefreshChat}
+                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-purple-500/10"
+                                    title="Refresh chat"
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowScholarBot(false)}
+                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-purple-500/10"
+                                    title="Close chat"
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
 
                         {/* Chat Messages */}

@@ -46,7 +46,8 @@ import {
   ArrowDown,
   ArrowLeft,
   Eye,
-  EyeOff
+  EyeOff,
+  RefreshCw
 } from "lucide-react"
 import { format, formatDistance, isAfter, isBefore, isToday, isThisWeek, parseISO, startOfDay } from "date-fns"
 import { cn } from "@/lib/utils/cn"
@@ -66,6 +67,7 @@ export function TodoContent() {
   `
   const [summary, setSummary] = useState<TodoSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [selectedTodos, setSelectedTodos] = useState<string[]>([])
   const [showCompleted, setShowCompleted] = useState(true)
 
@@ -174,6 +176,31 @@ export function TodoContent() {
 
     loadData()
   }, [filters, sort])
+
+  // Refresh function
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true)
+      
+      // Load todos and summary from API
+      const [todosResult, summaryResult] = await Promise.all([
+        todosApi.getTodos(filters, sort),
+        todosApi.getSummary()
+      ])
+
+      console.log("Todos refreshed:", todosResult.todos.length)
+      console.log("Summary refreshed:", summaryResult)
+
+      setTodos(todosResult.todos)
+      setSummary(summaryResult)
+      toast.success("Todos refreshed successfully")
+    } catch (error) {
+      console.error("Failed to refresh todos:", error)
+      toast.error("Failed to refresh todos from server")
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   // Filter and sort todos
   const filteredTodos = useMemo(() => {
@@ -681,6 +708,18 @@ export function TodoContent() {
             >
               {showCompleted ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
               {showCompleted ? 'Hide Completed' : 'Show Completed'}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="bg-background/40 backdrop-blur-xl border-primary/20 hover:bg-primary/5"
+              title="Refresh todos"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
           </div>
         </div>

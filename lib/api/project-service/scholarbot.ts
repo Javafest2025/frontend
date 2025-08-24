@@ -67,17 +67,25 @@ export const scholarbotApi = {
                 userId: currentUserId,
             }
 
+            const url = getMicroserviceUrl("project-service", "/api/chat/message")
+            console.log("🌐 Request URL:", url)
             console.log("📤 Sending message:", requestBody)
 
-            const response = await authenticatedFetch(
-                getMicroserviceUrl("project-service", "/api/chat/message"),
+            // Use regular fetch instead of authenticatedFetch to avoid CORS issues
+            const response = await fetch(
+                url,
                 {
                     method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
                     body: JSON.stringify(requestBody),
                 }
             )
 
             console.log("📊 ScholarBot response status:", response.status, response.statusText)
+            console.log("📊 ScholarBot response headers:", Object.fromEntries(response.headers.entries()))
 
             if (!response.ok) {
                 const errorText = await response.text()
@@ -85,12 +93,24 @@ export const scholarbotApi = {
                 throw new Error(`Failed to send message to ScholarBot: ${response.status} ${response.statusText}`)
             }
 
-            const data = await response.json()
-            console.log("✅ ScholarBot response received:", data)
+            const responseText = await response.text()
+            console.log("📄 Raw response text:", responseText)
+
+            let data: ScholarBotResponse
+            try {
+                data = JSON.parse(responseText)
+                console.log("✅ ScholarBot response parsed:", data)
+            } catch (parseError) {
+                console.error("❌ Failed to parse JSON response:", parseError)
+                throw new Error("Invalid JSON response from ScholarBot")
+            }
 
             return data
         } catch (error) {
             console.error("ScholarBot send message error:", error)
+            if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+                console.error("🔍 Network error detected - this might be a CORS or connectivity issue")
+            }
             throw error instanceof Error
                 ? error
                 : new Error("Failed to communicate with ScholarBot")
@@ -103,7 +123,12 @@ export const scholarbotApi = {
             console.log("🏥 Checking ScholarBot health...")
 
             const response = await fetch(
-                getMicroserviceUrl("project-service", "/api/chat/health")
+                getMicroserviceUrl("project-service", "/api/chat/health"),
+                {
+                    headers: {
+                        "Accept": "application/json",
+                    },
+                }
             )
 
             console.log("📊 Health check response status:", response.status, response.statusText)
@@ -129,7 +154,12 @@ export const scholarbotApi = {
             console.log("🏥 Getting ScholarBot health details...")
 
             const response = await fetch(
-                getMicroserviceUrl("project-service", "/api/chat/health")
+                getMicroserviceUrl("project-service", "/api/chat/health"),
+                {
+                    headers: {
+                        "Accept": "application/json",
+                    },
+                }
             )
 
             console.log("📊 Health details response status:", response.status, response.statusText)
