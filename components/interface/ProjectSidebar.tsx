@@ -165,35 +165,35 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
                 )}
                 style={isActive ? {
                     boxShadow: `
-                        0 0 25px rgba(99, 102, 241, 0.4),
-                        0 0 50px rgba(139, 92, 246, 0.2),
+                        0 0 25px hsl(var(--primary) / 0.4),
+                        0 0 50px hsl(var(--accent) / 0.2),
                         inset 0 1px 0 rgba(255, 255, 255, 0.3),
-                        0 6px 25px rgba(99, 102, 241, 0.25),
-                        0 0 0 1px rgba(99, 102, 241, 0.2)
+                        0 6px 25px hsl(var(--primary) / 0.25),
+                        0 0 0 1px hsl(var(--primary) / 0.2)
                     `
                 } : {
                     boxShadow: `
-                        0 0 10px rgba(99, 102, 241, 0.1),
+                        0 0 10px hsl(var(--primary) / 0.1),
                         0 2px 8px rgba(0, 0, 0, 0.1),
-                        0 0 0 1px rgba(99, 102, 241, 0.05)
+                        0 0 0 1px hsl(var(--primary) / 0.05)
                     `
                 }}
                 onMouseEnter={(e) => {
                     if (!isActive) {
                         e.currentTarget.style.boxShadow = `
-                            0 0 20px rgba(99, 102, 241, 0.25),
-                            0 0 40px rgba(139, 92, 246, 0.15),
-                            0 4px 20px rgba(99, 102, 241, 0.2),
-                            0 0 0 1px rgba(99, 102, 241, 0.15)
+                            0 0 20px hsl(var(--primary) / 0.25),
+                            0 0 40px hsl(var(--accent) / 0.15),
+                            0 4px 20px hsl(var(--primary) / 0.2),
+                            0 0 0 1px hsl(var(--primary) / 0.15)
                         `
                     }
                 }}
                 onMouseLeave={(e) => {
                     if (!isActive) {
                         e.currentTarget.style.boxShadow = `
-                            0 0 10px rgba(99, 102, 241, 0.1),
+                            0 0 10px hsl(var(--primary) / 0.1),
                             0 2px 8px rgba(0, 0, 0, 0.1),
-                            0 0 0 1px rgba(99, 102, 241, 0.05)
+                            0 0 0 1px hsl(var(--primary) / 0.05)
                         `
                     }
                 }}

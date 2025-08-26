@@ -472,19 +472,67 @@ export function Header() {
                     <div className="flex items-center space-x-3">
                         {/* Quick Actions */}
                         <DropdownMenu>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            size="sm"
-                                            className="group relative overflow-hidden h-9 w-9 p-0 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-                                        >
-                                            <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                </TooltipTrigger>
-                                <TooltipContent>Quick Actions - Create new items</TooltipContent>
-                            </Tooltip>
+                            <EnhancedTooltip content="Quick Actions - Create new items">
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        size="sm"
+                                        className="group relative overflow-hidden h-9 w-9 p-0 text-accent-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                                        style={{
+                                            background: `
+                                                 conic-gradient(
+                                                     from 45deg at 50% 50%,
+                                                     hsl(var(--accent)) 0deg,
+                                                     hsl(var(--accent) / 0.7) 90deg,
+                                                     hsl(var(--accent)) 180deg,
+                                                     hsl(var(--accent) / 0.7) 270deg,
+                                                     hsl(var(--accent)) 360deg
+                                                 )
+                                             `,
+                                            boxShadow: `
+                                                 0 0 20px hsl(var(--accent) / 0.3),
+                                                 0 0 40px hsl(var(--accent) / 0.2),
+                                                 0 0 0 1px hsl(var(--accent) / 0.4)
+                                             `
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = `
+                                                 conic-gradient(
+                                                     from 45deg at 50% 50%,
+                                                     hsl(var(--accent)) 0deg,
+                                                     hsl(var(--accent) / 0.8) 90deg,
+                                                     hsl(var(--accent)) 180deg,
+                                                     hsl(var(--accent) / 0.8) 270deg,
+                                                     hsl(var(--accent)) 360deg
+                                                 )
+                                             `;
+                                            e.currentTarget.style.boxShadow = `
+                                                    0 0 30px hsl(var(--accent) / 0.5),
+                                                    0 0 60px hsl(var(--accent) / 0.3),
+                                                    0 0 0 1px hsl(var(--accent) / 0.6)
+                                                `;
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = `
+                                                 conic-gradient(
+                                                     from 45deg at 50% 50%,
+                                                     hsl(var(--accent)) 0deg,
+                                                     hsl(var(--accent) / 0.7) 90deg,
+                                                     hsl(var(--accent)) 180deg,
+                                                     hsl(var(--accent) / 0.7) 270deg,
+                                                     hsl(var(--accent)) 360deg
+                                                 )
+                                             `;
+                                            e.currentTarget.style.boxShadow = `
+                                                    0 0 20px hsl(var(--accent) / 0.3),
+                                                    0 0 40px hsl(var(--accent) / 0.2),
+                                                    0 0 0 1px hsl(var(--accent) / 0.4)
+                                                `;
+                                        }}
+                                    >
+                                        <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                            </EnhancedTooltip>
                             <DropdownMenuContent align="end" className="w-56 bg-background/80 backdrop-blur-xl border-r border-primary/30 overflow-hidden"
                                 style={{
                                     boxShadow: `
@@ -592,27 +640,78 @@ export function Header() {
 
                         {/* Notifications */}
                         <DropdownMenu>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-9 w-9 p-0 relative bg-gradient-to-r from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30 border border-primary/30 hover:border-primary/50 transition-all duration-300 shadow-lg hover:shadow-xl group"
-                                        >
-                                            <Bell className="h-4 w-4 text-primary-foreground/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] group-hover:text-primary-foreground group-hover:animate-bell-vibrate transition-colors duration-300" />
-                                            {notifications > 0 && (
-                                                <Badge
-                                                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-gradient-to-r from-red-500 to-pink-500 text-white border border-red-400/50 shadow-lg"
-                                                >
-                                                    {notifications > 9 ? '9+' : notifications}
-                                                </Badge>
-                                            )}
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                </TooltipTrigger>
-                                <TooltipContent>Notifications ({notifications} new)</TooltipContent>
-                            </Tooltip>
+                            <EnhancedTooltip content={`Notifications (${notifications} new)`}>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-9 w-9 p-0 relative transition-all duration-300 shadow-lg hover:shadow-xl group"
+                                        style={{
+                                            background: `
+                                                conic-gradient(
+                                                    from 45deg at 50% 50%,
+                                                    hsl(var(--accent) / 0.4) 0deg,
+                                                    hsl(var(--accent) / 0.2) 90deg,
+                                                    hsl(var(--accent) / 0.4) 180deg,
+                                                    hsl(var(--accent) / 0.2) 270deg,
+                                                    hsl(var(--accent) / 0.4) 360deg
+                                                )
+                                            `,
+                                            border: `1px solid hsl(var(--accent) / 0.4)`,
+                                            boxShadow: `
+                                                0 0 15px hsl(var(--accent) / 0.2),
+                                                0 0 30px hsl(var(--accent) / 0.1),
+                                                0 0 0 1px hsl(var(--accent) / 0.3)
+                                            `
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = `
+                                                conic-gradient(
+                                                    from 45deg at 50% 50%,
+                                                    hsl(var(--accent) / 0.6) 0deg,
+                                                    hsl(var(--accent) / 0.3) 90deg,
+                                                    hsl(var(--accent) / 0.6) 180deg,
+                                                    hsl(var(--accent) / 0.3) 270deg,
+                                                    hsl(var(--accent) / 0.6) 360deg
+                                                )
+                                            `;
+                                            e.currentTarget.style.border = `1px solid hsl(var(--accent) / 0.6)`;
+                                            e.currentTarget.style.boxShadow = `
+                                                0 0 25px hsl(var(--accent) / 0.3),
+                                                0 0 50px hsl(var(--accent) / 0.2),
+                                                0 0 0 1px hsl(var(--accent) / 0.5)
+                                            `;
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = `
+                                                conic-gradient(
+                                                    from 45deg at 50% 50%,
+                                                    hsl(var(--accent) / 0.4) 0deg,
+                                                    hsl(var(--accent) / 0.2) 90deg,
+                                                    hsl(var(--accent) / 0.4) 180deg,
+                                                    hsl(var(--accent) / 0.2) 270deg,
+                                                    hsl(var(--accent) / 0.4) 360deg
+                                                )
+                                            `;
+                                            e.currentTarget.style.border = `1px solid hsl(var(--accent) / 0.4)`;
+                                            e.currentTarget.style.boxShadow = `
+                                                0 0 15px hsl(var(--accent) / 0.2),
+                                                0 0 30px hsl(var(--accent) / 0.1),
+                                                0 0 0 1px hsl(var(--accent) / 0.3)
+                                            `;
+                                        }}
+                                    >
+                                        <Bell className="h-4 w-4 text-accent-foreground/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] group-hover:text-accent-foreground group-hover:animate-bell-vibrate transition-colors duration-300" />
+                                        {notifications > 0 && (
+                                            <Badge
+                                                className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-gradient-to-r from-red-500 to-pink-500 text-white border border-red-400/50 shadow-lg"
+                                            >
+                                                {notifications > 9 ? '9+' : notifications}
+                                            </Badge>
+                                        )}
+                                    </Button>
+                                </DropdownMenuTrigger>
+                            </EnhancedTooltip>
                             <DropdownMenuContent align="end" className="w-80 bg-card/90 backdrop-blur-xl border border-border shadow-xl">
                                 <DropdownMenuLabel className="text-foreground">Notifications</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
@@ -649,30 +748,25 @@ export function Header() {
 
                         {/* Profile Dropdown */}
                         <DropdownMenu>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            className="h-9 w-9 p-0 rounded-full border border-border/50 hover:border-border transition-all duration-300"
-                                        >
-                                            <Avatar className="h-9 w-9">
-                                                <AvatarImage
-                                                    src={accountData?.avatarUrl || ""}
-                                                    alt="Profile"
-                                                    className="object-cover"
-                                                />
-                                                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20 text-primary-foreground">
-                                                    <User className="h-4 w-4" />
-                                                </AvatarFallback>
-                                            </Avatar>
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    Profile — {accountData?.fullName || userData?.fullName || "User"}
-                                </TooltipContent>
-                            </Tooltip>
+                            <EnhancedTooltip content={`Profile — ${accountData?.fullName || userData?.fullName || "User"}`}>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        className="h-9 w-9 p-0 rounded-full border border-border/50 hover:border-border transition-all duration-300"
+                                    >
+                                        <Avatar className="h-9 w-9">
+                                            <AvatarImage
+                                                src={accountData?.avatarUrl || ""}
+                                                alt="Profile"
+                                                className="object-cover"
+                                            />
+                                            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20 text-primary-foreground">
+                                                <User className="h-4 w-4" />
+                                            </AvatarFallback>
+                                        </Avatar>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                            </EnhancedTooltip>
                             <DropdownMenuContent align="end" className="w-56 bg-background/80 backdrop-blur-xl border-r border-primary/30 overflow-hidden"
                                 style={{
                                     boxShadow: `

@@ -18,10 +18,10 @@ export function Topbar({ onChatToggle }: Props) {
     <div className="flex h-14 items-center justify-between border-b border-primary/30 px-4 bg-background/80 backdrop-blur-xl"
       style={{
         boxShadow: `
-          0 2px 0 0 rgba(99, 102, 241, 0.4),
-          0 4px 15px rgba(99, 102, 241, 0.15),
-          0 8px 30px rgba(139, 92, 246, 0.08),
-          0 0 0 1px rgba(99, 102, 241, 0.1)
+          0 2px 0 0 hsl(var(--primary) / 0.4),
+          0 4px 15px hsl(var(--primary) / 0.15),
+          0 8px 30px hsl(var(--accent) / 0.08),
+          0 0 0 1px hsl(var(--primary) / 0.1)
         `
       }}>
       <h1 className="text-xl font-semibold">{title}</h1>
@@ -31,9 +31,9 @@ export function Topbar({ onChatToggle }: Props) {
             <Button variant="outline" size="sm" className="border-2 border-primary/30 hover:border-primary/50 hover:bg-primary/10 transition-all duration-300"
               style={{
                 boxShadow: `
-                  0 0 10px rgba(99, 102, 241, 0.1),
+                  0 0 10px hsl(var(--primary) / 0.1),
                   0 2px 8px rgba(0, 0, 0, 0.05),
-                  0 0 0 1px rgba(99, 102, 241, 0.05)
+                  0 0 0 1px hsl(var(--primary) / 0.05)
                 `
               }}>
               <Upload className="mr-2 h-4 w-4" />
@@ -42,9 +42,9 @@ export function Topbar({ onChatToggle }: Props) {
             <Button variant="outline" size="sm" className="border-2 border-primary/30 hover:border-primary/50 hover:bg-primary/10 transition-all duration-300"
               style={{
                 boxShadow: `
-                  0 0 10px rgba(99, 102, 241, 0.1),
+                  0 0 10px hsl(var(--primary) / 0.1),
                   0 2px 8px rgba(0, 0, 0, 0.05),
-                  0 0 0 1px rgba(99, 102, 241, 0.05)
+                  0 0 0 1px hsl(var(--primary) / 0.05)
                 `
               }}>
               <Filter className="mr-2 h-4 w-4" />
@@ -55,9 +55,9 @@ export function Topbar({ onChatToggle }: Props) {
         <Button variant="outline" size="icon" onClick={onChatToggle} aria-label="Toggle chat" className="border-2 border-primary/30 hover:border-primary/50 hover:bg-primary/10 transition-all duration-300"
           style={{
             boxShadow: `
-              0 0 10px rgba(99, 102, 241, 0.1),
+              0 0 10px hsl(var(--primary) / 0.1),
               0 2px 8px rgba(0, 0, 0, 0.05),
-              0 0 0 1px rgba(99, 102, 241, 0.05)
+              0 0 0 1px hsl(var(--primary) / 0.05)
             `
           }}>
           <MessageSquare className="h-5 w-5" />

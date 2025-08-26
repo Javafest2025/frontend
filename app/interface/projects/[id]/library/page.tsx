@@ -169,14 +169,14 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
         .filter(paper => {
             const matchesSearch = !searchQuery ||
                 paper.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                paper.abstract?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                paper.authors?.some(author => author.toLowerCase().includes(searchQuery.toLowerCase()))
+                (paper.abstractText?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+                paper.authors?.some(author => author.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
             const matchesSource = filterSource === "all" || paper.source === filterSource
 
             const matchesOpenAccess = filterOpenAccess === "all" ||
-                (filterOpenAccess === "open" && paper.openAccess) ||
-                (filterOpenAccess === "closed" && !paper.openAccess)
+                (filterOpenAccess === "open" && paper.isOpenAccess) ||
+                (filterOpenAccess === "closed" && !paper.isOpenAccess)
 
             return matchesSearch && matchesSource && matchesOpenAccess
         })
@@ -185,13 +185,19 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
 
             switch (sortBy) {
                 case 'date':
-                    comparison = new Date(a.publishedDate || 0).getTime() - new Date(b.publishedDate || 0).getTime()
+                    // Handle date sorting with proper fallbacks
+                    const dateA = new Date(a.publicationDate || '1970-01-01').getTime()
+                    const dateB = new Date(b.publicationDate || '1970-01-01').getTime()
+                    comparison = dateA - dateB
                     break
                 case 'citations':
                     comparison = (a.citationCount || 0) - (b.citationCount || 0)
                     break
                 case 'title':
-                    comparison = a.title.localeCompare(b.title)
+                    // Handle title sorting with proper string comparison
+                    const titleA = (a.title || '').toLowerCase().trim()
+                    const titleB = (b.title || '').toLowerCase().trim()
+                    comparison = titleA.localeCompare(titleB)
                     break
                 default:
                     comparison = 0
@@ -322,45 +328,91 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                     </Button>
 
                                     <div className="flex items-center gap-2">
-                                        <label className="text-sm font-medium">Sort by:</label>
+                                        <label className="text-sm font-medium text-muted-foreground">Sort by:</label>
                                         <Select value={sortBy} onValueChange={(value) => setSortBy(value as any)}>
-                                            <SelectTrigger className="w-32 bg-background/40 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40" style={{ boxShadow: '0 0 6px rgba(99, 102, 241, 0.06)' }}>
+                                            <SelectTrigger className="w-32 bg-background/40 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 transition-all duration-300" style={{ boxShadow: '0 0 6px rgba(99, 102, 241, 0.06)' }}>
                                                 <SelectValue />
                                             </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="date">Date</SelectItem>
-                                                <SelectItem value="citations">Citations</SelectItem>
-                                                <SelectItem value="title">Title</SelectItem>
+                                            <SelectContent className="bg-background/95 backdrop-blur-xl border border-primary/20">
+                                                <SelectItem value="date" className="hover:bg-primary/10 focus:bg-primary/10">
+                                                    <div className="flex items-center gap-2">
+                                                        <Calendar className="h-4 w-4 text-green-500" />
+                                                        Date
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="citations" className="hover:bg-primary/10 focus:bg-primary/10">
+                                                    <div className="flex items-center gap-2">
+                                                        <Quote className="h-4 w-4 text-purple-500" />
+                                                        Citations
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="title" className="hover:bg-primary/10 focus:bg-primary/10">
+                                                    <div className="flex items-center gap-2">
+                                                        <FileText className="h-4 w-4 text-blue-500" />
+                                                        Title
+                                                    </div>
+                                                </SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <Button
                                             variant="outline"
                                             size="sm"
                                             onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
-                                            className="bg-background/40 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40"
-                                            style={{ boxShadow: '0 0 6px rgba(99, 102, 241, 0.06)' }}
+                                            className={cn(
+                                                "bg-background/40 backdrop-blur-xl border-2 transition-all duration-300 hover:scale-105",
+                                                sortDirection === 'asc'
+                                                    ? "border-green-500/40 hover:border-green-500/60 bg-green-500/10"
+                                                    : "border-purple-500/40 hover:border-purple-500/60 bg-purple-500/10"
+                                            )}
+                                            style={{
+                                                boxShadow: sortDirection === 'asc'
+                                                    ? '0 0 10px rgba(34, 197, 94, 0.2), 0 0 20px rgba(34, 197, 94, 0.1)'
+                                                    : '0 0 10px rgba(168, 85, 247, 0.2), 0 0 20px rgba(168, 85, 247, 0.1)'
+                                            }}
                                         >
-                                            {sortDirection === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                                            {sortDirection === 'asc' ? (
+                                                <SortAsc className="h-4 w-4 text-green-500" />
+                                            ) : (
+                                                <SortDesc className="h-4 w-4 text-purple-500" />
+                                            )}
                                         </Button>
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        <label className="text-sm font-medium">View:</label>
+                                        <label className="text-sm font-medium text-muted-foreground">View:</label>
                                         <Button
-                                            variant={viewMode === 'grid' ? 'default' : 'outline'}
+                                            variant="outline"
                                             size="sm"
                                             onClick={() => setViewMode('grid')}
-                                            className="bg-background/40 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40"
-                                            style={{ boxShadow: '0 0 6px rgba(99, 102, 241, 0.06)' }}
+                                            className={cn(
+                                                "bg-background/40 backdrop-blur-xl border-2 transition-all duration-300 hover:scale-105",
+                                                viewMode === 'grid'
+                                                    ? "border-cyan-500/40 hover:border-cyan-500/60 bg-cyan-500/10 text-cyan-500"
+                                                    : "border-primary/20 hover:border-primary/40 text-muted-foreground"
+                                            )}
+                                            style={{
+                                                boxShadow: viewMode === 'grid'
+                                                    ? '0 0 10px rgba(6, 182, 212, 0.2), 0 0 20px rgba(6, 182, 212, 0.1)'
+                                                    : '0 0 6px rgba(99, 102, 241, 0.06)'
+                                            }}
                                         >
                                             <Grid3X3 className="h-4 w-4" />
                                         </Button>
                                         <Button
-                                            variant={viewMode === 'list' ? 'default' : 'outline'}
+                                            variant="outline"
                                             size="sm"
                                             onClick={() => setViewMode('list')}
-                                            className="bg-background/40 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40"
-                                            style={{ boxShadow: '0 0 6px rgba(99, 102, 241, 0.06)' }}
+                                            className={cn(
+                                                "bg-background/40 backdrop-blur-xl border-2 transition-all duration-300 hover:scale-105",
+                                                viewMode === 'list'
+                                                    ? "border-emerald-500/40 hover:border-emerald-500/60 bg-emerald-500/10 text-emerald-500"
+                                                    : "border-primary/20 hover:border-primary/40 text-muted-foreground"
+                                            )}
+                                            style={{
+                                                boxShadow: viewMode === 'list'
+                                                    ? '0 0 10px rgba(16, 185, 129, 0.2), 0 0 20px rgba(16, 185, 129, 0.1)'
+                                                    : '0 0 6px rgba(99, 102, 241, 0.06)'
+                                            }}
                                         >
                                             <List className="h-4 w-4" />
                                         </Button>
@@ -426,7 +478,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                                 <AnimatePresence mode="popLayout">
                                                     {filteredAndSortedPapers.map((paper, index) => (
                                                         <StreamingPaperCard
-                                                            key={paper.id}
+                                                            key={`${paper.id}-${sortBy}-${sortDirection}`}
                                                             paper={paper}
                                                             index={index}
                                                             onSelect={handlePaperSelect}
@@ -441,7 +493,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                                 <AnimatePresence mode="popLayout">
                                                     {filteredAndSortedPapers.map((paper, index) => (
                                                         <PaperCard
-                                                            key={paper.id}
+                                                            key={`${paper.id}-${sortBy}-${sortDirection}`}
                                                             paper={paper}
                                                             index={index}
                                                             onSelect={handlePaperSelect}

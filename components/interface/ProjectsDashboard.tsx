@@ -233,10 +233,37 @@ export function ProjectsDashboard() {
         return status.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
     }
 
-    const formatLastActivity = (updatedAt: string) => {
-        const date = new Date(updatedAt)
+    const formatLastActivity = (updatedAt: string, createdAt?: string) => {
+        const updateDate = new Date(updatedAt)
+        const createDate = createdAt ? new Date(createdAt) : null
         const now = new Date()
-        const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+
+        // Check if the update date is valid
+        if (isNaN(updateDate.getTime())) {
+            return "Recently created"
+        }
+
+        // If the project was created recently and hasn't been updated, show creation time
+        if (createDate && Math.abs(updateDate.getTime() - createDate.getTime()) < 60000) { // Within 1 minute
+            const createDiffInHours = Math.floor((now.getTime() - createDate.getTime()) / (1000 * 60 * 60))
+
+            if (createDiffInHours < 0) return "Recently created"
+            if (createDiffInHours < 1) return "Just created"
+            if (createDiffInHours < 24) return `${createDiffInHours} hours ago`
+
+            const createDiffInDays = Math.floor(createDiffInHours / 24)
+            if (createDiffInDays < 7) return `${createDiffInDays} days ago`
+
+            return createDate.toLocaleDateString()
+        }
+
+        // Otherwise show last update time
+        const diffInHours = Math.floor((now.getTime() - updateDate.getTime()) / (1000 * 60 * 60))
+
+        // Handle negative time differences (future dates)
+        if (diffInHours < 0) {
+            return "Recently updated"
+        }
 
         if (diffInHours < 1) return "Just now"
         if (diffInHours < 24) return `${diffInHours} hours ago`
@@ -244,7 +271,7 @@ export function ProjectsDashboard() {
         const diffInDays = Math.floor(diffInHours / 24)
         if (diffInDays < 7) return `${diffInDays} days ago`
 
-        return date.toLocaleDateString()
+        return updateDate.toLocaleDateString()
     }
 
     const handleOpenProject = async (projectId: string) => {
@@ -583,7 +610,9 @@ export function ProjectsDashboard() {
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
-                                                            <span className="text-xs sm:text-sm text-muted-foreground">{formatLastActivity(project.updatedAt)}</span>
+                                                            <span className="text-xs sm:text-sm text-muted-foreground">
+                                                                {formatLastActivity(project.updatedAt, project.createdAt)}
+                                                            </span>
                                                         </div>
                                                     </div>
 

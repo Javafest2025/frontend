@@ -256,6 +256,42 @@ export const authorsApi = {
         }
     },
 
+    // Resync author information from external sources
+    async resyncAuthor(name: string, strategy: string = "comprehensive"): Promise<Author> {
+        try {
+            console.log("🔄 Resyncing author:", name, "with strategy:", strategy)
+            
+            // Get user data for the request
+            const { getUserData } = await import("@/lib/api/user-service/auth")
+            const userData = getUserData()
+            const userId = userData?.id || "anonymous"
+
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/authors/resync/${encodeURIComponent(name)}?strategy=${strategy}&userId=${encodeURIComponent(userId)}`),
+                {
+                    method: "POST",
+                }
+            )
+
+            console.log("📊 Resync author response status:", response.status, response.statusText)
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ Resync author failed:", response.status, errorText)
+                throw new Error(`Failed to resync author: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ Author resynced successfully:", data)
+            return data.data
+        } catch (error) {
+            console.error("Resync author error:", error)
+            throw error instanceof Error
+                ? error
+                : new Error("Failed to resync author")
+        }
+    },
+
     // Get stale authors (for background refresh)
     async getStaleAuthors(hours: number = 24): Promise<Author[]> {
         try {

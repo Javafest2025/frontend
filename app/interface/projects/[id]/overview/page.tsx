@@ -363,16 +363,16 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                 <CardContent className="relative z-10">
                                     <div className="space-y-6">
                                         <div className="grid grid-cols-2 gap-4">
-                                            <div className="text-center p-4 rounded-lg bg-background/30 border border-border relative overflow-hidden group">
+                                            <div className="text-center p-4 rounded-lg bg-background/40 backdrop-blur-xl border border-blue-500/20 relative overflow-hidden group transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20">
                                                 {/* Shimmer effect for Total Papers - only on hover */}
-                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
                                                 <BookOpen className="h-8 w-8 text-blue-500 mx-auto mb-2 relative z-10" />
                                                 <div className="text-2xl font-bold text-foreground relative z-10">{libraryStats?.totalPapers || 0}</div>
                                                 <div className="text-sm text-muted-foreground relative z-10">Total Papers</div>
                                             </div>
-                                            <div className="text-center p-4 rounded-lg bg-background/30 border border-border relative overflow-hidden group">
+                                            <div className="text-center p-4 rounded-lg bg-background/40 backdrop-blur-xl border border-yellow-500/20 relative overflow-hidden group transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-yellow-500/20">
                                                 {/* Shimmer effect for Reading List - only on hover */}
-                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
                                                 <ListTodo className="h-8 w-8 text-yellow-500 mx-auto mb-2 relative z-10" />
                                                 <div className="text-2xl font-bold text-foreground relative z-10">{readingListStats?.totalItems || 0}</div>
                                                 <div className="text-sm text-muted-foreground relative z-10">Reading List</div>
@@ -388,9 +388,9 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                                 <Progress value={project.progress || 0} className="flex-1" />
                                             </div>
                                         </div>
-                                        <div className="text-center p-4 rounded-lg bg-background/30 border border-border relative overflow-hidden group">
+                                        <div className="text-center p-4 rounded-lg bg-background/40 backdrop-blur-xl border border-purple-500/20 relative overflow-hidden group transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20">
                                             {/* Shimmer effect for Notes - only on hover */}
-                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
                                             <MessageSquare className="h-8 w-8 text-purple-500 mx-auto mb-2 relative z-10" />
                                             <div className="text-2xl font-bold text-foreground relative z-10">{notesCount}</div>
                                             <div className="text-sm text-muted-foreground relative z-10">Notes</div>

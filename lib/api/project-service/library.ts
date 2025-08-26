@@ -138,6 +138,15 @@ export const libraryApi = {
 
             const data = await response.json()
             console.log("✅ Project library retrieved successfully:", data)
+
+            // Process papers to handle abstract field mapping
+            if (data.data?.papers && Array.isArray(data.data.papers)) {
+                data.data.papers = data.data.papers.map((p: any) => ({
+                    ...p,
+                    abstractText: p.abstractText ?? p.abstract ?? null,
+                }))
+            }
+
             return data.data
         } catch (error) {
             console.error("Get project library error:", error)
@@ -207,6 +216,15 @@ export const libraryApi = {
 
             const data = await response.json()
             console.log("✅ Latest project papers retrieved successfully:", data)
+
+            // Process papers to handle abstract field mapping
+            if (data.data && Array.isArray(data.data)) {
+                data.data = data.data.map((p: any) => ({
+                    ...p,
+                    abstractText: p.abstractText ?? p.abstract ?? null,
+                }))
+            }
+
             return data.data
         } catch (error) {
             console.error("Get latest project papers error:", error)
@@ -252,5 +270,170 @@ export const libraryApi = {
                 ? error
                 : new Error("Failed to get project library stats")
         }
+    },
+
+    // AI Abstract Analysis Methods
+    async analyzeAbstractHighlights(abstractText: string): Promise<AbstractHighlightDto> {
+        try {
+            console.log("🔍 Analyzing abstract highlights for text length:", abstractText.length)
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/ai/abstract/highlights`),
+                {
+                    method: "POST",
+                    body: JSON.stringify({ abstractText }),
+                }
+            )
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ Abstract highlights analysis failed:", response.status, errorText)
+                throw new Error(`Failed to analyze abstract highlights: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ Abstract highlights analyzed successfully:", data)
+            return data.data
+        } catch (error) {
+            console.error("Abstract highlights analysis error:", error)
+            throw error instanceof Error
+                ? error
+                : new Error("Failed to analyze abstract highlights")
+        }
+    },
+
+    async analyzeAbstractInsights(abstractText: string): Promise<AbstractAnalysisDto> {
+        try {
+            console.log("🧠 Analyzing abstract insights for text length:", abstractText.length)
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/ai/abstract/insights`),
+                {
+                    method: "POST",
+                    body: JSON.stringify({ abstractText }),
+                }
+            )
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ Abstract insights analysis failed:", response.status, errorText)
+                throw new Error(`Failed to analyze abstract insights: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ Abstract insights analyzed successfully:", data)
+            return data.data
+        } catch (error) {
+            console.error("Abstract insights analysis error:", error)
+            throw error instanceof Error
+                ? error
+                : new Error("Failed to analyze abstract insights")
+        }
+    },
+
+    async analyzeAbstractComplete(abstractText: string): Promise<CompleteAnalysisResponse> {
+        try {
+            console.log("📊 Performing complete abstract analysis for text length:", abstractText.length)
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/ai/abstract/analyze`),
+                {
+                    method: "POST",
+                    body: JSON.stringify({ abstractText }),
+                }
+            )
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ Complete abstract analysis failed:", response.status, errorText)
+                throw new Error(`Failed to perform complete abstract analysis: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ Complete abstract analysis performed successfully:", data)
+            return data.data
+        } catch (error) {
+            console.error("Complete abstract analysis error:", error)
+            throw error instanceof Error
+                ? error
+                : new Error("Failed to perform complete abstract analysis")
+        }
+    },
+
+    async analyzePaperAbstract(paperId: string, abstractText: string): Promise<CompleteAnalysisResponse> {
+        try {
+            console.log("📊 Analyzing paper abstract for paper:", paperId, "text length:", abstractText.length)
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/ai/abstract/paper/${paperId}/analyze`),
+                {
+                    method: "POST",
+                    body: JSON.stringify({ abstractText }),
+                }
+            )
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ Paper abstract analysis failed:", response.status, errorText)
+                throw new Error(`Failed to analyze paper abstract: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ Paper abstract analysis completed successfully:", data)
+            return data.data
+        } catch (error) {
+            console.error("Paper abstract analysis error:", error)
+            throw error instanceof Error
+                ? error
+                : new Error("Failed to analyze paper abstract")
+        }
+    },
+
+    async reanalyzePaperAbstract(paperId: string, abstractText: string): Promise<CompleteAnalysisResponse> {
+        try {
+            console.log("🔄 Re-analyzing paper abstract for paper:", paperId, "text length:", abstractText.length)
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/ai/abstract/paper/${paperId}/reanalyze`),
+                {
+                    method: "POST",
+                    body: JSON.stringify({ abstractText }),
+                }
+            )
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ Paper abstract re-analysis failed:", response.status, errorText)
+                throw new Error(`Failed to re-analyze paper abstract: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ Paper abstract re-analyzed successfully:", data)
+            return data.data
+        } catch (error) {
+            console.error("Paper abstract re-analysis error:", error)
+            throw error instanceof Error
+                ? error
+                : new Error("Failed to re-analyze paper abstract")
+        }
     }
+}
+
+// Types for AI analysis
+export interface AbstractHighlightDto {
+    highlights: Array<{
+        text: string;
+        type: 'algorithm' | 'methodology' | 'concept' | 'metric' | 'framework';
+        startIndex: number;
+        endIndex: number;
+    }>;
+}
+
+export interface AbstractAnalysisDto {
+    focus: string;
+    approach: string;
+    emphasis: string;
+    methodology: string;
+    impact: string;
+    challenges: string;
+}
+
+export interface CompleteAnalysisResponse {
+    highlights: AbstractHighlightDto;
+    insights: AbstractAnalysisDto;
 }

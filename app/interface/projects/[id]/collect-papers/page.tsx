@@ -7,20 +7,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-
     Search,
     RefreshCw,
     Upload,
     Globe,
     FolderOpen,
     Zap,
-    ChevronUp
+    ChevronUp,
+    CheckCircle
 } from "lucide-react"
 import { isValidUUID } from "@/lib/utils"
 import { useWebSearch } from "@/hooks/useWebSearch"
 import { libraryApi } from "@/lib/api/project-service"
-import { SearchLoadingProgress } from "@/components/library/SearchLoadingProgress"
-
 import { StreamingPaperCard } from "@/components/library/StreamingPaperCard"
 import { PaperDetailModal } from "@/components/library/PaperDetailModal"
 import { PdfViewerModal } from "@/components/library/PdfViewerModal"
@@ -32,6 +30,181 @@ interface CollectPapersPageProps {
     readonly params: Promise<{
         readonly id: string
     }>
+}
+
+// Shimmering paper card component for loading state
+const ShimmeringPaperCard = ({ index }: { index: number }) => (
+    <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: index * 0.1 }}
+        className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl"
+        style={{ boxShadow: '0 0 20px rgba(99, 102, 241, 0.15), 0 0 40px rgba(139, 92, 246, 0.08)' }}
+    >
+        <div className="p-6">
+            {/* Shimmer effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+
+            {/* Title shimmer */}
+            <div className="h-6 bg-gradient-to-r from-primary/30 to-accent-2/30 rounded mb-3 animate-pulse" />
+
+            {/* Author shimmer */}
+            <div className="h-4 bg-gradient-to-r from-muted/40 to-muted/30 rounded mb-2 w-3/4 animate-pulse" />
+
+            {/* Abstract shimmer */}
+            <div className="space-y-2">
+                <div className="h-3 bg-gradient-to-r from-muted/30 to-muted/20 rounded animate-pulse" />
+                <div className="h-3 bg-gradient-to-r from-muted/30 to-muted/20 rounded w-5/6 animate-pulse" />
+                <div className="h-3 bg-gradient-to-r from-muted/30 to-muted/20 rounded w-4/6 animate-pulse" />
+            </div>
+
+            {/* Metadata shimmer */}
+            <div className="flex gap-2 mt-4">
+                <div className="h-6 w-16 bg-gradient-to-r from-primary/30 to-accent-2/30 rounded animate-pulse" />
+                <div className="h-6 w-20 bg-gradient-to-r from-muted/40 to-muted/30 rounded animate-pulse" />
+            </div>
+        </div>
+    </motion.div>
+)
+
+// 3D Browser Icon component
+const RotatingBrowserIcon = () => (
+    <div className="relative w-16 h-16">
+        <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+            className="w-full h-full relative"
+        >
+            {/* Browser window base */}
+            <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-blue-500/40 via-purple-500/30 to-cyan-500/40 border-2 border-primary/40 backdrop-blur-xl shadow-lg" />
+
+            {/* Browser header */}
+            <div className="absolute top-1 left-1 right-1 h-3 bg-gradient-to-r from-primary/60 to-accent-2/60 rounded-sm" />
+
+            {/* Browser controls */}
+            <div className="absolute top-2 left-2 flex gap-1">
+                <div className="w-2 h-2 rounded-full bg-red-400/80" />
+                <div className="w-2 h-2 rounded-full bg-yellow-400/80" />
+                <div className="w-2 h-2 rounded-full bg-green-400/80" />
+            </div>
+
+            {/* Search bar */}
+            <div className="absolute top-6 left-2 right-2 h-2 bg-gradient-to-r from-muted/40 to-muted/20 rounded-sm" />
+
+            {/* Content area */}
+            <div className="absolute top-9 left-2 right-2 bottom-2 bg-gradient-to-br from-background/30 to-primary/10 rounded-sm border border-primary/20" />
+
+            {/* Search icon overlay */}
+            <div className="absolute inset-0 flex items-center justify-center">
+                <Search className="h-6 w-6 text-primary/90 drop-shadow-lg" />
+            </div>
+
+            {/* 3D effect highlights */}
+            <div className="absolute top-1 left-1 w-1 h-1 bg-white/60 rounded-full blur-sm" />
+            <div className="absolute bottom-1 right-1 w-1 h-1 bg-white/40 rounded-full blur-sm" />
+        </motion.div>
+    </div>
+)
+
+// Progress tooltip component with comprehensive workflow steps
+const ProgressTooltip = ({ progress, currentStep, onClose }: { progress: number; currentStep: string; onClose: () => void }) => {
+    const steps = [
+        // Phase 1: Initialization (0-10%)
+        "🚀 Initializing ScholarAI search agent...",
+        "⚙️ Loading configuration and settings...",
+        "🔧 Preparing multi-source search infrastructure...",
+        "📋 Validating search parameters and domain...",
+
+        // Phase 2: API Connections (10-25%)
+        "🌐 Establishing connection to arXiv repository...",
+        "🏥 Connecting to PubMed medical database...",
+        "📚 Linking to OpenAlex academic index...",
+        "🔬 Accessing CORE research repository...",
+        "🇪🇺 Connecting to Europe PMC database...",
+
+        // Phase 3: Search Execution (25-50%)
+        "🔍 Executing primary search queries...",
+        "📝 Processing and optimizing query terms...",
+        "📡 Sending requests to arXiv API...",
+        "🏥 Querying PubMed for medical papers...",
+        "📚 Searching OpenAlex academic database...",
+        "🔬 Scanning CORE research papers...",
+        "🇪🇺 Searching Europe PMC repository...",
+        "⏳ Waiting for API responses...",
+
+        // Phase 4: Data Collection (50-70%)
+        "📊 Collecting initial search results...",
+        "🔄 Gathering papers from all sources...",
+        "📈 Aggregating metadata from APIs...",
+        "🔗 Cross-referencing paper identifiers...",
+
+        // Phase 5: Processing & Filtering (70-85%)
+        "🎯 Filtering papers by relevance...",
+        "📅 Applying publication date filters...",
+        "🏷️ Categorizing by research domain...",
+        "🔍 Removing low-quality matches...",
+
+        // Phase 6: Deduplication & Enrichment (85-95%)
+        "🔄 Identifying duplicate papers...",
+        "🧹 Removing duplicate entries...",
+        "📖 Enriching paper metadata...",
+        "👥 Adding author information...",
+        "📝 Filling missing abstracts...",
+        "🔗 Resolving DOI references...",
+        "⭐ Ranking papers by relevance...",
+
+        // Phase 7: PDF Processing (95-98%)
+        "📄 Collecting PDF documents...",
+        "⬇️ Downloading paper PDFs...",
+        "☁️ Uploading to B2 cloud storage...",
+        "🔗 Generating secure PDF URLs...",
+
+        // Phase 8: Finalization (98-100%)
+        "📋 Finalizing paper collection...",
+        "✅ Preparing results for display...",
+        "🎉 Search completed successfully!"
+    ]
+
+    const completedSteps = Math.floor((progress / 100) * steps.length)
+
+    return (
+        <div className="absolute top-full right-0 mt-4 px-5 py-4 bg-background border-2 border-primary/60 rounded-xl shadow-2xl z-[99999] w-80">
+            <div className="text-sm font-bold text-primary mb-3 border-b-2 border-primary/50 pb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                    Search Progress Details
+                </div>
+                <button
+                    onClick={onClose}
+                    className="text-muted-foreground hover:text-primary transition-colors duration-200 p-1 rounded-full hover:bg-primary/10"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div className="space-y-2 max-h-36 overflow-y-auto custom-scrollbar pr-2">
+                {steps.map((step, index) => (
+                    <div key={index} className="flex items-start gap-2 text-xs">
+                        {index < completedSteps ? (
+                            <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0 mt-0.5" />
+                        ) : (
+                            <div className="h-3 w-3 rounded-full border-2 border-primary/60 flex-shrink-0 mt-0.5" />
+                        )}
+                        <span className={index < completedSteps ? "text-green-400 font-medium" : "text-muted-foreground"}>
+                            {step}
+                        </span>
+                    </div>
+                ))}
+            </div>
+            <div className="mt-3 pt-2 border-t-2 border-primary/50">
+                <div className="text-xs text-muted-foreground font-bold">{Math.round(progress)}% complete</div>
+                <div className="text-xs text-primary/80 mt-1">
+                    {completedSteps} of {steps.length} steps completed
+                </div>
+            </div>
+        </div>
+    )
 }
 
 export default function CollectPapersPage({ params }: CollectPapersPageProps) {
@@ -55,6 +228,9 @@ export default function CollectPapersPage({ params }: CollectPapersPageProps) {
     // Scroll state
     const [showScrollTop, setShowScrollTop] = useState(false)
     const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null)
+
+    // Progress tooltip state
+    const [showProgressTooltip, setShowProgressTooltip] = useState(false)
 
     const webSearch = useWebSearch()
 
@@ -103,7 +279,7 @@ export default function CollectPapersPage({ params }: CollectPapersPageProps) {
     const handleSearchSubmit = async (searchRequest: WebSearchRequest) => {
         setShowSearchConfig(false)
         try {
-            await webSearch.search(searchRequest)
+            await webSearch.startSearch(searchRequest)
             // Refresh latest papers after search
             await loadLatestPapers()
         } catch (error) {
@@ -256,29 +432,71 @@ export default function CollectPapersPage({ params }: CollectPapersPageProps) {
                                         </div>
                                     </div>
                                 </CardHeader>
-                                <CardContent className="flex-1 flex flex-col px-6 pb-6">
-                                    {/* Inline Search Progress */}
+                                <CardContent className="flex-1 flex flex-col px-6 pb-6 relative overflow-visible">
+                                    {/* Search Progress Section */}
                                     {webSearch.isSearching && (
-                                        <div className="-mx-6 mb-6 p-6 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-cyan-500/5 rounded-xl border border-blue-500/30" style={{ boxShadow: '0 0 20px rgba(59, 130, 246, 0.15), 0 0 40px rgba(6, 182, 212, 0.1)' }}>
-                                            <div className="text-center mb-6">
-                                                <h3 className="text-lg font-semibold mb-2 bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">
-                                                    Searching Academic Databases
-                                                </h3>
-                                                <p className="text-muted-foreground">
-                                                    Discovering relevant research papers for your project...
-                                                </p>
+                                        <div className="mb-6 p-6 bg-gradient-to-br from-primary/10 via-accent-1/8 to-accent-2/10 rounded-xl border-2 border-primary/30 backdrop-blur-xl shadow-lg relative z-50">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center gap-4">
+                                                    <RotatingBrowserIcon />
+                                                    <div>
+                                                        <h3 className="text-lg font-semibold text-primary">
+                                                            Searching Academic Databases
+                                                        </h3>
+                                                        <p className="text-muted-foreground text-sm">
+                                                            Discovering relevant research papers for your project...
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="relative">
+                                                    <button
+                                                        onClick={() => setShowProgressTooltip(!showProgressTooltip)}
+                                                        className="px-4 py-2 bg-gradient-to-r from-primary/30 to-accent-2/30 rounded-lg border-2 border-primary/50 cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300 hover:from-primary/40 hover:to-accent-2/40"
+                                                    >
+                                                        <span className="text-sm font-semibold text-white drop-shadow-sm relative overflow-hidden">
+                                                            <span className="relative z-10">Progress</span>
+                                                            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 animate-pulse" style={{ animationDuration: '2s' }}></span>
+                                                        </span>
+                                                    </button>
+                                                    {showProgressTooltip && (
+                                                        <ProgressTooltip
+                                                            progress={webSearch.progress}
+                                                            currentStep={webSearch.currentStep}
+                                                            onClose={() => setShowProgressTooltip(false)}
+                                                        />
+                                                    )}
+                                                </div>
                                             </div>
-                                            <SearchLoadingProgress
-                                                searchProgress={webSearch.searchProgress}
-                                                completedSteps={webSearch.completedSteps}
-                                                totalSteps={webSearch.totalSteps}
-                                                streamingPapers={webSearch.streamingPapers}
-                                            />
+
+                                            {/* Progress bar */}
+                                            <div className="w-full h-3 bg-muted/40 rounded-full overflow-hidden border border-primary/20">
+                                                <motion.div
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${webSearch.progress}%` }}
+                                                    transition={{ duration: 0.5, ease: "easeOut" }}
+                                                    className="h-full bg-gradient-to-r from-primary via-accent-1 to-accent-2 rounded-full relative shadow-lg"
+                                                    style={{ boxShadow: '0 0 8px rgba(99, 102, 241, 0.4), 0 0 16px rgba(139, 92, 246, 0.2)' }}
+                                                >
+                                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
+                                                </motion.div>
+                                            </div>
                                         </div>
                                     )}
 
-                                    {/* Search Results */}
-                                    {latestPapers.length > 0 && (
+                                    {/* Search Results or Shimmering Cards */}
+                                    {webSearch.isSearching ? (
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            className="w-full flex-1 relative z-0"
+                                        >
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6">
+                                                {Array.from({ length: 8 }).map((_, index) => (
+                                                    <ShimmeringPaperCard key={index} index={index} />
+                                                ))}
+                                            </div>
+                                        </motion.div>
+                                    ) : latestPapers.length > 0 ? (
                                         <motion.div
                                             initial={{ opacity: 0, y: 20 }}
                                             animate={{ opacity: 1, y: 0 }}
@@ -300,9 +518,7 @@ export default function CollectPapersPage({ params }: CollectPapersPageProps) {
                                                 </AnimatePresence>
                                             </div>
                                         </motion.div>
-                                    )}
-
-                                    {latestPapers.length === 0 && !webSearch.isSearching && (
+                                    ) : (
                                         <div className="text-center py-12">
                                             <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                             <h3 className="text-lg font-medium text-muted-foreground mb-2">No search results yet</h3>
@@ -346,7 +562,7 @@ export default function CollectPapersPage({ params }: CollectPapersPageProps) {
                                         </Button>
                                     </div>
                                 </CardHeader>
-                                <CardContent className="flex-1 flex flex-col px-6 pb-6">
+                                <CardContent className="flex-1 flex flex-col px-6 pb-6 relative overflow-visible">
                                     <div className="text-center py-12">
                                         <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                         <h3 className="text-lg font-medium text-muted-foreground mb-2">No uploaded content</h3>

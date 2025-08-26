@@ -138,13 +138,15 @@ The methodology employed in this study combines quantitative and qualitative app
             className="group"
         >
             <Card
-                className="bg-background/50 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg shadow-primary/5 hover:shadow-primary/10"
+                className="bg-background/50 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg shadow-primary/5 hover:shadow-primary/10 group"
                 style={{
-                    boxShadow: '0 0 20px rgba(99, 102, 241, 0.05), inset 0 0 20px rgba(99, 102, 241, 0.02)'
+                    boxShadow: '0 0 20px hsl(var(--primary) / 0.05), inset 0 0 20px hsl(var(--primary) / 0.02)'
                 }}
                 onClick={() => onSelect(paper)}
             >
-                <CardContent className="p-0">
+                {/* Shimmer effect - only on hover */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
+                <CardContent className="p-0 relative z-10">
                     {/* Horizontal Layout */}
                     <div className="flex">
                         {/* Left Thumbnail Section - Clean PDF Preview */}
@@ -166,7 +168,7 @@ The methodology employed in this study combines quantitative and qualitative app
                                     )}>
                                         {/* Paper Document Icon Style */}
                                         <div className="text-white text-center p-6">
-                                            <FileText className="h-16 w-16 mx-auto mb-4 opacity-80" />
+                                            <FileText className="h-16 w-16 mx-auto mb-4 opacity-80 text-white" />
                                             <div className="text-sm font-medium line-clamp-3 leading-relaxed">
                                                 {paper.title}
                                             </div>
@@ -200,7 +202,7 @@ The methodology employed in this study combines quantitative and qualitative app
 
                                     {/* Authors */}
                                     <div className="flex items-center gap-2 mb-3">
-                                        <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                        <Users className="h-4 w-4 text-blue-500 flex-shrink-0" />
                                         <div className="text-sm text-muted-foreground line-clamp-1 flex flex-wrap items-center gap-1">
                                             {paper.authors.slice(0, 4).map((author, authorIndex) => (
                                                 <span key={authorIndex}>
@@ -232,7 +234,7 @@ The methodology employed in this study combines quantitative and qualitative app
                                             onClick={handlePdfDownload}
                                             className="bg-background/40 border-primary/20 hover:bg-primary/5"
                                         >
-                                            <Download className="h-4 w-4 mr-1" />
+                                            <Download className="h-4 w-4 mr-1 text-cyan-500" />
                                             Download
                                         </Button>
                                     )}
@@ -246,7 +248,7 @@ The methodology employed in this study combines quantitative and qualitative app
                                             }}
                                             className="bg-background/40 border-primary/20 hover:bg-primary/5"
                                         >
-                                            <ExternalLink className="h-4 w-4" />
+                                            <ExternalLink className="h-4 w-4 text-emerald-500" />
                                         </Button>
                                     )}
                                     <Button
@@ -258,7 +260,7 @@ The methodology employed in this study combines quantitative and qualitative app
                                         }}
                                         className="h-8 w-8 p-0 hover:bg-primary/10"
                                     >
-                                        <Star className="h-4 w-4" />
+                                        <Star className="h-4 w-4 text-yellow-500" />
                                     </Button>
                                 </div>
                             </div>
@@ -266,16 +268,16 @@ The methodology employed in this study combines quantitative and qualitative app
                             {/* Metadata Row */}
                             <div className="flex items-center gap-6 mb-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-2">
-                                    <Calendar className="h-4 w-4" />
+                                    <Calendar className="h-4 w-4 text-green-500" />
                                     <span>{formatDate(paper.publicationDate)}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Quote className="h-4 w-4" />
+                                    <Quote className="h-4 w-4 text-purple-500" />
                                     <span>{paper.citationCount} citations</span>
                                 </div>
                                 {paper.venueName && (
                                     <div className="flex items-center gap-2">
-                                        <BookOpen className="h-4 w-4" />
+                                        <BookOpen className="h-4 w-4 text-orange-500" />
                                         <span className="line-clamp-1">{paper.venueName}</span>
                                     </div>
                                 )}

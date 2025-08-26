@@ -21,7 +21,12 @@ import {
     TrendingUp,
     Calendar,
     X,
-    AlertTriangle
+    AlertTriangle,
+    Star,
+    Award,
+    Users,
+    Globe,
+    Sparkles
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -37,6 +42,15 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
     const [syncing, setSyncing] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [showHIndexWarning, setShowHIndexWarning] = useState(false)
+    const [expandedSections, setExpandedSections] = useState<{
+        researchAreas: boolean
+        affiliations: boolean
+        publications: boolean
+    }>({
+        researchAreas: false,
+        affiliations: false,
+        publications: false
+    })
     const { toast } = useToast()
 
     useEffect(() => {
@@ -65,36 +79,19 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
         try {
             setSyncing(true)
 
-            // Get user data dynamically
-            const { getUserData } = await import("@/lib/api/user-service/auth")
-            const userData = getUserData()
-
-            if (!userData?.id) {
-                toast({
-                    title: "Authentication required",
-                    description: "Please log in to sync author data",
-                    variant: "destructive"
-                })
-                return
-            }
-
-            const updatedAuthor = await authorsApi.syncAuthor({
-                userId: userData.id,
-                name: author.name,
-                strategy: "comprehensive",
-                forceRefresh: true
-            })
+            // Use the new resync endpoint
+            const updatedAuthor = await authorsApi.resyncAuthor(author.name, "comprehensive")
 
             setAuthor(updatedAuthor)
             toast({
-                title: "Author data synced",
+                title: "Author data resynced",
                 description: "Latest information has been fetched from external sources",
             })
         } catch (err) {
-            console.error("Error syncing author:", err)
+            console.error("Error resyncing author:", err)
             toast({
-                title: "Sync failed",
-                description: err instanceof Error ? err.message : "Failed to sync author data",
+                title: "Resync failed",
+                description: err instanceof Error ? err.message : "Failed to resync author data",
                 variant: "destructive"
             })
         } finally {
@@ -127,145 +124,277 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-5xl max-h-[90vh] bg-background border-border">
-                <DialogHeader className="space-y-4 pb-4">
+            <DialogContent className="max-w-6xl max-h-[85vh] bg-background/80 backdrop-blur-xl border border-border/50 shadow-2xl" hideCloseButton>
+                {/* Subtle glassy overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-background/20 to-background/10 rounded-lg" />
+
+                <DialogHeader className="relative space-y-2 pb-3">
                     <div className="flex items-start justify-between">
-                        <DialogTitle className="text-2xl font-bold text-foreground">Author Profile</DialogTitle>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-full bg-primary shadow-lg">
+                                <Users className="h-5 w-5 text-primary-foreground" />
+                            </div>
+                            <DialogTitle className="text-2xl font-bold text-foreground">
+                                Author Profile
+                            </DialogTitle>
+                        </div>
+                        <div className="flex items-center gap-3">
                             {author && (
                                 <Button
                                     onClick={handleSync}
                                     disabled={syncing}
                                     size="sm"
-                                    className="flex items-center gap-2 bg-primary hover:bg-primary/90"
+                                    className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                                 >
                                     <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
-                                    {syncing ? "Syncing..." : "Sync Data"}
+                                    {syncing ? "Resyncing..." : "Resync Data"}
                                 </Button>
                             )}
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => onOpenChange(false)}
-                                className="h-8 w-8 rounded-full hover:bg-muted/50"
+                                className="h-10 w-10 rounded-full bg-muted/50 hover:bg-red-500/20 border border-border/50 hover:border-red-500/50 transition-all duration-300"
                             >
-                                <X className="h-4 w-4" />
+                                <X className="h-5 w-5 text-muted-foreground hover:text-red-500 transition-colors duration-300" />
                             </Button>
                         </div>
                     </div>
                 </DialogHeader>
 
                 {loading ? (
-                    <div className="space-y-6">
-                        <div className="flex items-center gap-4">
-                            <Skeleton className="h-16 w-16 rounded-full" />
-                            <div className="space-y-2">
-                                <Skeleton className="h-6 w-48" />
-                                <Skeleton className="h-4 w-32" />
+                    <div className="space-y-6 relative">
+                        {/* Animated Loading Header */}
+                        <div className="relative p-4 rounded-2xl bg-card/50 border border-border/50 backdrop-blur-sm">
+                            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 animate-pulse rounded-2xl" />
+                            <div className="relative flex items-start gap-4">
+                                <div className="relative">
+                                    <Skeleton className="h-16 w-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 ring-4 ring-primary/30 shadow-2xl" />
+                                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-full border-2 border-background animate-pulse" />
+                                </div>
+                                <div className="flex-1 space-y-3">
+                                    <Skeleton className="h-6 w-48 bg-gradient-to-r from-primary/20 to-primary/40 rounded" />
+                                    <Skeleton className="h-4 w-64 bg-gradient-to-r from-muted/30 to-muted/50 rounded" />
+                                    <div className="flex gap-2">
+                                        <Skeleton className="h-6 w-16 bg-gradient-to-r from-primary/20 to-primary/40 rounded-lg" />
+                                        <Skeleton className="h-6 w-20 bg-gradient-to-r from-primary/20 to-primary/40 rounded-lg" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
+
+                        {/* Animated Loading Metrics */}
                         <div className="grid grid-cols-3 gap-4">
-                            <Skeleton className="h-20" />
-                            <Skeleton className="h-20" />
-                            <Skeleton className="h-20" />
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="relative overflow-hidden rounded-xl bg-card/50 border border-border/50">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                                    <div className="relative p-4 text-center">
+                                        <Skeleton className="h-5 w-5 mx-auto mb-2 bg-gradient-to-br from-primary/30 to-primary/50 rounded" />
+                                        <Skeleton className="h-8 w-16 mx-auto mb-1 bg-gradient-to-br from-primary/20 to-primary/40 rounded" />
+                                        <Skeleton className="h-3 w-12 mx-auto bg-gradient-to-br from-muted/30 to-muted/50 rounded" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Animated Loading Content Cards */}
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                                <div className="relative overflow-hidden rounded-xl bg-card/50 border border-border/50">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                                    <div className="relative p-4">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Skeleton className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/40" />
+                                            <Skeleton className="h-4 w-24 bg-gradient-to-r from-purple-500/20 to-purple-600/40 rounded" />
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {[1, 2, 3].map((i) => (
+                                                <Skeleton key={i} className="h-6 w-20 bg-gradient-to-br from-purple-500/20 to-purple-600/40 rounded-full" />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="relative overflow-hidden rounded-xl bg-card/50 border border-border/50">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-teal-500/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                                    <div className="relative p-4">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Skeleton className="h-8 w-8 rounded-lg bg-gradient-to-br from-teal-500/20 to-teal-600/40" />
+                                            <Skeleton className="h-4 w-20 bg-gradient-to-r from-teal-500/20 to-teal-600/40 rounded" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            {[1, 2, 3].map((i) => (
+                                                <div key={i} className="flex items-center gap-2">
+                                                    <Skeleton className="w-1 h-1 bg-teal-500 rounded-full" />
+                                                    <Skeleton className="h-3 flex-1 bg-gradient-to-r from-teal-500/20 to-teal-600/40 rounded" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="relative overflow-hidden rounded-xl bg-card/50 border border-border/50">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                                    <div className="relative p-4">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Skeleton className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-indigo-600/40" />
+                                            <Skeleton className="h-4 w-32 bg-gradient-to-r from-indigo-500/20 to-indigo-600/40 rounded" />
+                                        </div>
+                                        <div className="space-y-3">
+                                            {[1, 2].map((i) => (
+                                                <div key={i} className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                                                    <Skeleton className="h-4 w-full mb-2 bg-gradient-to-r from-indigo-500/20 to-indigo-600/40 rounded" />
+                                                    <div className="flex gap-2">
+                                                        <Skeleton className="h-3 w-16 bg-gradient-to-r from-muted/30 to-muted/50 rounded" />
+                                                        <Skeleton className="h-3 w-12 bg-gradient-to-r from-muted/30 to-muted/50 rounded" />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="relative overflow-hidden rounded-xl bg-card/50 border border-border/50">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                                    <div className="relative p-4">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Skeleton className="h-8 w-8 rounded-lg bg-gradient-to-br from-orange-500/20 to-orange-600/40" />
+                                            <Skeleton className="h-4 w-28 bg-gradient-to-r from-orange-500/20 to-orange-600/40 rounded" />
+                                        </div>
+                                        <Skeleton className="h-4 w-24 bg-gradient-to-r from-orange-500/20 to-orange-600/40 rounded" />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 ) : error ? (
-                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <div className="text-muted-foreground mb-4">
+                    <div className="flex flex-col items-center justify-center py-12 text-center relative">
+                        <div className="p-4 rounded-full bg-gradient-to-br from-red-500/20 to-red-600/20 mb-6">
+                            <AlertTriangle className="h-12 w-12 text-red-400" />
+                        </div>
+                        <div className="text-gray-300 mb-4 text-lg font-medium">
                             Failed to load author information
                         </div>
-                        <p className="text-sm text-red-500 mb-4">{error}</p>
-                        <Button onClick={() => loadAuthor(authorName)} size="sm">
+                        <p className="text-sm text-red-400 mb-6 max-w-md">{error}</p>
+                        <Button
+                            onClick={() => loadAuthor(authorName)}
+                            size="lg"
+                            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-lg"
+                        >
                             Try Again
                         </Button>
                     </div>
                 ) : author ? (
-                    <div className="space-y-4">
-                        {/* Header Section */}
-                        <div className="flex items-start gap-4">
-                            <Avatar className="h-16 w-16">
-                                <AvatarImage src={author.profileImageUrl} alt={author.name} />
-                                <AvatarFallback className="text-lg font-semibold">
-                                    {getInitials(author.name)}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 space-y-2">
-                                <div>
-                                    <h2 className="text-xl font-bold text-foreground">{author.name}</h2>
-                                    {author.primaryAffiliation && (
-                                        <p className="text-muted-foreground flex items-center gap-2">
-                                            <Building className="h-4 w-4" />
-                                            {author.primaryAffiliation}
-                                        </p>
-                                    )}
+                    <div className="space-y-3 relative">
+                        {/* Header Section with Glassmorphism */}
+                        <div className="relative p-3 rounded-xl bg-card/50 border border-border/50 backdrop-blur-sm">
+                            <div className="absolute inset-0 bg-primary/5 rounded-2xl" />
+                            <div className="relative flex items-start gap-4">
+                                <div className="relative">
+                                    <Avatar className="h-14 w-14 ring-3 ring-primary/30 shadow-xl">
+                                        <AvatarImage src={author.profileImageUrl} alt={author.name} />
+                                        <AvatarFallback className="text-base font-bold bg-primary text-primary-foreground">
+                                            {getInitials(author.name)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-primary rounded-full border-2 border-background flex items-center justify-center">
+                                        <Star className="h-2 w-2 text-primary-foreground" />
+                                    </div>
                                 </div>
+                                <div className="flex-1 space-y-1.5">
+                                    <div>
+                                        <h2 className="text-lg font-bold text-foreground">
+                                            {author.name}
+                                        </h2>
+                                        {author.primaryAffiliation && (
+                                            <p className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
+                                                <Building className="h-2.5 w-2.5 text-primary" />
+                                                {author.primaryAffiliation}
+                                            </p>
+                                        )}
+                                    </div>
 
-                                {/* Contact Info */}
-                                <div className="flex flex-wrap gap-4 text-sm">
-                                    {author.email && (
-                                        <a
-                                            href={`mailto:${author.email}`}
-                                            className="flex items-center gap-1 text-primary hover:underline"
-                                        >
-                                            <Mail className="h-3 w-3" />
-                                            Email
-                                        </a>
-                                    )}
-                                    {author.homepageUrl && (
-                                        <a
-                                            href={author.homepageUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-1 text-primary hover:underline"
-                                        >
-                                            <ExternalLink className="h-3 w-3" />
-                                            Homepage
-                                        </a>
-                                    )}
-                                    {author.orcidId && (
-                                        <a
-                                            href={`https://orcid.org/${author.orcidId}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-1 text-primary hover:underline"
-                                        >
-                                            <GraduationCap className="h-3 w-3" />
-                                            ORCID
-                                        </a>
-                                    )}
+                                    {/* Contact Info with Hover Effects */}
+                                    <div className="flex flex-wrap gap-1.5 text-xs">
+                                        {author.email && (
+                                            <a
+                                                href={`mailto:${author.email}`}
+                                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/50 hover:bg-muted border border-border/50 hover:border-border text-primary hover:text-primary/80 transition-all duration-300 group"
+                                            >
+                                                <Mail className="h-2.5 w-2.5 group-hover:scale-110 transition-transform" />
+                                                Email
+                                            </a>
+                                        )}
+                                        {author.homepageUrl && (
+                                            <a
+                                                href={author.homepageUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/50 hover:bg-muted border border-border/50 hover:border-border text-primary hover:text-primary/80 transition-all duration-300 group"
+                                            >
+                                                <ExternalLink className="h-2.5 w-2.5 group-hover:scale-110 transition-transform" />
+                                                Homepage
+                                            </a>
+                                        )}
+                                        {author.orcidId && (
+                                            <a
+                                                href={`https://orcid.org/${author.orcidId}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/50 hover:bg-muted border border-border/50 hover:border-border text-primary hover:text-primary/80 transition-all duration-300 group"
+                                            >
+                                                <GraduationCap className="h-2.5 w-2.5 group-hover:scale-110 transition-transform" />
+                                                ORCID
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <Separator />
-
-                        {/* Metrics Grid */}
-                        <div className="grid grid-cols-3 gap-4">
+                        {/* Metrics Grid with Stunning Cards */}
+                        <div className="grid grid-cols-3 gap-3">
                             {author.paperCount !== undefined && (
-                                <Card className="bg-muted/20 border-border">
-                                    <CardContent className="p-4 text-center">
-                                        <div className="text-2xl font-bold text-primary">
+                                <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300 group">
+                                    {/* Shimmer effect */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                    <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    <CardContent className="relative p-3 text-center">
+                                        <div className="flex items-center justify-center gap-2 mb-1.5">
+                                            <FileText className="h-4 w-4 text-blue-500" />
+                                        </div>
+                                        <div className="text-xl font-bold text-blue-400">
                                             {author.paperCount.toLocaleString()}
                                         </div>
-                                        <div className="text-xs text-muted-foreground">Papers</div>
+                                        <div className="text-xs text-muted-foreground font-medium">Papers</div>
                                     </CardContent>
                                 </Card>
                             )}
                             {author.citationCount !== undefined && (
-                                <Card className="bg-muted/20 border-border">
-                                    <CardContent className="p-4 text-center">
-                                        <div className="text-2xl font-bold text-primary">
+                                <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300 group">
+                                    {/* Shimmer effect */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                    <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    <CardContent className="relative p-3 text-center">
+                                        <div className="flex items-center justify-center gap-2 mb-1.5">
+                                            <Award className="h-4 w-4 text-emerald-500" />
+                                        </div>
+                                        <div className="text-xl font-bold text-emerald-400">
                                             {author.citationCount.toLocaleString()}
                                         </div>
-                                        <div className="text-xs text-muted-foreground">Citations</div>
+                                        <div className="text-xs text-muted-foreground font-medium">Citations</div>
                                     </CardContent>
                                 </Card>
                             )}
-                            <Card className="bg-muted/20 border-border">
-                                <CardContent className="p-4 text-center">
+                            <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300 group">
+                                {/* Shimmer effect */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                <div className="absolute inset-0 bg-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                <CardContent className="relative p-3 text-center">
+                                    <div className="flex items-center justify-center gap-2 mb-1.5">
+                                        <TrendingUp className="h-4 w-4 text-amber-500" />
+                                    </div>
                                     <div className="flex items-center justify-center gap-2">
-                                        <div className="text-2xl font-bold text-primary">
+                                        <div className="text-xl font-bold text-amber-400">
                                             {author.hIndex !== undefined ? author.hIndex : getRandomHIndex()}
                                         </div>
                                         {author.hIndex === undefined && (
@@ -274,13 +403,13 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
                                                 className="text-amber-500 hover:text-amber-400 transition-colors"
                                                 title="H-index might not be accurate"
                                             >
-                                                <AlertTriangle className="h-4 w-4" />
+                                                <AlertTriangle className="h-2.5 w-2.5" />
                                             </button>
                                         )}
                                     </div>
-                                    <div className="text-xs text-muted-foreground">H-Index</div>
+                                    <div className="text-xs text-muted-foreground font-medium">H-Index</div>
                                     {showHIndexWarning && author.hIndex === undefined && (
-                                        <div className="text-xs text-amber-600 mt-1 bg-amber-50 dark:bg-amber-950/20 p-1 rounded">
+                                        <div className="text-xs text-amber-500 mt-2 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
                                             H-index might not be accurate
                                         </div>
                                     )}
@@ -288,28 +417,37 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
                             </Card>
                         </div>
 
-                        {/* Two Column Layout */}
-                        <div className="grid md:grid-cols-2 gap-4">
+                        {/* Two Column Layout with Enhanced Cards */}
+                        <div className="grid md:grid-cols-2 gap-3">
                             {/* Left Column */}
-                            <div className="space-y-3">
+                            <div className="space-y-2.5">
                                 {/* Research Areas */}
                                 {author.researchAreas && author.researchAreas.length > 0 && (
-                                    <Card className="bg-muted/20 border-border">
-                                        <CardContent className="p-3">
+                                    <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300">
+                                        <div className="absolute inset-0 bg-purple-500/5 opacity-0 hover:opacity-100 transition-opacity duration-300" />
+                                        <CardContent className="relative p-3">
                                             <div className="flex items-center gap-2 mb-2">
-                                                <TrendingUp className="h-4 w-4 text-primary" />
-                                                <h3 className="font-semibold text-sm">Research Areas</h3>
+                                                <div className="p-1.5 rounded-lg bg-purple-500/20">
+                                                    <TrendingUp className="h-3.5 w-3.5 text-purple-500" />
+                                                </div>
+                                                <h3 className="font-semibold text-foreground text-sm">Research Areas</h3>
                                             </div>
-                                            <div className="flex flex-wrap gap-1">
-                                                {author.researchAreas.slice(0, 4).map((area) => (
-                                                    <Badge key={area} variant="secondary" className="text-xs">
+                                            <div className="flex flex-wrap gap-2">
+                                                {author.researchAreas.slice(0, expandedSections.researchAreas ? undefined : 4).map((area) => (
+                                                    <Badge
+                                                        key={area}
+                                                        className="bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:border-purple-400/50 transition-all duration-300"
+                                                    >
                                                         {area}
                                                     </Badge>
                                                 ))}
-                                                {author.researchAreas.length > 4 && (
-                                                    <Badge variant="outline" className="text-xs">
+                                                {author.researchAreas.length > 4 && !expandedSections.researchAreas && (
+                                                    <button
+                                                        onClick={() => setExpandedSections(prev => ({ ...prev, researchAreas: true }))}
+                                                        className="bg-muted/50 text-muted-foreground border border-border/50 px-2 py-1 rounded-md text-xs hover:bg-muted transition-colors"
+                                                    >
                                                         +{author.researchAreas.length - 4} more
-                                                    </Badge>
+                                                    </button>
                                                 )}
                                             </div>
                                         </CardContent>
@@ -318,22 +456,30 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
 
                                 {/* Affiliations */}
                                 {author.allAffiliations && author.allAffiliations.length > 0 && (
-                                    <Card className="bg-muted/20 border-border">
-                                        <CardContent className="p-3">
+                                    <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300">
+                                        <div className="absolute inset-0 bg-teal-500/5 opacity-0 hover:opacity-100 transition-opacity duration-300" />
+                                        <CardContent className="relative p-3">
                                             <div className="flex items-center gap-2 mb-2">
-                                                <Building className="h-4 w-4 text-primary" />
-                                                <h3 className="font-semibold text-sm">Affiliations</h3>
+                                                <div className="p-1.5 rounded-lg bg-teal-500/20">
+                                                    <Building className="h-3.5 w-3.5 text-teal-500" />
+                                                </div>
+                                                <h3 className="font-semibold text-foreground text-sm">Affiliations</h3>
                                             </div>
-                                            <div className="space-y-1">
-                                                {author.allAffiliations.slice(0, 3).map((affiliation) => (
-                                                    <div key={affiliation} className="text-xs text-muted-foreground">
+                                            <div className="space-y-1.5 max-h-20 overflow-y-auto">
+                                                {author.allAffiliations.slice(0, expandedSections.affiliations ? undefined : 3).map((affiliation) => (
+                                                    <div key={affiliation} className="text-sm text-muted-foreground flex items-center gap-2">
+                                                        <div className="w-1 h-1 bg-teal-500 rounded-full" />
                                                         {affiliation}
                                                     </div>
                                                 ))}
-                                                {author.allAffiliations.length > 3 && (
-                                                    <div className="text-xs text-muted-foreground">
+                                                {author.allAffiliations.length > 3 && !expandedSections.affiliations && (
+                                                    <button
+                                                        onClick={() => setExpandedSections(prev => ({ ...prev, affiliations: true }))}
+                                                        className="text-sm text-muted-foreground flex items-center gap-2 hover:text-foreground transition-colors"
+                                                    >
+                                                        <div className="w-1 h-1 bg-muted-foreground rounded-full" />
                                                         +{author.allAffiliations.length - 3} more affiliations
-                                                    </div>
+                                                    </button>
                                                 )}
                                             </div>
                                         </CardContent>
@@ -342,32 +488,54 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
                             </div>
 
                             {/* Right Column */}
-                            <div className="space-y-3">
+                            <div className="space-y-2.5">
                                 {/* Recent Publications */}
                                 {author.recentPublications && author.recentPublications.length > 0 && (
-                                    <Card className="bg-muted/20 border-border">
-                                        <CardContent className="p-3">
+                                    <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300">
+                                        <div className="absolute inset-0 bg-indigo-500/5 opacity-0 hover:opacity-100 transition-opacity duration-300" />
+                                        <CardContent className="relative p-3">
                                             <div className="flex items-center gap-2 mb-2">
-                                                <FileText className="h-4 w-4 text-primary" />
-                                                <h3 className="font-semibold text-sm">Recent Publications</h3>
+                                                <div className="p-1.5 rounded-lg bg-indigo-500/20">
+                                                    <FileText className="h-3.5 w-3.5 text-indigo-500" />
+                                                </div>
+                                                <h3 className="font-semibold text-foreground text-sm">Recent Publications</h3>
                                             </div>
-                                            <div className="space-y-2">
-                                                {author.recentPublications.slice(0, 2).map((paper: any) => (
-                                                    <div key={`${paper.title}-${paper.year}`} className="space-y-1">
-                                                        <div className="text-xs font-medium line-clamp-2">
+                                            <div className="space-y-2 max-h-28 overflow-y-auto">
+                                                {author.recentPublications.slice(0, expandedSections.publications ? undefined : 2).map((paper: any) => (
+                                                    <div key={`${paper.title}-${paper.year}`} className="p-3 rounded-lg bg-muted/30 border border-border/30 hover:border-border/50 transition-all duration-300">
+                                                        <div className="text-sm font-medium text-foreground line-clamp-2 mb-1">
                                                             {paper.title || "Untitled Paper"}
                                                         </div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {paper.journal && `${paper.journal} • `}
-                                                            {paper.year && `${paper.year}`}
-                                                            {paper.citations && ` • ${paper.citations} citations`}
+                                                        <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                                            {paper.journal && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <Globe className="h-3 w-3" />
+                                                                    {paper.journal}
+                                                                </span>
+                                                            )}
+                                                            {paper.year && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <Calendar className="h-3 w-3" />
+                                                                    {paper.year}
+                                                                </span>
+                                                            )}
+                                                            {paper.citations && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <Award className="h-3 w-3" />
+                                                                    {paper.citations} citations
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 ))}
-                                                {author.recentPublications.length > 2 && (
-                                                    <div className="text-xs text-muted-foreground">
+                                                {author.recentPublications.length > 2 && !expandedSections.publications && (
+                                                    <button
+                                                        onClick={() => setExpandedSections(prev => ({ ...prev, publications: true }))}
+                                                        className="text-sm text-muted-foreground flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-border/20 hover:bg-muted/30 transition-colors w-full"
+                                                    >
+                                                        <Sparkles className="h-3 w-3" />
                                                         +{author.recentPublications.length - 2} more publications
-                                                    </div>
+                                                    </button>
                                                 )}
                                             </div>
                                         </CardContent>
@@ -376,13 +544,16 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
 
                                 {/* Publication Timeline */}
                                 {(author.firstPublicationYear || author.lastPublicationYear) && (
-                                    <Card className="bg-muted/20 border-border">
-                                        <CardContent className="p-3">
+                                    <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300">
+                                        <div className="absolute inset-0 bg-orange-500/5 opacity-0 hover:opacity-100 transition-opacity duration-300" />
+                                        <CardContent className="relative p-3">
                                             <div className="flex items-center gap-2 mb-2">
-                                                <Calendar className="h-4 w-4 text-primary" />
-                                                <h3 className="font-semibold text-sm">Publication Timeline</h3>
+                                                <div className="p-1.5 rounded-lg bg-orange-500/20">
+                                                    <Calendar className="h-3.5 w-3.5 text-orange-500" />
+                                                </div>
+                                                <h3 className="font-semibold text-foreground text-sm">Publication Timeline</h3>
                                             </div>
-                                            <div className="text-xs text-muted-foreground">
+                                            <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/30">
                                                 {(() => {
                                                     if (author.firstPublicationYear && author.lastPublicationYear) {
                                                         return `${author.firstPublicationYear} - ${author.lastPublicationYear}`
@@ -402,15 +573,18 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
                             </div>
                         </div>
 
-                        {/* Footer Info */}
-                        <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-border">
+                        {/* Footer Info with Enhanced Styling */}
+                        <div className="flex flex-wrap items-center justify-between gap-4 pt-6 border-t border-slate-600/30">
                             {/* Data Sources */}
                             {author.dataSources && author.dataSources.length > 0 && (
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground">Sources:</span>
-                                    <div className="flex flex-wrap gap-1">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-sm text-gray-400 font-medium">Sources:</span>
+                                    <div className="flex flex-wrap gap-2">
                                         {author.dataSources.map((source) => (
-                                            <Badge key={source} variant="outline" className="text-xs">
+                                            <Badge
+                                                key={source}
+                                                className="bg-gradient-to-r from-slate-600/50 to-slate-500/50 text-gray-300 border border-slate-500/50 hover:border-slate-400/50 transition-all duration-300"
+                                            >
                                                 {source}
                                             </Badge>
                                         ))}
@@ -420,8 +594,8 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
 
                             {/* Last Sync */}
                             {author.lastSyncAt && (
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <Clock className="h-3 w-3" />
+                                <div className="flex items-center gap-2 text-sm text-gray-400 bg-slate-800/30 px-3 py-2 rounded-lg border border-slate-600/30">
+                                    <Clock className="h-4 w-4 text-blue-400" />
                                     Last synced: {formatDate(author.lastSyncAt)}
                                 </div>
                             )}
