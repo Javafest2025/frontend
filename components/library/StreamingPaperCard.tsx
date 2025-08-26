@@ -19,7 +19,6 @@ import {
     ExternalLink,
     Download,
     Eye,
-    Star,
     BookOpen,
     Zap,
     Clock,
@@ -34,6 +33,8 @@ interface StreamingPaperCardProps {
     index: number
     onSelect?: (paper: Paper) => void
     onViewPdf?: (paper: Paper) => void
+    onToggleFavorite?: (paper: Paper) => void
+    isFavorited?: boolean
     isLoading?: boolean
     streamDelay?: number
 }
@@ -43,6 +44,8 @@ export function StreamingPaperCard({
     index,
     onSelect,
     onViewPdf,
+    onToggleFavorite,
+    isFavorited = false,
     isLoading = false,
     streamDelay = 0
 }: StreamingPaperCardProps) {
@@ -88,6 +91,13 @@ export function StreamingPaperCard({
         e.stopPropagation()
         if (paper && onViewPdf && !isLoading) {
             onViewPdf(paper)
+        }
+    }
+
+    const handleToggleFavorite = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (paper && onToggleFavorite && !isLoading) {
+            onToggleFavorite(paper)
         }
     }
 
@@ -189,6 +199,8 @@ export function StreamingPaperCard({
                 )}
                 onClick={handleCardClick}
             >
+
+
                 {/* Shimmer effect - only on hover */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
                 <CardContent className="p-4 relative z-10 h-full flex flex-col">
@@ -238,19 +250,19 @@ export function StreamingPaperCard({
                             transition={{ duration: 0.5, delay: 0.3 }}
                             className="flex items-center justify-between mt-auto"
                         >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-shrink-0">
                                 {paper.isOpenAccess && (
-                                    <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600 border-green-500/20">
+                                    <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600 border-green-500/20 whitespace-nowrap">
                                         Open Access
                                     </Badge>
                                 )}
-                                <Badge variant="outline" className="text-xs border-primary/20">
+                                <Badge variant="outline" className="text-xs border-primary/20 whitespace-nowrap">
                                     {paper.citationCount} citations
                                 </Badge>
                             </div>
 
                             <TooltipProvider>
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex-shrink-0">
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Button

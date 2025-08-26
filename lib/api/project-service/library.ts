@@ -411,6 +411,136 @@ export const libraryApi = {
                 ? error
                 : new Error("Failed to re-analyze paper abstract")
         }
+    },
+
+    // Paper Favorite Methods
+    async togglePaperFavorite(projectId: string, paperId: string, request: {
+        notes?: string;
+        priority?: string;
+        tags?: string;
+    }): Promise<boolean> {
+        try {
+            const { getUserData } = await import("@/lib/api/user-service/auth")
+            const userData = getUserData()
+
+            if (!userData?.id) {
+                throw new Error('User not authenticated')
+            }
+
+            console.log("⭐ Toggling paper favorite:", { projectId, paperId, userId: userData.id })
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/projects/${projectId}/papers/favorites/${paperId}/toggle`),
+                {
+                    method: "POST",
+                    headers: {
+                        'X-User-ID': userData.id
+                    },
+                    body: JSON.stringify({
+                        paperId,
+                        notes: request.notes || '',
+                        priority: request.priority || 'medium',
+                        tags: request.tags || ''
+                    }),
+                }
+            )
+
+            console.log("📊 Toggle favorite response status:", response.status, response.statusText)
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ Toggle favorite failed:", response.status, errorText)
+                throw new Error(`Failed to toggle favorite: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ Favorite toggled successfully:", data)
+            
+            // Return true if paper was added to favorites, false if removed
+            return !!data.data
+        } catch (error) {
+            console.error("Toggle favorite error:", error)
+            throw error instanceof Error
+                ? error
+                : new Error("Failed to toggle favorite")
+        }
+    },
+
+    async getPaperFavorites(projectId: string): Promise<any[]> {
+        try {
+            const { getUserData } = await import("@/lib/api/user-service/auth")
+            const userData = getUserData()
+
+            if (!userData?.id) {
+                throw new Error('User not authenticated')
+            }
+
+            console.log("⭐ Getting paper favorites for project:", projectId, "user:", userData.id)
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/projects/${projectId}/papers/favorites`),
+                {
+                    method: "GET",
+                    headers: {
+                        'X-User-ID': userData.id
+                    }
+                }
+            )
+
+            console.log("📊 Get favorites response status:", response.status, response.statusText)
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ Get favorites failed:", response.status, errorText)
+                throw new Error(`Failed to get favorites: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ Favorites retrieved successfully:", data)
+            return data.data || []
+        } catch (error) {
+            console.error("Get favorites error:", error)
+            throw error instanceof Error
+                ? error
+                : new Error("Failed to get favorites")
+        }
+    },
+
+    async isPaperFavorited(projectId: string, paperId: string): Promise<boolean> {
+        try {
+            const { getUserData } = await import("@/lib/api/user-service/auth")
+            const userData = getUserData()
+
+            if (!userData?.id) {
+                throw new Error('User not authenticated')
+            }
+
+            console.log("⭐ Checking if paper is favorited:", { projectId, paperId, userId: userData.id })
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/projects/${projectId}/papers/favorites/${paperId}/status`),
+                {
+                    method: "GET",
+                    headers: {
+                        'X-User-ID': userData.id
+                    }
+                }
+            )
+
+            console.log("📊 Check favorite status response:", response.status, response.statusText)
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ Check favorite status failed:", response.status, errorText)
+                throw new Error(`Failed to check favorite status: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ Favorite status checked successfully:", data)
+            return data.data || false
+        } catch (error) {
+            console.error("Check favorite status error:", error)
+            throw error instanceof Error
+                ? error
+                : new Error("Failed to check favorite status")
+        }
     }
 }
 

@@ -31,9 +31,11 @@ interface PaperCardProps {
     index: number
     onSelect: (paper: Paper) => void
     onViewPdf?: (paper: Paper) => void
+    onToggleFavorite?: (paper: Paper) => void
+    isFavorited?: boolean
 }
 
-export function PaperCard({ paper, index, onSelect, onViewPdf }: PaperCardProps) {
+export function PaperCard({ paper, index, onSelect, onViewPdf, onToggleFavorite, isFavorited = false }: PaperCardProps) {
     const router = useRouter()
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null)
     const [thumbnailLoading, setThumbnailLoading] = useState(false)
@@ -94,6 +96,14 @@ export function PaperCard({ paper, index, onSelect, onViewPdf }: PaperCardProps)
         } catch (error) {
             console.error('Download failed:', error)
             // You could add a toast notification here in the future
+        }
+    }
+
+    // Handle favorite toggle
+    const handleToggleFavorite = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (onToggleFavorite) {
+            onToggleFavorite(paper)
         }
     }
 
@@ -254,13 +264,10 @@ The methodology employed in this study combines quantitative and qualitative app
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            // TODO: Add to favorites
-                                        }}
-                                        className="h-8 w-8 p-0 hover:bg-primary/10"
+                                        onClick={handleToggleFavorite}
+                                        className="h-8 w-8 p-0 hover:bg-yellow-500/20"
                                     >
-                                        <Star className="h-4 w-4 text-yellow-500" />
+                                        <Star className={`h-4 w-4 transition-all duration-200 ${isFavorited ? 'text-yellow-500 fill-yellow-500' : 'text-yellow-500/60'}`} />
                                     </Button>
                                 </div>
                             </div>

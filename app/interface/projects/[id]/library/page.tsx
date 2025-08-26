@@ -78,6 +78,8 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
     const [libraryStats, setLibraryStats] = useState<any>(null)
     const [isLoadingLibrary, setIsLoadingLibrary] = useState(false)
     const [libraryError, setLibraryError] = useState<string | null>(null)
+    const [favoritePapers, setFavoritePapers] = useState<Set<string>>(new Set())
+    const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
 
     // Load project ID and papers
     useEffect(() => {
@@ -98,6 +100,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
 
             // Load all library data
             await Promise.all([
+                loadFavorites(projectId),
                 loadProjectLibrary(projectId)
             ])
 
@@ -154,6 +157,42 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
         }
     }
 
+    // Load favorites for the project
+    const loadFavorites = async (projectId: string) => {
+        try {
+            const favorites = await libraryApi.getPaperFavorites(projectId)
+            const favoriteIds = new Set(favorites.map((fav: any) => fav.paperId))
+            setFavoritePapers(favoriteIds)
+        } catch (error) {
+            console.error('Error loading favorites:', error)
+        }
+    }
+
+    // Handle favorite toggle
+    const handleToggleFavorite = async (paper: Paper) => {
+        try {
+            const wasAdded = await libraryApi.togglePaperFavorite(projectId, paper.id, {
+                notes: '',
+                priority: 'medium',
+                tags: ''
+            })
+
+            if (wasAdded) {
+                // Paper was added to favorites
+                setFavoritePapers(prev => new Set(Array.from(prev).concat(paper.id)))
+            } else {
+                // Paper was removed from favorites
+                setFavoritePapers(prev => {
+                    const newSet = new Set(Array.from(prev))
+                    newSet.delete(paper.id)
+                    return newSet
+                })
+            }
+        } catch (error) {
+            console.error('Error toggling favorite:', error)
+        }
+    }
+
     // Scroll handlers
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const scrollTop = e.currentTarget.scrollTop
@@ -178,7 +217,9 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                 (filterOpenAccess === "open" && paper.isOpenAccess) ||
                 (filterOpenAccess === "closed" && !paper.isOpenAccess)
 
-            return matchesSearch && matchesSource && matchesOpenAccess
+            const matchesFavorites = !showFavoritesOnly || favoritePapers.has(paper.id)
+
+            return matchesSearch && matchesSource && matchesOpenAccess && matchesFavorites
         })
         .sort((a, b) => {
             let comparison = 0
@@ -458,6 +499,29 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
+
+                                                <div>
+                                                    <label className="text-sm font-medium mb-2 block">Favorites</label>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                                                        className={cn(
+                                                            "w-full bg-background/40 backdrop-blur-xl border-2 transition-all duration-300",
+                                                            showFavoritesOnly
+                                                                ? "border-yellow-500/40 hover:border-yellow-500/60 bg-yellow-500/10 text-yellow-500"
+                                                                : "border-primary/20 hover:border-primary/40"
+                                                        )}
+                                                        style={{
+                                                            boxShadow: showFavoritesOnly
+                                                                ? '0 0 10px rgba(234, 179, 8, 0.2), 0 0 20px rgba(234, 179, 8, 0.1)'
+                                                                : '0 0 6px rgba(99, 102, 241, 0.06)'
+                                                        }}
+                                                    >
+                                                        <Star className="h-4 w-4 mr-2" />
+                                                        {showFavoritesOnly ? 'Favorites Only' : 'All Papers'}
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </motion.div>
                                     )}
@@ -498,6 +562,8 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                                             index={index}
                                                             onSelect={handlePaperSelect}
                                                             onViewPdf={handleViewPdf}
+                                                            onToggleFavorite={handleToggleFavorite}
+                                                            isFavorited={favoritePapers.has(paper.id)}
                                                         />
                                                     ))}
                                                 </AnimatePresence>

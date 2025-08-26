@@ -14,7 +14,8 @@ import {
     FolderOpen,
     Zap,
     ChevronUp,
-    CheckCircle
+    CheckCircle,
+    Star
 } from "lucide-react"
 import { isValidUUID } from "@/lib/utils"
 import { useWebSearch } from "@/hooks/useWebSearch"
@@ -232,6 +233,10 @@ export default function CollectPapersPage({ params }: CollectPapersPageProps) {
     // Progress tooltip state
     const [showProgressTooltip, setShowProgressTooltip] = useState(false)
 
+    // Favorite state
+    const [favoritePapers, setFavoritePapers] = useState<Set<string>>(new Set())
+    const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
+
     const webSearch = useWebSearch()
 
     // Validate and set project ID from params
@@ -252,8 +257,21 @@ export default function CollectPapersPage({ params }: CollectPapersPageProps) {
     useEffect(() => {
         if (projectId) {
             loadLatestPapers()
+            loadFavorites()
         }
     }, [projectId])
+
+    // Load favorites for the project
+    const loadFavorites = async () => {
+        try {
+            const resolvedParams = await params
+            const favorites = await libraryApi.getPaperFavorites(resolvedParams.id)
+            const favoriteIds = new Set(favorites.map((fav: any) => fav.paperId))
+            setFavoritePapers(favoriteIds)
+        } catch (error) {
+            console.error('Error loading favorites:', error)
+        }
+    }
 
     // Load the latest papers from web search
     const loadLatestPapers = async () => {
@@ -284,6 +302,31 @@ export default function CollectPapersPage({ params }: CollectPapersPageProps) {
             await loadLatestPapers()
         } catch (error) {
             console.error("Search failed:", error)
+        }
+    }
+
+    const handleToggleFavorite = async (paper: Paper) => {
+        try {
+            const resolvedParams = await params
+            const wasAdded = await libraryApi.togglePaperFavorite(resolvedParams.id, paper.id, {
+                notes: '',
+                priority: 'medium',
+                tags: ''
+            })
+
+            if (wasAdded) {
+                // Paper was added to favorites
+                setFavoritePapers(prev => new Set(Array.from(prev).concat(paper.id)))
+            } else {
+                // Paper was removed from favorites
+                setFavoritePapers(prev => {
+                    const newSet = new Set(Array.from(prev))
+                    newSet.delete(paper.id)
+                    return newSet
+                })
+            }
+        } catch (error) {
+            console.error('Error toggling favorite:', error)
         }
     }
 
@@ -432,6 +475,32 @@ export default function CollectPapersPage({ params }: CollectPapersPageProps) {
                                         </div>
                                     </div>
                                 </CardHeader>
+
+                                {/* Favorite Filter */}
+                                {latestPapers.length > 0 && (
+                                    <div className="px-6 pb-4">
+                                        <div className="flex items-center gap-4">
+                                            <Button
+                                                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                                                variant="outline"
+                                                size="sm"
+                                                className={`transition-all duration-200 flex items-center gap-2 ${showFavoritesOnly
+                                                    ? 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30 hover:bg-yellow-500/30'
+                                                    : 'bg-background/40 text-muted-foreground border-primary/20 hover:bg-primary/10'
+                                                    }`}
+                                            >
+                                                <Star className={`h-4 w-4 ${showFavoritesOnly ? 'fill-yellow-500 text-yellow-500' : 'text-muted-foreground'}`} />
+                                                {showFavoritesOnly ? 'Showing Favorites' : 'Show Favorites Only'}
+                                                {favoritePapers.size > 0 && (
+                                                    <Badge variant="secondary" className="ml-1 text-xs">
+                                                        {favoritePapers.size}
+                                                    </Badge>
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <CardContent className="flex-1 flex flex-col px-6 pb-6 relative overflow-visible">
                                     {/* Search Progress Section */}
                                     {webSearch.isSearching && (
@@ -505,16 +574,20 @@ export default function CollectPapersPage({ params }: CollectPapersPageProps) {
                                         >
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6">
                                                 <AnimatePresence mode="popLayout">
-                                                    {latestPapers.map((paper, index) => (
-                                                        <StreamingPaperCard
-                                                            key={paper.id}
-                                                            paper={paper}
-                                                            index={index}
-                                                            onSelect={handlePaperSelect}
-                                                            onViewPdf={handleViewPdf}
-                                                            streamDelay={0}
-                                                        />
-                                                    ))}
+                                                    {latestPapers
+                                                        .filter(paper => !showFavoritesOnly || favoritePapers.has(paper.id))
+                                                        .map((paper, index) => (
+                                                            <StreamingPaperCard
+                                                                key={paper.id}
+                                                                paper={paper}
+                                                                index={index}
+                                                                onSelect={handlePaperSelect}
+                                                                onViewPdf={handleViewPdf}
+                                                                onToggleFavorite={handleToggleFavorite}
+                                                                isFavorited={favoritePapers.has(paper.id)}
+                                                                streamDelay={0}
+                                                            />
+                                                        ))}
                                                 </AnimatePresence>
                                             </div>
                                         </motion.div>
