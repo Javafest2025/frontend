@@ -79,6 +79,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
 
   const [showAddToChat, setShowAddToChat] = useState(false)
   const [tempSelectedText, setTempSelectedText] = useState<string>('')
+  const [tempSelectionPositions, setTempSelectionPositions] = useState<{ from: number; to: number }>({ from: 0, to: 0 })
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [newFileName, setNewFileName] = useState('')
   const [showVersionDialog, setShowVersionDialog] = useState(false)
@@ -88,6 +89,48 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [isViewingVersion, setIsViewingVersion] = useState<boolean>(false)
   const [isLoadingVersions, setIsLoadingVersions] = useState<boolean>(false)
   const [lastVersionCallTime, setLastVersionCallTime] = useState<number>(0)
+
+  // AI Suggestions State for Cursor-like Experience
+  const [aiSuggestions, setAiSuggestions] = useState<Array<{
+    id: string
+    type: 'replace' | 'add' | 'delete'
+    from: number
+    to: number
+    originalText: string
+    suggestedText: string
+    explanation?: string
+  }>>([])
+  const [pendingAiRequest, setPendingAiRequest] = useState(false)
+
+  // Inline diff previews state
+  const [inlineDiffPreviews, setInlineDiffPreviews] = useState<Array<{
+    id: string
+    type: 'add' | 'delete' | 'replace'
+    from: number
+    to: number
+    content: string
+    originalContent?: string
+  }>>([])
+
+  // New state to track when selection should be shown in chat
+  const [selectionAddedToChat, setSelectionAddedToChat] = useState(false)
+
+  // Debug state changes
+  useEffect(() => {
+    console.log('🔄 State Change - selectionAddedToChat:', selectionAddedToChat)
+  }, [selectionAddedToChat])
+
+  useEffect(() => {
+    console.log('🔄 State Change - selectedText:', selectedText)
+  }, [selectedText])
+
+  useEffect(() => {
+    console.log('🔄 State Change - tempSelectedText:', tempSelectedText)
+  }, [tempSelectedText])
+
+  useEffect(() => {
+    console.log('🔄 State Change - showAddToChat:', showAddToChat)
+  }, [showAddToChat])
 
   // Cleanup PDF URL when component unmounts or PDF changes
   useEffect(() => {
@@ -149,14 +192,41 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }, [currentDocument?.id])
 
   // Listen for selection changes and clearing from the editor
+  // But don't automatically set selectedText - only show Add to Chat button
   useEffect(() => {
     const handleSelectionChange = (event: Event) => {
       const customEvent = event as CustomEvent
-      setSelectedText(customEvent.detail as { text: string; from: number; to: number })
+      const selection = customEvent.detail as { text: string; from: number; to: number }
+      console.log('=== SELECTION EVENT RECEIVED ===')
+      console.log('Selection event:', selection)
+      
+      // Only set tempSelectedText for showing Add to Chat button
+      // Don't set selectedText until Add to Chat is clicked
+      if (selection.text && selection.text.trim()) {
+        setTempSelectedText(selection.text)
+        setShowAddToChat(true)
+        console.log('Set tempSelectedText to:', selection.text)
+        console.log('Set showAddToChat to:', true)
+      } else {
+        // If text is empty, clear everything
+        setTempSelectedText('')
+        setShowAddToChat(false)
+        console.log('Selection is empty, clearing tempSelectedText and hiding button')
+      }
     }
 
     const handleSelectionCleared = () => {
-      setSelectedText({ text: '', from: 0, to: 0 })
+      console.log('=== SELECTION CLEARED EVENT ===')
+      setTempSelectedText('')
+      setShowAddToChat(false)
+      // Don't clear selectedText here - it should only be cleared when explicitly requested
+    }
+
+    // Also handle when tempSelectedText becomes empty
+    const handleEmptySelection = () => {
+      console.log('=== EMPTY SELECTION DETECTED ===')
+      setTempSelectedText('')
+      setShowAddToChat(false)
     }
 
     document.addEventListener('latex-selection-change', handleSelectionChange)
@@ -167,6 +237,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       document.removeEventListener('latex-selection-cleared', handleSelectionCleared)
     }
   }, [])
+
+
 
   const loadDocuments = async (projectId: string) => {
     try {
@@ -191,7 +263,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         setDocuments(response.data)
         setCurrentDocument(response.data[0])
         setEditorContent(response.data[0].content)
-        setCurrentVersion(response.data[0].version || 1)
+        setCurrentVersion((response.data[0] as any).version || 1)
         setIsViewingVersion(false)
         console.log('Documents loaded successfully, current document:', response.data[0].title)
         console.log('Current document content:', response.data[0].content)
@@ -201,11 +273,11 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         setCurrentDocument(null)
         setEditorContent('')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load documents:', error)
       console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
+        message: error?.message,
+        stack: error?.stack,
         projectId: projectId
       })
       // Show landing page on error
@@ -362,22 +434,62 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }
 
   const handleAddToChat = () => {
-    // Use the current selectedText from the editor instead of tempSelectedText
-    // This preserves the actual selection positions
-    console.log('Adding to chat:', selectedText)
+    console.log('🔥🔥🔥 === HANDLE ADD TO CHAT FUNCTION CALLED === 🔥🔥🔥')
+    console.log('Current tempSelectedText:', tempSelectedText)
+    console.log('tempSelectedText length:', tempSelectedText.length)
+    console.log('tempSelectedText trimmed:', tempSelectedText.trim())
+    console.log('showAddToChat state:', showAddToChat)
+    
+    // Get the current selection from tempSelectedText and set it as selectedText
+    if (tempSelectedText.trim()) {
+      const text = tempSelectedText.trim()
+      console.log('✅ Text is valid, proceeding with Add to Chat')
+      console.log('Text to add:', text)
+      console.log('Real positions:', tempSelectionPositions)
+      
+      // Use the real positions from the editor selection
+      setSelectedText({ 
+        text, 
+        from: tempSelectionPositions.from, 
+        to: tempSelectionPositions.to 
+      })
+      setSelectionAddedToChat(true) // Mark that selection should be shown in chat
+      console.log('📝 Setting selectedText with REAL positions:', { 
+        text, 
+        from: tempSelectionPositions.from, 
+        to: tempSelectionPositions.to 
+      })
+      console.log('🎯 Setting selectionAddedToChat to TRUE')
+    } else {
+      console.log('❌ No valid text to add to chat')
+      console.log('tempSelectedText value:', `"${tempSelectedText}"`)
+    }
+    
+    console.log('🧹 Cleaning up button state')
     setShowAddToChat(false)
+    setTempSelectedText('')
+    
     // Switch to chat tab in the right sidebar
+    console.log('🔄 Attempting to switch to chat tab')
     setTimeout(() => {
       const rightSidebarTabs = document.querySelector('[data-radix-tabs-trigger][value="chat"]') as HTMLElement
       if (rightSidebarTabs) {
+        console.log('✅ Found chat tab, clicking it')
         rightSidebarTabs.click()
+      } else {
+        console.log('❌ Chat tab not found')
       }
     }, 100)
+    
+    console.log('🏁 === HANDLE ADD TO CHAT FUNCTION COMPLETED ===')
   }
 
   const handleCancelSelection = () => {
     setTempSelectedText('')
+    setTempSelectionPositions({ from: 0, to: 0 })
     setShowAddToChat(false)
+    setSelectionAddedToChat(false)
+    setSelectedText({ text: '', from: 0, to: 0 })
   }
 
   const handleCursorPosition = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
@@ -437,13 +549,13 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
 
       case 'add':
       default:
-        if (position !== undefined) {
-          // Insert at specific cursor position
-          const before = editorContent.substring(0, position)
-          const after = editorContent.substring(position)
+    if (position !== undefined) {
+      // Insert at specific cursor position
+      const before = editorContent.substring(0, position)
+      const after = editorContent.substring(position)
           newContent = before + suggestion + after
-        } else {
-          // Append to end
+    } else {
+      // Append to end
           newContent = editorContent + '\n\n' + suggestion
         }
         break
@@ -456,9 +568,11 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     setEditorContent(newContent)
     setIsEditing(true)
     
-    // Clear selection after applying
+    // Clear selection after applying suggestion
     setSelectedText({ text: '', from: 0, to: 0 })
+    setSelectionAddedToChat(false) // Also reset the chat selection state
     setShowAddToChat(false)
+    setTempSelectedText('')
   }
 
   // Position marker management
@@ -482,17 +596,137 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     setPositionMarkers([])
   }
 
+  // Inline diff preview handlers
+  const handlePreviewInlineDiff = (previews: Array<{
+    id: string
+    type: 'add' | 'delete' | 'replace'
+    from: number
+    to: number
+    content: string
+    originalContent?: string
+  }>) => {
+    console.log('=== PREVIEW INLINE DIFF ===')
+    console.log('Previews:', previews)
+    setInlineDiffPreviews(previews)
+  }
+
+  const handleAcceptInlineDiff = (id: string) => {
+    console.log('=== ACCEPT INLINE DIFF ===')
+    console.log('Accepting diff with ID:', id)
+    
+    const preview = inlineDiffPreviews.find(p => p.id === id)
+    if (!preview) {
+      console.error('Preview not found:', id)
+      return
+    }
+
+    let newContent = editorContent
+    switch (preview.type) {
+      case 'add':
+        // Insert new content at the specified position
+        const beforeAdd = editorContent.substring(0, preview.from)
+        const afterAdd = editorContent.substring(preview.from)
+        newContent = beforeAdd + preview.content + afterAdd
+        break
+        
+      case 'delete':
+        // Remove content from the specified range
+        const beforeDel = editorContent.substring(0, preview.from)
+        const afterDel = editorContent.substring(preview.to)
+        newContent = beforeDel + afterDel
+        break
+        
+      case 'replace':
+        // Replace content in the specified range
+        const beforeReplace = editorContent.substring(0, preview.from)
+        const afterReplace = editorContent.substring(preview.to)
+        newContent = beforeReplace + preview.content + afterReplace
+        break
+    }
+
+    setEditorContent(newContent)
+    setIsEditing(true)
+    
+    // Remove the accepted preview
+    setInlineDiffPreviews(prev => prev.filter(p => p.id !== id))
+    
+    console.log('Diff accepted and applied')
+  }
+
+  const handleRejectInlineDiff = (id: string) => {
+    console.log('=== REJECT INLINE DIFF ===')
+    console.log('Rejecting diff with ID:', id)
+    
+    // Simply remove the preview without applying changes
+    setInlineDiffPreviews(prev => prev.filter(p => p.id !== id))
+    
+    console.log('Diff rejected and removed')
+  }
+
   // Enhanced text selection handling
   const handleEditorSelectionChange = (selection: { text: string; from: number; to: number }) => {
-    console.log('Editor selection changed:', selection)
-    if (selection.text.trim()) {
-      setSelectedText(selection)
+    console.log('🔍 === EDITOR SELECTION CHANGE DEBUG ===')
+    console.log('Raw selection object:', selection)
+    console.log('Selection text:', JSON.stringify(selection.text))
+    console.log('Selection from:', selection.from)
+    console.log('Selection to:', selection.to)
+    console.log('Editor content length:', editorContent.length)
+    console.log('Editor content preview:', JSON.stringify(editorContent.substring(Math.max(0, selection.from - 10), selection.to + 10)))
+    
+    // CRITICAL FIX: Clean editor content of emoji suggestions before using positions
+    const cleanContent = editorContent
+      .split('\n') // Split into lines
+      .filter(line => !line.startsWith('% DELETE:') && !line.startsWith('% ADD:')) // Remove marker lines
+      .join('\n') // Rejoin
+      .replace(/\n\s*\n+/g, '\n\n') // Normalize multiple newlines and whitespace
+      .replace(/^\s*\n/gm, '') // Remove lines that are just whitespace
+    
+    let adjustedSelection = selection
+    
+    if (cleanContent !== editorContent) {
+      console.log('🧹 Content contains emojis, recalculating positions on clean content')
+      console.log('Original content length:', editorContent.length)
+      console.log('Clean content length:', cleanContent.length)
+      
+      // Try to find the selected text in clean content
+      const selectedText = editorContent.substring(selection.from, selection.to)
+      console.log('Looking for selected text in clean content:', JSON.stringify(selectedText))
+      
+      // Search for the text in clean content around the expected position
+      const searchStart = Math.max(0, selection.from - 100)
+      const searchEnd = Math.min(cleanContent.length, selection.to + 100)
+      const searchArea = cleanContent.substring(searchStart, searchEnd)
+      const textIndex = searchArea.indexOf(selectedText)
+      
+      if (textIndex !== -1) {
+        const adjustedFrom = searchStart + textIndex
+        const adjustedTo = adjustedFrom + selectedText.length
+        adjustedSelection = {
+          text: selectedText,
+          from: adjustedFrom,
+          to: adjustedTo
+        }
+        console.log('✅ Recalculated positions on clean content:', adjustedSelection)
+      } else {
+        console.log('⚠️ Could not find selected text in clean content, using original positions')
+      }
+    }
+    
+    if (adjustedSelection.text.trim()) {
+      // Store both text and position information for the "Add to Chat" button
+      setTempSelectedText(adjustedSelection.text.trim())
+      setTempSelectionPositions({ from: adjustedSelection.from, to: adjustedSelection.to })
       setShowAddToChat(true)
-      console.log('Selection set:', selection)
+      console.log('✅ Selection set for Add to Chat button:', {
+        text: adjustedSelection.text.trim(),
+        positions: { from: adjustedSelection.from, to: adjustedSelection.to }
+      })
     } else {
-      setSelectedText({ text: '', from: 0, to: 0 })
+      // Clear temporary selection and hide button
+      setTempSelectedText('')
+      setTempSelectionPositions({ from: 0, to: 0 })
       setShowAddToChat(false)
-      console.log('Selection cleared')
+      console.log('❌ Selection cleared')
     }
   }
 
@@ -576,6 +810,158 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     // Selection will be automatically cleared by the editor plugin
     // This is just for any additional UI updates if needed
   }
+
+  // AI Suggestion Handlers for Cursor-like Experience
+  const handleAcceptAiSuggestion = useCallback((suggestionId: string) => {
+    console.log('=== ACCEPTING AI SUGGESTION ===')
+    const suggestion = aiSuggestions.find(s => s.id === suggestionId)
+    if (!suggestion) {
+      console.error('Suggestion not found:', suggestionId)
+      return
+    }
+
+    console.log('Accepting suggestion:', suggestion)
+    let newContent = editorContent
+
+    switch (suggestion.type) {
+      case 'replace':
+        // Replace text from suggestion.from to suggestion.to with suggestedText
+        const before = editorContent.substring(0, suggestion.from)
+        const after = editorContent.substring(suggestion.to)
+        newContent = before + suggestion.suggestedText + after
+        console.log('Replace operation:', {
+          before: before.slice(-20),
+          original: suggestion.originalText,
+          suggested: suggestion.suggestedText,
+          after: after.slice(0, 20)
+        })
+        break
+
+      case 'add':
+        // Insert text at suggestion.from position
+        const beforeAdd = editorContent.substring(0, suggestion.from)
+        const afterAdd = editorContent.substring(suggestion.from)
+        newContent = beforeAdd + suggestion.suggestedText + afterAdd
+        break
+
+      case 'delete':
+        // Remove text from suggestion.from to suggestion.to
+        const beforeDel = editorContent.substring(0, suggestion.from)
+        const afterDel = editorContent.substring(suggestion.to)
+        newContent = beforeDel + afterDel
+        break
+    }
+
+    console.log('New content length:', newContent.length)
+    console.log('Original content length:', editorContent.length)
+    
+    // Apply the change
+    setEditorContent(newContent)
+    setIsEditing(true)
+    
+    // Remove the suggestion from the list
+    setAiSuggestions(prev => prev.filter(s => s.id !== suggestionId))
+    
+    // Clear any existing selection
+    setSelectedText({ text: '', from: 0, to: 0 })
+    setShowAddToChat(false)
+    
+    console.log('AI suggestion accepted and applied!')
+  }, [aiSuggestions, editorContent])
+
+  const handleRejectAiSuggestion = useCallback((suggestionId: string) => {
+    console.log('Rejecting AI suggestion:', suggestionId)
+    // Simply remove the suggestion from the list
+    setAiSuggestions(prev => prev.filter(s => s.id !== suggestionId))
+  }, [])
+
+  // New function to create AI suggestions directly in editor
+  const handleCreateAiSuggestion = useCallback((
+    type: 'replace' | 'add' | 'delete',
+    from: number,
+    to: number,
+    originalText: string,
+    suggestedText: string,
+    explanation?: string
+  ) => {
+    const newSuggestion = {
+      id: `ai-suggestion-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      from,
+      to,
+      originalText,
+      suggestedText,
+      explanation
+    }
+    
+    console.log('Creating AI suggestion:', newSuggestion)
+    setAiSuggestions(prev => [...prev, newSuggestion])
+  }, [])
+
+  // Emoji-based suggestion handlers
+  const handleApplyEmojiSuggestion = useCallback((newContent: string, suggestionId: string) => {
+    console.log('=== APPLYING EMOJI SUGGESTION TO EDITOR ===')
+    console.log('Suggestion ID:', suggestionId)
+    console.log('New content length:', newContent.length)
+    
+    // Apply the emoji-marked content directly to the editor
+    setEditorContent(newContent)
+    setIsEditing(true)
+  }, [])
+
+  const handleAcceptEmojiSuggestion = useCallback((suggestionId: string) => {
+    console.log('=== ACCEPTING EMOJI SUGGESTION ===')
+    console.log('Suggestion ID:', suggestionId)
+    
+    // Accept = Remove DELETE lines (delete them), keep ADD lines (remove marker)
+    const lines = editorContent.split('\n')
+    const processedLines = lines
+      .filter(line => !line.startsWith('% DELETE:')) // Remove DELETE marker lines completely
+      .map(line => {
+        if (line.startsWith('% ADD: ')) {
+          // Remove the marker and keep the content
+          return line.substring(7) // Remove "% ADD: " prefix
+        }
+        return line
+      })
+      .filter(line => line.trim() !== '') // Remove any lines that became empty
+    
+    const cleanedContent = processedLines.join('\n')
+    console.log('Original content length:', editorContent.length)
+    console.log('Cleaned content length:', cleanedContent.length)
+    
+    setEditorContent(cleanedContent)
+    setIsEditing(true)
+    
+    console.log('Emoji suggestion accepted, content cleaned')
+  }, [editorContent])
+
+  const handleRejectEmojiSuggestion = useCallback((suggestionId: string) => {
+    console.log('=== REJECTING EMOJI SUGGESTION ===')
+    console.log('Suggestion ID:', suggestionId)
+    
+    // Reject = Remove ADD lines (delete them), keep DELETE lines (remove marker)
+    const lines = editorContent.split('\n')
+    const processedLines = lines
+      .filter(line => !line.startsWith('% ADD:')) // Remove ADD marker lines completely
+      .map(line => {
+        if (line.startsWith('% DELETE: ')) {
+          // Remove the marker and keep the content
+          return line.substring(10) // Remove "% DELETE: " prefix
+        }
+        return line
+      })
+      .filter(line => line.trim() !== '') // Remove any lines that became empty
+    
+    const cleanedContent = processedLines.join('\n')
+    console.log('Original content length:', editorContent.length)
+    console.log('Cleaned content length:', cleanedContent.length)
+    
+    setEditorContent(cleanedContent)
+    setIsEditing(true)
+    
+    console.log('Emoji suggestion rejected, content reverted')
+  }, [editorContent])
 
   const handleCreateDocument = async () => {
     if (!newFileName.trim()) {
@@ -752,13 +1138,13 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         console.log('❌ Unexpected status code:', response.status)
         throw new Error(`Backend returned status ${response.status}: ${response.message}`)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('=== ERROR DETAILS ===')
       console.error('Error type:', typeof error)
-      console.error('Error message:', error.message)
+      console.error('Error message:', error?.message)
       console.error('Full error object:', error)
-      console.error('Stack trace:', error.stack)
-      alert(`Failed to create version: ${error.message}`)
+      console.error('Stack trace:', error?.stack)
+      alert(`Failed to create version: ${error?.message || 'Unknown error'}`)
     }
   }
 
@@ -867,7 +1253,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       }
     } else {
       console.log('No currentDocument.id or versionHistory available')
-      if (versionHistory.length === 0) {
+      if (versionHistory.length === 0 && currentDocument?.id) {
         // Load version history only once, then try navigation
         await loadVersionHistory(currentDocument.id)
         // Use the updated versionHistory state directly instead of recursive call
@@ -1231,21 +1617,64 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                         onFocusLost={handleEditorFocusLost}
                         onClick={handleEditorClick}
                         onBlur={handleEditorBlur}
+                        aiSuggestions={aiSuggestions}
+                        onAcceptSuggestion={handleAcceptAiSuggestion}
+                        onRejectSuggestion={handleRejectAiSuggestion}
+                        inlineDiffPreviews={inlineDiffPreviews}
+                        onAcceptInlineDiff={handleAcceptInlineDiff}
+                        onRejectInlineDiff={handleRejectInlineDiff}
                       />
                       {showAddToChat && (
-                        <div className="absolute top-2 right-2 flex space-x-2 z-10">
-                          <button
-                            onClick={handleAddToChat}
-                            className="px-3 py-1 bg-primary text-primary-foreground text-xs rounded-md hover:bg-primary/90 transition-colors"
+                        <div 
+                          className="absolute top-2 right-2 flex space-x-2 z-50"
+                          onMouseDown={(e) => {
+                            // Prevent the editor from losing focus when clicking buttons
+                            e.preventDefault()
+                            e.stopPropagation()
+                          }}
+                        >
+                          <Button
+                            onMouseDown={(e) => {
+                              // Prevent editor focus loss
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }}
+                            onClick={(e) => {
+                              console.log('🚀🚀🚀 === BUTTON CLICK EVENT TRIGGERED === 🚀🚀🚀')
+                              console.log('Event object:', e)
+                              console.log('Button clicked at:', new Date().toISOString())
+                              console.log('Current showAddToChat:', showAddToChat)
+                              console.log('Current tempSelectedText:', tempSelectedText)
+                              
+                              e.preventDefault()
+                              e.stopPropagation()
+                              
+                              console.log('🎯 About to call handleAddToChat function')
+                              handleAddToChat()
+                              console.log('✅ handleAddToChat function call completed')
+                            }}
+                            size="sm"
+                            className="text-xs"
                           >
                             Add to Chat
-                          </button>
-                          <button
-                            onClick={handleCancelSelection}
-                            className="px-3 py-1 bg-muted text-muted-foreground text-xs rounded-md hover:bg-muted/80 transition-colors"
+                          </Button>
+                          <Button
+                            onMouseDown={(e) => {
+                              // Prevent editor focus loss
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleCancelSelection()
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
                           >
                             Cancel
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -1308,21 +1737,58 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                           onClick={handleEditorClick}
                           onBlur={handleEditorBlur}
                           onFocus={handleEditorFocus}
+                          aiSuggestions={aiSuggestions}
+                          onAcceptSuggestion={handleAcceptAiSuggestion}
+                          onRejectSuggestion={handleRejectAiSuggestion}
+                          inlineDiffPreviews={inlineDiffPreviews}
+                          onAcceptInlineDiff={handleAcceptInlineDiff}
+                          onRejectInlineDiff={handleRejectInlineDiff}
                         />
                         {showAddToChat && (
-                          <div className="absolute top-2 right-2 flex space-x-2">
-                            <button
-                              onClick={handleAddToChat}
-                              className="px-3 py-1 bg-primary text-primary-foreground text-xs rounded-md hover:bg-primary/90 transition-colors"
+                          <div 
+                            className="absolute top-2 right-2 flex space-x-2 z-50"
+                            onMouseDown={(e) => {
+                              // Prevent the editor from losing focus when clicking buttons
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }}
+                          >
+                            <Button
+                              onMouseDown={(e) => {
+                                // Prevent editor focus loss
+                                e.preventDefault()
+                                e.stopPropagation()
+                              }}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                console.log('=== SPLIT VIEW BUTTON CLICKED ===')
+                                console.log('showAddToChat:', showAddToChat)
+                                console.log('tempSelectedText:', tempSelectedText)
+                                handleAddToChat()
+                              }}
+                              size="sm"
+                              className="text-xs"
                             >
                               Add to Chat
-                            </button>
-                            <button
-                              onClick={handleCancelSelection}
-                              className="px-3 py-1 bg-muted text-muted-foreground text-xs rounded-md hover:bg-muted/80 transition-colors"
+                            </Button>
+                            <Button
+                              onMouseDown={(e) => {
+                                // Prevent editor focus loss
+                                e.preventDefault()
+                                e.stopPropagation()
+                              }}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleCancelSelection()
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
                             >
                               Cancel
-                            </button>
+                            </Button>
                           </div>
                         )}
                       </div>
@@ -1372,11 +1838,27 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                 <TabsContent value="chat" className="flex-1 m-0 p-0 h-full">
                   <AIChatPanel
                     content={editorContent}
-                    selectedText={selectedText}
+                    selectedText={(() => {
+                      const result = selectionAddedToChat ? selectedText : undefined
+                      console.log('🔗🔗🔗 === PASSING PROPS TO AIChatPanel === 🔗🔗🔗')
+                      console.log('selectionAddedToChat:', selectionAddedToChat)
+                      console.log('selectedText state:', selectedText)
+                      console.log('Computed selectedText prop for AIChatPanel:', result)
+                      console.log('🏁 === PROPS COMPUTATION COMPLETED ===')
+                      return result
+                    })()}
                     cursorPosition={cursorPosition}
                     onApplySuggestion={handleApplySuggestion}
                     onSetPositionMarker={handleSetPositionMarker}
                     onClearPositionMarkers={handleClearPositionMarkers}
+                    onCreateAiSuggestion={handleCreateAiSuggestion}
+                    pendingAiRequest={pendingAiRequest}
+                    setPendingAiRequest={setPendingAiRequest}
+                    onPreviewInlineDiff={handlePreviewInlineDiff}
+                    onClearSelection={() => {
+                      setSelectedText({ text: '', from: 0, to: 0 })
+                      setSelectionAddedToChat(false)
+                    }}
                   />
                 </TabsContent>
                 

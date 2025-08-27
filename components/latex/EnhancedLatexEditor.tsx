@@ -3,8 +3,8 @@
 import React, { useCallback, useRef, useEffect, useState } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { tokyoNight } from '@uiw/codemirror-theme-tokyo-night'
-import { EditorView } from '@codemirror/view'
-import { Extension } from '@codemirror/state'
+import { EditorView, Decoration, DecorationSet, WidgetType } from '@codemirror/view'
+import { Extension, StateField, StateEffect, RangeSetBuilder } from '@codemirror/state'
 import { syntaxHighlighting, HighlightStyle, LanguageSupport, StreamLanguage } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import { autocompletion, CompletionContext } from '@codemirror/autocomplete'
@@ -12,6 +12,25 @@ import { closeBrackets } from '@codemirror/autocomplete'
 import { bracketMatching } from '@codemirror/language'
 import { indentOnInput } from '@codemirror/language'
 import { ViewPlugin, ViewUpdate } from '@codemirror/view'
+
+interface AISuggestion {
+  id: string
+  type: 'replace' | 'add' | 'delete'
+  from: number
+  to: number
+  originalText: string
+  suggestedText: string
+  explanation?: string
+}
+
+interface InlineDiffPreview {
+  id: string
+  type: 'add' | 'delete' | 'replace'
+  from: number
+  to: number
+  content: string
+  originalContent?: string // For replace type
+}
 
 interface EnhancedLatexEditorProps {
   value: string
@@ -28,8 +47,28 @@ interface EnhancedLatexEditorProps {
   onClick?: () => void
   onBlur?: () => void
   onFocus?: () => void
+  aiSuggestions?: AISuggestion[]
+  onAcceptSuggestion?: (suggestionId: string) => void
+  onRejectSuggestion?: (suggestionId: string) => void
+  inlineDiffPreviews?: InlineDiffPreview[]
+  onAcceptInlineDiff?: (id: string) => void
+  onRejectInlineDiff?: (id: string) => void
 }
 
+// State management for inline diff previews
+const setInlineDiffEffect = StateEffect.define<InlineDiffPreview[]>()
+
+const inlineDiffField = StateField.define<InlineDiffPreview[]>({
+  create() { return [] },
+  update(value, tr) {
+    for (let effect of tr.effects) {
+      if (effect.is(setInlineDiffEffect)) {
+        return effect.value
+      }
+    }
+    return value
+  }
+})
 
 
 
@@ -415,11 +454,263 @@ const latexTheme = EditorView.theme({
     transform: 'translate(-50%, -50%)',
     pointerEvents: 'none',
   },
+  // AI Suggestion Styling - Simple and reliable
+  '.cm-add-line': {
+    backgroundColor: 'rgba(34, 197, 94, 0.2)', // Green background
+    borderLeft: '4px solid #22c55e',
+    paddingLeft: '8px',
+    fontWeight: '600',
+    color: '#16a34a !important', // Green text
+  },
+  '.cm-delete-line': {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)', // Red background
+    borderLeft: '4px solid #ef4444',
+    paddingLeft: '8px',
+    fontWeight: '600',
+    textDecoration: 'line-through',
+    color: '#dc2626 !important', // Red text
+  },
   '@keyframes blink': {
     '0%': { opacity: 1 },
     '50%': { opacity: 0 },
     '100%': { opacity: 1 },
   },
+})
+
+// Simple and reliable ADD/DELETE line highlighting
+const addDeleteHighlighting = ViewPlugin.fromClass(class {
+  decorations: DecorationSet
+
+  constructor(view: EditorView) {
+    this.decorations = this.buildDecorations(view)
+  }
+
+  update(update: ViewUpdate) {
+    if (update.docChanged || update.viewportChanged) {
+      this.decorations = this.buildDecorations(update.view)
+    }
+  }
+
+  buildDecorations(view: EditorView) {
+    const builder = new RangeSetBuilder<Decoration>()
+    const doc = view.state.doc
+
+    // Simple iteration through all lines
+    for (let lineNum = 1; lineNum <= doc.lines; lineNum++) {
+      const line = doc.line(lineNum)
+      const text = line.text
+
+      // Check for ADD or DELETE markers
+      if (text.startsWith('% ADD:')) {
+        builder.add(line.from, line.to, Decoration.line({
+          attributes: { class: 'cm-add-line' }
+        }))
+      } else if (text.startsWith('% DELETE:')) {
+        builder.add(line.from, line.to, Decoration.line({
+          attributes: { class: 'cm-delete-line' }
+        }))
+      }
+    }
+
+    return builder.finish()
+  }
+}, {
+  decorations: v => v.decorations
+})
+
+// Widget type for inline diff preview
+class InlineDiffWidget extends WidgetType {
+  constructor(
+    private preview: InlineDiffPreview,
+    private onAccept: (id: string) => void,
+    private onReject: (id: string) => void
+  ) {
+    super()
+  }
+
+  toDOM() {
+    const wrapper = document.createElement('div')
+    wrapper.className = 'inline-diff-preview'
+    wrapper.style.cssText = `
+      display: inline-block;
+      position: relative;
+      margin: 0 2px;
+      border-radius: 4px;
+      padding: 2px 4px;
+      font-size: 0.9em;
+      line-height: 1.2;
+      ${this.preview.type === 'add' ? 'background-color: rgba(0, 255, 0, 0.2); color: #00aa00;' : ''}
+      ${this.preview.type === 'delete' ? 'background-color: rgba(255, 0, 0, 0.2); color: #aa0000; text-decoration: line-through;' : ''}
+      ${this.preview.type === 'replace' ? 'background-color: rgba(0, 255, 0, 0.2); color: #00aa00;' : ''}
+    `
+
+    const content = document.createElement('span')
+    content.textContent = this.preview.content
+    wrapper.appendChild(content)
+
+    const buttonContainer = document.createElement('div')
+    buttonContainer.className = 'inline-diff-buttons'
+    buttonContainer.style.cssText = `
+      position: absolute;
+      top: -25px;
+      left: 0;
+      display: block;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 2px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      z-index: 1000;
+    `
+
+    const acceptBtn = document.createElement('button')
+    acceptBtn.textContent = 'Accept'
+    acceptBtn.style.cssText = `
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 2px;
+      padding: 2px 6px;
+      margin-right: 2px;
+      cursor: pointer;
+      font-size: 10px;
+    `
+    acceptBtn.onclick = (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      this.onAccept(this.preview.id)
+    }
+
+    const rejectBtn = document.createElement('button')
+    rejectBtn.textContent = 'Reject'
+    rejectBtn.style.cssText = `
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 2px;
+      padding: 2px 6px;
+      cursor: pointer;
+      font-size: 10px;
+    `
+    rejectBtn.onclick = (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      this.onReject(this.preview.id)
+    }
+
+    buttonContainer.appendChild(acceptBtn)
+    buttonContainer.appendChild(rejectBtn)
+    wrapper.appendChild(buttonContainer)
+
+    // Buttons are always visible now, no hover needed
+
+    return wrapper
+  }
+}
+
+// Plugin for inline diff previews
+const inlineDiffPlugin = ViewPlugin.fromClass(class {
+  decorations: DecorationSet
+
+  constructor(view: EditorView) {
+    this.decorations = this.buildDecorations(view)
+  }
+
+  update(update: ViewUpdate) {
+    if (update.docChanged || update.viewportChanged || 
+        update.transactions.some(tr => tr.effects.some(e => e.is(setInlineDiffEffect)))) {
+      this.decorations = this.buildDecorations(update.view)
+    }
+  }
+
+  buildDecorations(view: EditorView) {
+    const builder = new RangeSetBuilder<Decoration>()
+    const previews = view.state.field(inlineDiffField, false)
+    
+    if (!previews) return builder.finish()
+
+    for (const preview of previews) {
+      try {
+        if (preview.type === 'add') {
+          // For additions, place widget at the insertion point
+          builder.add(
+            preview.from,
+            preview.from,
+            Decoration.widget({
+              widget: new InlineDiffWidget(preview, 
+                (id) => this.handleAccept(view, id),
+                (id) => this.handleReject(view, id)
+              ),
+              side: 1
+            })
+          )
+        } else if (preview.type === 'delete') {
+          // For deletions, overlay the text to be deleted
+          builder.add(
+            preview.from,
+            preview.to,
+            Decoration.mark({
+              attributes: {
+                style: 'background-color: rgba(255, 0, 0, 0.2); text-decoration: line-through; color: #aa0000;'
+              }
+            })
+          )
+          // Add widget for accept/reject buttons
+          builder.add(
+            preview.to,
+            preview.to,
+            Decoration.widget({
+              widget: new InlineDiffWidget(preview,
+                (id) => this.handleAccept(view, id),
+                (id) => this.handleReject(view, id)
+              ),
+              side: 1
+            })
+          )
+        } else if (preview.type === 'replace') {
+          // For replacements, mark the original text and add widget for new text
+          builder.add(
+            preview.from,
+            preview.to,
+            Decoration.mark({
+              attributes: {
+                style: 'background-color: rgba(255, 0, 0, 0.15); text-decoration: line-through; opacity: 0.7;'
+              }
+            })
+          )
+          builder.add(
+            preview.to,
+            preview.to,
+            Decoration.widget({
+              widget: new InlineDiffWidget(preview,
+                (id) => this.handleAccept(view, id),
+                (id) => this.handleReject(view, id)
+              ),
+              side: 1
+            })
+          )
+        }
+      } catch (error) {
+        console.warn('Error building decoration for preview:', preview, error)
+      }
+    }
+
+    return builder.finish()
+  }
+
+  private handleAccept(view: EditorView, id: string) {
+    // Dispatch to parent component
+    const event = new CustomEvent('acceptInlineDiff', { detail: { id } })
+    view.dom.dispatchEvent(event)
+  }
+
+  private handleReject(view: EditorView, id: string) {
+    // Dispatch to parent component
+    const event = new CustomEvent('rejectInlineDiff', { detail: { id } })
+    view.dom.dispatchEvent(event)
+  }
+}, {
+  decorations: v => v.decorations
 })
 
 // Enhanced extensions with all features
@@ -434,7 +725,96 @@ const latexExtensions: Extension[] = [
   EditorView.lineWrapping,
   selectionPlugin,
   focusPlugin,
+  addDeleteHighlighting,
+  inlineDiffField,
+  inlineDiffPlugin,
 ]
+
+// Simplified React component for inline AI suggestions
+function InlineAISuggestion({ 
+  suggestion, 
+  editorContent, 
+  onAccept, 
+  onReject 
+}: {
+  suggestion: AISuggestion;
+  editorContent: string;
+  onAccept: () => void;
+  onReject: () => void;
+}) {
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
+
+  useEffect(() => {
+    const calculatePosition = () => {
+      const editorElement = document.querySelector('.cm-content')
+      if (!editorElement) return
+
+      // Calculate position based on text content
+      const textBeforeSuggestion = editorContent.substring(0, suggestion.from)
+      const lines = textBeforeSuggestion.split('\n')
+      const lineNumber = lines.length - 1
+      const charInLine = lines[lines.length - 1].length
+
+      // Estimate position (CodeMirror uses monospace font)
+      const lineHeight = 24 // Typical CodeMirror line height
+      const charWidth = 9.6 // Approximate character width in monospace
+
+      const top = lineNumber * lineHeight + 10
+      const left = charInLine * charWidth + 60 // Add offset for line numbers
+
+      setPosition({ top, left })
+    }
+
+    calculatePosition()
+    
+    // Recalculate on window resize
+    window.addEventListener('resize', calculatePosition)
+    return () => window.removeEventListener('resize', calculatePosition)
+  }, [suggestion, editorContent])
+
+  if (!position) return null
+
+  return (
+    <div
+      className="absolute pointer-events-auto z-50"
+      style={{
+        top: position.top,
+        left: position.left,
+      }}
+    >
+      <div className="inline-flex items-center bg-green-100 border border-green-300 rounded-md px-2 py-1 shadow-sm">
+        <span 
+          className="text-green-800 font-mono text-sm animate-pulse mr-2"
+          style={{ 
+            backgroundColor: 'rgba(34, 197, 94, 0.2)',
+            padding: '2px 4px',
+            borderRadius: '3px'
+          }}
+        >
+          {suggestion.suggestedText}
+        </span>
+        <button
+          onClick={onAccept}
+          className="w-5 h-5 bg-green-500 hover:bg-green-600 text-white rounded text-xs flex items-center justify-center mr-1"
+        >
+          ✓
+        </button>
+        <button
+          onClick={onReject}
+          className="w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded text-xs flex items-center justify-center"
+        >
+          ✗
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Simplified approach - we'll use React state and manual DOM updates instead of complex CodeMirror state
+// This avoids the 'ev' variable initialization error
+
+// Global storage for active suggestions to avoid state conflicts
+let activeSuggestions: Map<string, AISuggestion> = new Map()
 
 export function EnhancedLatexEditor({ 
   value, 
@@ -451,7 +831,15 @@ export function EnhancedLatexEditor({
   onClick,
   onBlur,
   onFocus,
+  aiSuggestions = [],
+  onAcceptSuggestion,
+  onRejectSuggestion,
+  inlineDiffPreviews = [],
+  onAcceptInlineDiff,
+  onRejectInlineDiff,
 }: EnhancedLatexEditorProps) {
+  const editorRef = useRef<any>(null)
+  
   const handleChange = useCallback((value: string) => {
     onChange(value)
   }, [onChange])
@@ -500,6 +888,79 @@ export function EnhancedLatexEditor({
       onChange(newValue)
     }
   }, [value, onChange])
+
+  // Simplified AI suggestions handling using React state
+  useEffect(() => {
+    // Store suggestions in global map to avoid state conflicts
+    activeSuggestions.clear()
+    aiSuggestions.forEach(suggestion => {
+      activeSuggestions.set(suggestion.id, suggestion)
+    })
+  }, [aiSuggestions])
+
+  // Handle AI suggestion events
+  useEffect(() => {
+    const handleAccept = (event: Event) => {
+      const customEvent = event as CustomEvent
+      const suggestionId = customEvent.detail
+      onAcceptSuggestion?.(suggestionId)
+      activeSuggestions.delete(suggestionId)
+    }
+
+    const handleReject = (event: Event) => {
+      const customEvent = event as CustomEvent
+      const suggestionId = customEvent.detail
+      onRejectSuggestion?.(suggestionId)
+      activeSuggestions.delete(suggestionId)
+    }
+
+    document.addEventListener('ai-suggestion-accept', handleAccept)
+    document.addEventListener('ai-suggestion-reject', handleReject)
+
+    return () => {
+      document.removeEventListener('ai-suggestion-accept', handleAccept)
+      document.removeEventListener('ai-suggestion-reject', handleReject)
+    }
+  }, [onAcceptSuggestion, onRejectSuggestion])
+
+  // Manage inline diff previews
+  useEffect(() => {
+    const editorView = editorRef.current?.view
+    if (!editorView) return
+
+    // Update the editor with new inline diff previews
+    editorView.dispatch({
+      effects: [setInlineDiffEffect.of(inlineDiffPreviews)]
+    })
+  }, [inlineDiffPreviews])
+
+  // Handle inline diff events
+  useEffect(() => {
+    const handleAcceptInlineDiff = (event: Event) => {
+      const customEvent = event as CustomEvent
+      const { id } = customEvent.detail
+      onAcceptInlineDiff?.(id)
+    }
+
+    const handleRejectInlineDiff = (event: Event) => {
+      const customEvent = event as CustomEvent
+      const { id } = customEvent.detail
+      onRejectInlineDiff?.(id)
+    }
+
+    const editorElement = editorRef.current?.view?.dom
+    if (editorElement) {
+      editorElement.addEventListener('acceptInlineDiff', handleAcceptInlineDiff)
+      editorElement.addEventListener('rejectInlineDiff', handleRejectInlineDiff)
+    }
+
+    return () => {
+      if (editorElement) {
+        editorElement.removeEventListener('acceptInlineDiff', handleAcceptInlineDiff)
+        editorElement.removeEventListener('rejectInlineDiff', handleRejectInlineDiff)
+      }
+    }
+  }, [onAcceptInlineDiff, onRejectInlineDiff])
 
   useEffect(() => {
     const handleSelectionChange = (event: Event) => {
@@ -560,8 +1021,10 @@ export function EnhancedLatexEditor({
           ))}
         </div>
       )}
+
+
       
-      {/* CSS Animation for Blinking */}
+      {/* CSS Animation for Blinking and AI Suggestions */}
       <style jsx global>{`
         @keyframes blink {
           0%, 50% { 
@@ -575,10 +1038,27 @@ export function EnhancedLatexEditor({
             transform: scale(1.05);
           }
         }
+        
+        @keyframes ai-suggestion-pulse {
+          0%, 100% { 
+            opacity: 0.8;
+            background-color: rgba(34, 197, 94, 0.2);
+          }
+          50% { 
+            opacity: 1;
+            background-color: rgba(34, 197, 94, 0.4);
+          }
+        }
+        
+        .inline-ai-suggestion {
+          display: inline;
+          animation: ai-suggestion-pulse 2s ease-in-out infinite;
+        }
       `}</style>
       
       <div className={`w-full h-full ${className}`} style={{ height: '100%', overflow: 'hidden', position: 'relative' }}>
         <CodeMirror
+        ref={editorRef}
         value={value}
         height="100%"
         width="100%"
