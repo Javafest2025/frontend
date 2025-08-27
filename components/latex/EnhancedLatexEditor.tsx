@@ -4,7 +4,7 @@ import React, { useCallback, useRef, useEffect, useState } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { tokyoNight } from '@uiw/codemirror-theme-tokyo-night'
 import { EditorView, Decoration, DecorationSet, WidgetType } from '@codemirror/view'
-import { Extension, StateField, StateEffect, RangeSetBuilder } from '@codemirror/state'
+import { Extension, StateField, StateEffect, RangeSetBuilder, EditorSelection } from '@codemirror/state'
 import { syntaxHighlighting, HighlightStyle, LanguageSupport, StreamLanguage } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import { autocompletion, CompletionContext } from '@codemirror/autocomplete'
@@ -32,6 +32,8 @@ interface InlineDiffPreview {
   originalContent?: string // For replace type
 }
 
+export type LastCursorBeacon = number | null
+
 interface EnhancedLatexEditorProps {
   value: string
   onChange: (value: string) => void
@@ -53,6 +55,7 @@ interface EnhancedLatexEditorProps {
   inlineDiffPreviews?: InlineDiffPreview[]
   onAcceptInlineDiff?: (id: string) => void
   onRejectInlineDiff?: (id: string) => void
+  onLastCursorChange?: (pos: number | null) => void
 }
 
 // State management for inline diff previews
@@ -67,6 +70,67 @@ const inlineDiffField = StateField.define<InlineDiffPreview[]>({
       }
     }
     return value
+  }
+})
+
+// Last cursor beacon system
+export const setLastCursorBeacon = StateEffect.define<LastCursorBeacon>()
+
+// Blinking caret widget
+class BlinkCaretWidget extends WidgetType {
+  toDOM() {
+    const span = document.createElement("span")
+    span.className = "cm-last-cursor-beacon"
+    return span
+  }
+  ignoreEvent() { return true } // don't interfere with clicks
+}
+
+// Field that stores the last cursor pos and keeps it mapped across edits
+const lastCursorBeaconField = StateField.define<LastCursorBeacon>({
+  create: () => null,
+  update(value, tr) {
+    // React to explicit set/clear
+    for (const e of tr.effects) if (e.is(setLastCursorBeacon)) return e.value
+
+    // Map the saved position across document changes
+    if (value != null && tr.docChanged) return tr.changes.mapPos(value, 1)
+
+    // If a new non-empty selection appears, hide the beacon (selection > beacon)
+    if (tr.selection && !tr.state.selection.main.empty) return null
+
+    return value
+  },
+  provide: f =>
+    EditorView.decorations.from(f, (pos) => {
+      if (pos == null) return Decoration.none
+      return Decoration.set([Decoration.widget({ widget: new BlinkCaretWidget(), side: 1 }).range(pos)])
+    })
+})
+
+// Dom event handlers: show beacon on blur (when no selection), hide on focus
+const lastCursorBeaconHandlers = EditorView.domEventHandlers({
+  blur: (event, view) => {
+    const sel = view.state.selection.main
+    if (sel.empty) {
+      const pos = sel.head
+      view.dispatch({ effects: setLastCursorBeacon.of(pos) })
+      // notify parent
+      view.dom.dispatchEvent(new CustomEvent("cm-last-cursor-updated", { bubbles: true, detail: { pos } }))
+    } else {
+      // If there is a selection, do not show a beacon
+      view.dispatch({ effects: setLastCursorBeacon.of(null) })
+    }
+  },
+  focus: (_event, view) => {
+    view.dispatch({ effects: setLastCursorBeacon.of(null) })
+  },
+  mousedown: (_event, view) => {
+    // Clicking back into the editor should clear the beacon immediately
+    if (view.state.field(lastCursorBeaconField, false) != null) {
+      view.dispatch({ effects: setLastCursorBeacon.of(null) })
+    }
+    return false
   }
 })
 
@@ -475,6 +539,23 @@ const latexTheme = EditorView.theme({
     '50%': { opacity: 0 },
     '100%': { opacity: 1 },
   },
+  // Last cursor beacon styling
+  '.cm-last-cursor-beacon': {
+    position: 'relative',
+    display: 'inline-block',
+    width: '2px',
+    height: '1.1em',
+    backgroundColor: '#22c55e',
+    animation: 'cm-beacon-blink 1.2s infinite',
+    marginLeft: '0px',
+    top: '0.1em', // Lower the beacon to align with text baseline
+    verticalAlign: 'baseline',
+  },
+  '@keyframes cm-beacon-blink': {
+    '0%': { opacity: 1 },
+    '50%': { opacity: 0.3 },
+    '100%': { opacity: 1 },
+  },
 })
 
 // Simple and reliable ADD/DELETE line highlighting
@@ -728,6 +809,8 @@ const latexExtensions: Extension[] = [
   addDeleteHighlighting,
   inlineDiffField,
   inlineDiffPlugin,
+  lastCursorBeaconField,
+  lastCursorBeaconHandlers,
 ]
 
 // Simplified React component for inline AI suggestions
@@ -837,6 +920,7 @@ export function EnhancedLatexEditor({
   inlineDiffPreviews = [],
   onAcceptInlineDiff,
   onRejectInlineDiff,
+  onLastCursorChange,
 }: EnhancedLatexEditorProps) {
   const editorRef = useRef<any>(null)
   
@@ -878,16 +962,6 @@ export function EnhancedLatexEditor({
       }
     }
   }, [onFocusLost])
-
-  // Function to insert position marker in the text
-  const insertPositionMarker = useCallback((position: number, label: string) => {
-    if (position !== undefined) {
-      // Insert a LaTeX comment marker that won't affect compilation
-      const markerText = `% 🎯 CURSOR MARKER: ${label} (Position: ${position}) %`
-      const newValue = value.slice(0, position) + markerText + '\n' + value.slice(position)
-      onChange(newValue)
-    }
-  }, [value, onChange])
 
   // Simplified AI suggestions handling using React state
   useEffect(() => {
@@ -992,38 +1066,22 @@ export function EnhancedLatexEditor({
     }
   }, [onSelectionChange, onCursorPositionChange, onFocusLost, onClick])
 
+  // Handle last cursor beacon changes
+  useEffect(() => {
+    const handleLastCursorChange = (event: Event) => {
+      const customEvent = event as CustomEvent
+      onLastCursorChange?.(customEvent.detail as number | null)
+    }
+
+    document.addEventListener('latex-last-cursor-change', handleLastCursorChange)
+
+    return () => {
+      document.removeEventListener('latex-last-cursor-change', handleLastCursorChange)
+    }
+  }, [onLastCursorChange])
+
   return (
     <>
-      {/* Position Markers - OUTSIDE CodeMirror container */}
-      {positionMarkers && positionMarkers.length > 0 && (
-        <div 
-          className="fixed pointer-events-none"
-          style={{ 
-            zIndex: 99999,
-            left: '20px',
-            top: '200px'
-          }}
-        >
-          {positionMarkers.map((marker, index) => (
-            <div
-              key={index}
-              className="mb-2 bg-red-600 text-white px-4 py-2 rounded-lg border-2 border-white shadow-2xl"
-              style={{
-                fontSize: '14px',
-                fontWeight: 'bold',
-                animation: marker.blinking ? 'blink 1s infinite' : 'none',
-                display: 'block',
-                position: 'relative'
-              }}
-            >
-              🎯 CURSOR WAS AT: {marker.position}
-            </div>
-          ))}
-        </div>
-      )}
-
-
-      
       {/* CSS Animation for Blinking and AI Suggestions */}
       <style jsx global>{`
         @keyframes blink {

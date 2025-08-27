@@ -51,6 +51,7 @@ interface AIChatPanelProps {
     originalContent?: string
   }>) => void
   onClearSelection?: () => void
+  getInsertAnchor?: () => number
 }
 
 export function AIChatPanel({ 
@@ -64,7 +65,8 @@ export function AIChatPanel({
   pendingAiRequest = false,
   setPendingAiRequest,
   onPreviewInlineDiff,
-  onClearSelection
+  onClearSelection,
+  getInsertAnchor
 }: AIChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState('')
@@ -388,8 +390,8 @@ export function AIChatPanel({
     
     // Determine position based on selection or cursor - ALWAYS prioritize selection
     const position = {
-      from: selectedText && selectedText.text ? selectedText.from : (cursorPosition || 0),
-      to: selectedText && selectedText.text ? selectedText.to : (cursorPosition || 0),
+      from: selectedText && selectedText.text ? selectedText.from : (getInsertAnchor?.() ?? cursorPosition ?? 0),
+      to: selectedText && selectedText.text ? selectedText.to : (getInsertAnchor?.() ?? cursorPosition ?? 0),
       originalText: selectedText && selectedText.text ? selectedText.text : ''
     }
 

@@ -75,6 +75,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [selectedText, setSelectedText] = useState<{ text: string; from: number; to: number }>({ text: '', from: 0, to: 0 })
   const [cursorPosition, setCursorPosition] = useState<number | undefined>(undefined)
+  const [lastCursorPos, setLastCursorPos] = useState<number | null>(null)
   const [positionMarkers, setPositionMarkers] = useState<Array<{ position: number; label: string; blinking: boolean }>>([])
 
   const [showAddToChat, setShowAddToChat] = useState(false)
@@ -577,19 +578,10 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
 
   // Position marker management
   const handleSetPositionMarker = (position: number, label: string) => {
-    // Clear previous markers first
-    const cleanContent = editorContent.replace(/% 🎯.*last position.*/gi, '')
-    
-    // Insert a simple inline marker at the specified position
-    if (position >= 0) {
-      const markerText = `% 🎯 <-last position`
-      const newContent = cleanContent.slice(0, position) + markerText + cleanContent.slice(position)
-      setEditorContent(newContent)
-      setIsEditing(true)
-      
-      // Update position markers (only one marker at a time)
-      setPositionMarkers([{ position, label, blinking: true }])
-    }
+    // Now that we have blinking cursor beacon, no need to insert comments
+    // Just update the beacon position
+    setLastCursorPos(position)
+    console.log('Position marker set at:', position, label)
   }
 
   const handleClearPositionMarkers = () => {
@@ -663,6 +655,11 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     console.log('Diff rejected and removed')
   }
 
+  // Get insert anchor position (where to add new content)
+  const getInsertAnchor = () => {
+    return lastCursorPos ?? cursorPosition ?? editorContent.length
+  }
+
   // Enhanced text selection handling
   const handleEditorSelectionChange = (selection: { text: string; from: number; to: number }) => {
     console.log('🔍 === EDITOR SELECTION CHANGE DEBUG ===')
@@ -734,46 +731,19 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
 
   // Handle editor focus loss - automatically mark cursor position
   const handleEditorFocusLost = (data: { cursorPosition: number }) => {
-    // Clear previous markers first
-    const cleanContent = editorContent.replace(/% 🎯.*last position.*/gi, '')
-    
-    // Insert a simple inline marker at the current cursor position
+    // Now that we have blinking cursor beacon, no need to insert comments
+    // Just update the last cursor position state for the beacon
     if (cursorPosition !== undefined && cursorPosition >= 0) {
-      const markerText = `% 🎯 <-last position`
-      
-      // Ensure we don't insert in the middle of LaTeX commands
-      const beforeCursor = cleanContent.slice(0, cursorPosition)
-      const afterCursor = cleanContent.slice(cursorPosition)
-      
-      // Add a space before marker if needed
-      const spaceBefore = beforeCursor.endsWith(' ') ? '' : ' '
-      const newContent = beforeCursor + spaceBefore + markerText + afterCursor
-      
-      setEditorContent(newContent)
-      setIsEditing(true)
-      
-      // Update position markers
-      setPositionMarkers([{ 
-        position: cursorPosition, 
-        label: 'Last Cursor Position', 
-        blinking: true 
-      }])
+      // The beacon system will handle visual marking
+      console.log('Focus lost at position:', cursorPosition)
     }
   }
 
   // Handle editor blur event (when focus changes)
   const handleEditorBlur = () => {
-    // When editor loses focus, mark the current cursor position
-    if (cursorPosition !== undefined) {
-      const existingMarker = positionMarkers.find(m => m.position === cursorPosition)
-      if (!existingMarker) {
-        setPositionMarkers(prev => [...prev, { 
-          position: cursorPosition, 
-          label: 'Last Cursor Position', 
-          blinking: true 
-        }])
-      }
-    }
+    // Now that we have blinking cursor beacon, no need to insert comments
+    // The beacon system handles position tracking visually
+    console.log('Editor blur event')
   }
 
   // Handle editor focus - remove markers when user clicks back in editor
@@ -1623,6 +1593,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                         inlineDiffPreviews={inlineDiffPreviews}
                         onAcceptInlineDiff={handleAcceptInlineDiff}
                         onRejectInlineDiff={handleRejectInlineDiff}
+                        onLastCursorChange={setLastCursorPos}
                       />
                       {showAddToChat && (
                         <div 
@@ -1743,6 +1714,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                           inlineDiffPreviews={inlineDiffPreviews}
                           onAcceptInlineDiff={handleAcceptInlineDiff}
                           onRejectInlineDiff={handleRejectInlineDiff}
+                          onLastCursorChange={setLastCursorPos}
                         />
                         {showAddToChat && (
                           <div 
@@ -1859,6 +1831,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                       setSelectedText({ text: '', from: 0, to: 0 })
                       setSelectionAddedToChat(false)
                     }}
+                    getInsertAnchor={getInsertAnchor}
                   />
                 </TabsContent>
                 
