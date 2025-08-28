@@ -83,18 +83,26 @@ export const latexApi = {
   },
 
   async getDocumentsByProjectId(projectId: string): Promise<APIResponse<DocumentResponse[]>> {
-    const response = await fetch(getProjectServiceUrl(`/api/documents/project/${projectId}`), {
+    const url = getProjectServiceUrl(`/api/documents/project/${projectId}`)
+    console.log('Calling API URL:', url)
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
     })
 
+    console.log('API Response status:', response.status, response.statusText)
+    console.log('API Response headers:', response.headers)
+
     if (!response.ok) {
       throw new Error(`Failed to fetch documents: ${response.statusText}`)
     }
 
-    return response.json()
+    const data = await response.json()
+    console.log('API Response data:', data)
+    return data
   },
 
   async getDocumentById(documentId: string): Promise<APIResponse<DocumentResponse>> {
@@ -265,11 +273,91 @@ export const latexApi = {
       },
       body: JSON.stringify({ content }),
     })
+    return response.json()
+  },
 
-    if (!response.ok) {
-      throw new Error(`Failed to generate corrections: ${response.statusText}`)
+  // Document Versioning
+  async createDocumentVersion(documentId: string, content: string, commitMessage: string, createdBy?: string): Promise<APIResponse<any>> {
+    const url = getProjectServiceUrl(`/api/documents/${documentId}/versions`)
+    const body = `commitMessage=${encodeURIComponent(commitMessage)}&content=${encodeURIComponent(content)}${createdBy ? `&createdBy=${encodeURIComponent(createdBy)}` : ''}`
+    
+    console.log('=== API CALL DEBUG ===')
+    console.log('URL:', url)
+    console.log('Method: POST')
+    console.log('Headers:', { 'Content-Type': 'application/x-www-form-urlencoded' })
+    console.log('Body:', body)
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: body
+      })
+      
+      console.log('=== FETCH RESPONSE ===')
+      console.log('Response status:', response.status)
+      console.log('Response statusText:', response.statusText)
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+      
+      const responseText = await response.text()
+      console.log('Response text:', responseText)
+      
+      let responseData
+      try {
+        responseData = JSON.parse(responseText)
+        console.log('Parsed JSON:', responseData)
+      } catch (parseError) {
+        console.error('Failed to parse JSON:', parseError)
+        throw new Error(`Invalid JSON response: ${responseText}`)
+      }
+      
+      return responseData
+    } catch (error) {
+      console.error('=== FETCH ERROR ===')
+      console.error('Fetch error:', error)
+      throw error
     }
+  },
 
+  async getDocumentVersions(documentId: string): Promise<APIResponse<any[]>> {
+    const response = await fetch(getProjectServiceUrl(`/api/documents/${documentId}/versions`), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    return response.json()
+  },
+
+  async getSpecificDocumentVersion(documentId: string, versionNumber: number): Promise<APIResponse<any>> {
+    const response = await fetch(getProjectServiceUrl(`/api/documents/${documentId}/versions/${versionNumber}`), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    return response.json()
+  },
+
+  async getPreviousDocumentVersion(documentId: string, currentVersion: number): Promise<APIResponse<any>> {
+    const response = await fetch(getProjectServiceUrl(`/api/documents/${documentId}/versions/${currentVersion}/previous`), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    return response.json()
+  },
+
+  async getNextDocumentVersion(documentId: string, currentVersion: number): Promise<APIResponse<any>> {
+    const response = await fetch(getProjectServiceUrl(`/api/documents/${documentId}/versions/${currentVersion}/next`), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
     return response.json()
   },
 }
