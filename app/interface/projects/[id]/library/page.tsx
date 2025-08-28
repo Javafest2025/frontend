@@ -50,8 +50,12 @@ import { libraryApi } from "@/lib/api/project-service"
 import { PaperCard } from "@/components/library/PaperCard"
 import { StreamingPaperCard } from "@/components/library/StreamingPaperCard"
 import { PaperDetailModal } from "@/components/library/PaperDetailModal"
+import { SearchConfigDialog } from "@/components/library/SearchConfigDialog"
+import { PDFUploadDialog } from "@/components/library/PDFUploadDialog"
+import { B2DownloadTest } from "@/components/test/B2DownloadTest"
 import { PdfViewerModal } from "@/components/library/PdfViewerModal"
-import type { Paper } from "@/types/websearch"
+import type { Paper, WebSearchRequest } from "@/types/websearch"
+
 
 interface ProjectLibraryPageProps {
     params: Promise<{

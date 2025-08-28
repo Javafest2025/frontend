@@ -206,7 +206,7 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
   return (
     <div className={cn(
       "flex h-screen flex-col bg-background/80 backdrop-blur-xl border-r border-primary/30 transition-all duration-300 relative z-10",
-      collapsed ? "w-16" : "w-72",
+                  collapsed ? "w-12" : "w-56",
       className
     )}
       style={{

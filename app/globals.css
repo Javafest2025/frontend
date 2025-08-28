@@ -22,6 +22,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* React-PDF Styles */
+@import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+@import 'react-pdf/dist/esm/Page/TextLayer.css';
+
 /**
  * ----------------------------------------------------------------------------
  * 1. BASE LAYER - THEME & GLOBAL STYLES

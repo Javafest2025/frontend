@@ -22,7 +22,7 @@ type Props = {
 
 export function ChatPanel({ isOpen, onClose, paperId, isMobile }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
-  const [width, setWidth] = useState(400)
+  const [width, setWidth] = useState(320)
   const [isDragging, setIsDragging] = useState(false)
 
   // Handle mouse dragging for resizing (only on desktop)
