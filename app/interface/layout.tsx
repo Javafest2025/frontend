@@ -11,20 +11,13 @@ export default function InterfaceLayout({
 }: {
     children: React.ReactNode
 }) {
-    const pathname = usePathname()
-    const isProjectRoute = pathname.includes('/projects/')
-
     return (
         <SettingsProvider>
             <TooltipProvider>
                 <ProtectedRoute>
-                    {isProjectRoute ? (
-                        children
-                    ) : (
-                        <MainLayout>
-                            {children}
-                        </MainLayout>
-                    )}
+                    <MainLayout>
+                        {children}
+                    </MainLayout>
                 </ProtectedRoute>
             </TooltipProvider>
         </SettingsProvider>

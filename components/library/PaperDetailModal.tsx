@@ -38,13 +38,25 @@ import {
     AlertTriangle,
     Lightbulb,
     ListChecks,
-    Target
+    Target,
+    Shield,
+    RefreshCw
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { downloadPdfWithAuth } from "@/lib/api/pdf"
 import type { Paper } from "@/types/websearch"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { AuthorDialog } from "@/components/interface/AuthorDialog"
+import { useAuthorDialog } from "@/hooks/useAuthorDialog"
+import { libraryApi, type AbstractHighlightDto, type AbstractAnalysisDto } from "@/lib/api/project-service/library"
+import InsightCardCarousel from "./InsightCardCarousel"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 
 interface PaperDetailModalProps {
@@ -59,6 +71,256 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
     const router = useRouter()
     const [copiedField, setCopiedField] = useState<string | null>(null)
     const [isDownloading, setIsDownloading] = useState(false)
+    const [isAnalyzingAbstract, setIsAnalyzingAbstract] = useState(false)
+    const [isReanalyzing, setIsReanalyzing] = useState(false)
+    const [abstractHighlights, setAbstractHighlights] = useState<AbstractHighlightDto | null>(null)
+    const [abstractInsights, setAbstractInsights] = useState<AbstractAnalysisDto | null>(null)
+    const [analysisError, setAnalysisError] = useState<string | null>(null)
+    const { authorName, isOpen: isAuthorDialogOpen, openAuthorDialog, closeAuthorDialog, setIsOpen: setIsAuthorDialogOpen } = useAuthorDialog()
+
+    // Helper function to check if it's an arXiv preprint
+    const isArxivPreprint = (paper: Paper) => {
+        return paper.source?.toLowerCase() === 'arxiv' ||
+            paper.venueName?.toLowerCase().includes('arxiv') ||
+            paper.publisher?.toLowerCase().includes('arxiv')
+    }
+
+    // AI Analysis Effect
+    useEffect(() => {
+        if (isOpen && paper?.abstractText && !abstractHighlights && !abstractInsights && !isAnalyzingAbstract && !isReanalyzing) {
+            analyzeAbstractWithAI()
+        }
+    }, [isOpen, paper?.abstractText, abstractHighlights, abstractInsights, isAnalyzingAbstract, isReanalyzing])
+
+    // Reset analysis state when paper changes
+    useEffect(() => {
+        if (paper?.id) {
+            setAbstractHighlights(null)
+            setAbstractInsights(null)
+            setAnalysisError(null)
+            setIsAnalyzingAbstract(false)
+            setIsReanalyzing(false)
+        }
+    }, [paper?.id])
+
+    // AI Analysis Function
+    const analyzeAbstractWithAI = async () => {
+        if (!paper?.abstractText || !paper?.id) return
+
+        setIsAnalyzingAbstract(true)
+        setAnalysisError(null)
+
+        try {
+            console.log("🤖 Starting AI analysis of abstract for paper:", paper.id)
+            const analysisResult = await libraryApi.analyzePaperAbstract(paper.id, paper.abstractText)
+
+            setAbstractHighlights(analysisResult.highlights)
+            setAbstractInsights(analysisResult.insights)
+            console.log("✅ AI analysis completed successfully")
+        } catch (error) {
+            console.error("❌ AI analysis failed:", error)
+            setAnalysisError(error instanceof Error ? error.message : "Analysis failed")
+            // Clear any partial results on error
+            setAbstractHighlights(null)
+            setAbstractInsights(null)
+        } finally {
+            setIsAnalyzingAbstract(false)
+        }
+    }
+
+    // Re-analyze Function
+    const reanalyzeAbstractWithAI = async () => {
+        if (!paper?.abstractText || !paper?.id) return
+
+        setIsReanalyzing(true)
+        setAnalysisError(null)
+
+        try {
+            console.log("🔄 Starting re-analysis of abstract for paper:", paper.id)
+            const analysisResult = await libraryApi.reanalyzePaperAbstract(paper.id, paper.abstractText)
+
+            setAbstractHighlights(analysisResult.highlights)
+            setAbstractInsights(analysisResult.insights)
+            console.log("✅ Re-analysis completed successfully")
+        } catch (error) {
+            console.error("❌ Re-analysis failed:", error)
+            setAnalysisError(error instanceof Error ? error.message : "Re-analysis failed")
+            // Clear any partial results on error
+            setAbstractHighlights(null)
+            setAbstractInsights(null)
+        } finally {
+            setIsReanalyzing(false)
+        }
+    }
+
+    // Combined loading state
+    const isLoading = isAnalyzingAbstract || isReanalyzing
+
+    // Function to render highlighted text with improved logic
+    const renderHighlightedText = (text: string, highlights: AbstractHighlightDto | null) => {
+        if (!highlights || highlights.highlights.length === 0) {
+            return text
+        }
+
+        console.log("🎨 Processing highlights:", highlights.highlights.length, "total highlights")
+
+        // Find actual word positions in text instead of relying on AI indices
+        const validHighlights = highlights.highlights
+            .map((highlight, index) => {
+                // Find the actual position of the word in the text
+                const searchText = highlight.text
+                let startIndex = text.indexOf(searchText)
+
+                // If not found, try case-insensitive search
+                if (startIndex === -1) {
+                    const lowerText = text.toLowerCase()
+                    const lowerSearch = searchText.toLowerCase()
+                    startIndex = lowerText.indexOf(lowerSearch)
+                }
+
+                if (startIndex === -1) {
+                    console.log("❌ Could not find text in abstract:", searchText)
+                    return null
+                }
+
+                const endIndex = startIndex + searchText.length
+
+                // Verify we found the complete word (not partial)
+                const foundText = text.slice(startIndex, endIndex)
+                if (foundText !== searchText) {
+                    console.log("❌ Found text doesn't match:", foundText, "vs", searchText)
+                    return null
+                }
+
+                console.log("✅ Found text:", searchText, "at", startIndex, "-", endIndex, "(", highlight.type, ")")
+
+                return {
+                    ...highlight,
+                    startIndex,
+                    endIndex,
+                    originalIndex: index // Add original index for unique keys
+                }
+            })
+            .filter(Boolean) // Remove null entries
+
+        // Remove duplicates based on position (keep the first occurrence)
+        const uniqueHighlights = validHighlights.filter((highlight, index, array) => {
+            const isDuplicate = array.findIndex(h =>
+                h.startIndex === highlight.startIndex && h.endIndex === highlight.endIndex
+            ) !== index
+
+            if (isDuplicate) {
+                console.log("🔄 Removing duplicate highlight:", highlight.text, "at", highlight.startIndex, "-", highlight.endIndex)
+            }
+
+            return !isDuplicate
+        })
+
+        console.log("✅ Valid highlights after position fixing:", uniqueHighlights.length)
+
+        if (uniqueHighlights.length === 0) {
+            return text
+        }
+
+        // Sort highlights by start index to process them in order
+        const sortedHighlights = [...uniqueHighlights].sort((a, b) => a.startIndex - b.startIndex)
+
+        const result = []
+        let lastIndex = 0
+
+        for (const highlight of sortedHighlights) {
+            // Add text before highlight
+            if (highlight.startIndex > lastIndex) {
+                result.push(text.slice(lastIndex, highlight.startIndex))
+            }
+
+            // Add highlighted text
+            const highlightedText = text.slice(highlight.startIndex, highlight.endIndex)
+            const highlightClass = getHighlightClass(highlight.type)
+
+            // Use originalIndex to ensure unique keys even for same positions
+            result.push(
+                <span key={`${highlight.startIndex}-${highlight.endIndex}-${highlight.originalIndex}`} className={highlightClass}>
+                    {highlightedText}
+                </span>
+            )
+
+            lastIndex = highlight.endIndex
+        }
+
+        // Add remaining text
+        if (lastIndex < text.length) {
+            result.push(text.slice(lastIndex))
+        }
+
+        return result
+    }
+
+    // Function to get highlight CSS class based on type
+    const getHighlightClass = (type: string) => {
+        switch (type) {
+            case 'algorithm':
+                return 'text-blue-600 dark:text-blue-400 font-bold'
+            case 'methodology':
+                return 'text-green-600 dark:text-green-400 font-bold'
+            case 'concept':
+                return 'text-purple-600 dark:text-purple-400 font-bold'
+            case 'metric':
+                return 'text-cyan-600 dark:text-cyan-400 font-bold'
+            case 'framework':
+                return 'text-orange-600 dark:text-orange-400 font-bold'
+            default:
+                return 'text-indigo-600 dark:text-indigo-400 font-bold'
+        }
+    }
+
+    // Function to extract key insights from abstract (fallback)
+    const extractKeyInsights = (abstract: string) => {
+        const insights = {
+            focus: 'Research Focus',
+            approach: 'Methodology',
+            emphasis: 'Key Contribution'
+        }
+
+        // Simple keyword-based extraction
+        const lowerAbstract = abstract.toLowerCase()
+
+        if (lowerAbstract.includes('transfer learning')) {
+            insights.focus = 'Transfer Learning'
+        } else if (lowerAbstract.includes('deep learning') || lowerAbstract.includes('neural network')) {
+            insights.focus = 'Deep Learning'
+        } else if (lowerAbstract.includes('machine learning')) {
+            insights.focus = 'Machine Learning'
+        } else if (lowerAbstract.includes('natural language') || lowerAbstract.includes('nlp')) {
+            insights.focus = 'Natural Language Processing'
+        } else if (lowerAbstract.includes('computer vision')) {
+            insights.focus = 'Computer Vision'
+        }
+
+        if (lowerAbstract.includes('review') || lowerAbstract.includes('survey')) {
+            insights.approach = 'Comprehensive Review'
+        } else if (lowerAbstract.includes('propose') || lowerAbstract.includes('introduce')) {
+            insights.approach = 'Novel Approach'
+        } else if (lowerAbstract.includes('evaluate') || lowerAbstract.includes('compare')) {
+            insights.approach = 'Evaluation Study'
+        } else if (lowerAbstract.includes('analyze') || lowerAbstract.includes('investigate')) {
+            insights.approach = 'Analysis'
+        }
+
+        if (lowerAbstract.includes('trust') || lowerAbstract.includes('robust')) {
+            insights.emphasis = 'Trustworthiness'
+        } else if (lowerAbstract.includes('efficiency') || lowerAbstract.includes('performance')) {
+            insights.emphasis = 'Performance'
+        } else if (lowerAbstract.includes('privacy') || lowerAbstract.includes('security')) {
+            insights.emphasis = 'Privacy & Security'
+        } else if (lowerAbstract.includes('fair') || lowerAbstract.includes('bias')) {
+            insights.emphasis = 'Fairness'
+        } else if (lowerAbstract.includes('interpret') || lowerAbstract.includes('explain')) {
+            insights.emphasis = 'Interpretability'
+        }
+
+        return insights
+    }
 
 
     if (!isOpen || !paper) return null
@@ -386,23 +648,147 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
                         >
                             <Card className="h-full border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:shadow-primary/10 ring-1 ring-primary/20 hover:ring-primary/40 bg-gradient-to-br from-background via-background to-primary/5">
                                 <CardHeader className="pb-6">
-                                    <CardTitle className="text-2xl font-bold flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-                                            <FileText className="h-5 w-5 text-primary" />
-                                        </div>
-                                        Abstract
-                                    </CardTitle>
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="text-2xl font-bold flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
+                                                <FileText className="h-5 w-5 text-primary" />
+                                            </div>
+                                            Abstract
+                                        </CardTitle>
+                                        {abstractInsights && (
+                                            <button
+                                                onClick={reanalyzeAbstractWithAI}
+                                                disabled={isLoading}
+                                                className="flex items-center gap-2 px-3 py-2 text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {isLoading ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                        {isReanalyzing ? "Re-analyzing..." : "Analyzing..."}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <RefreshCw className="h-4 w-4" />
+                                                        Re-analyze
+                                                    </>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
                                 </CardHeader>
                                 <CardContent className="pt-0">
                                     {paper.abstractText ? (
-                                        <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap leading-relaxed">
-                                            {paper.abstractText}
+                                        <div className="relative">
+                                            {/* Loading State */}
+                                            {isLoading && (
+                                                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-20 flex items-center justify-center rounded-lg">
+                                                    <div className="text-center">
+                                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {isReanalyzing ? "Re-analyzing abstract..." : "AI is analyzing the abstract..."}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Error State */}
+                                            {analysisError && (
+                                                <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
+                                                    <p className="text-sm text-red-600 dark:text-red-400">
+                                                        AI analysis failed: {analysisError}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* Enhanced Abstract Content */}
+                                            <div className="prose dark:prose-invert max-w-none">
+                                                {/* Abstract Header with Decorative Elements */}
+                                                <div className="mb-6 relative">
+                                                    <div className="absolute -left-4 top-0 w-1 h-full bg-gradient-to-b from-primary via-purple-500 to-blue-500 rounded-full"></div>
+                                                    <div className="pl-6">
+                                                        <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
+                                                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                                                            Research Overview
+                                                        </h3>
+                                                        <div className="w-16 h-0.5 bg-gradient-to-r from-primary to-purple-500 rounded-full"></div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Enhanced Abstract Text with AI Highlights */}
+                                                <div className="relative">
+                                                    {/* Background Pattern */}
+                                                    <div className="absolute inset-0 opacity-5">
+                                                        <div className="absolute top-4 right-4 w-20 h-20 border border-primary/20 rounded-full"></div>
+                                                        <div className="absolute bottom-8 left-8 w-12 h-12 border border-purple-500/20 rounded-full"></div>
+                                                        <div className="absolute top-1/2 right-1/4 w-8 h-8 border border-blue-500/20 rounded-full"></div>
+                                                    </div>
+
+                                                    {/* Main Abstract Content */}
+                                                    <div className="relative z-10">
+                                                        <div className="text-foreground/90 leading-relaxed text-base space-y-4">
+                                                            {paper.abstractText.split('. ').map((sentence, index) => (
+                                                                <motion.p
+                                                                    key={index}
+                                                                    initial={{ opacity: 0, y: 10 }}
+                                                                    animate={{ opacity: 1, y: 0 }}
+                                                                    transition={{ delay: 0.1 * index }}
+                                                                    className="relative pl-4"
+                                                                >
+                                                                    {/* Sentence Number Indicator */}
+                                                                    <span className="absolute left-0 top-0 w-2 h-2 bg-gradient-to-r from-primary/60 to-purple-500/60 rounded-full transform -translate-x-1/2 translate-y-2"></span>
+
+                                                                    {/* Enhanced Sentence Styling with AI Highlights */}
+                                                                    <span className="relative">
+                                                                        {renderHighlightedText(sentence + (index < paper.abstractText.split('. ').length - 1 ? '. ' : ''), abstractHighlights)}
+                                                                    </span>
+                                                                </motion.p>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Abstract Footer with AI Insights */}
+                                                <div className="mt-8 pt-6 border-t border-primary/20">
+                                                    {abstractInsights ? (
+                                                        <InsightCardCarousel insights={abstractInsights} />
+                                                    ) : analysisError ? (
+                                                        <div className="text-center py-8">
+                                                            <div className="flex items-center justify-center gap-2 text-red-500">
+                                                                <AlertTriangle className="h-4 w-4" />
+                                                                <span className="text-sm">Analysis failed. Please try again.</span>
+                                                            </div>
+                                                            <button
+                                                                onClick={analyzeAbstractWithAI}
+                                                                disabled={isLoading}
+                                                                className="mt-2 px-3 py-1 text-xs bg-primary/10 hover:bg-primary/20 text-primary rounded transition-colors disabled:opacity-50"
+                                                            >
+                                                                Retry Analysis
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-center py-8">
+                                                            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                                <span className="text-sm">
+                                                                    {isLoading ? "Analyzing abstract insights..." : "Preparing analysis..."}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     ) : (
                                         <div className="text-center py-12">
-                                            <FileText className="h-16 w-16 text-muted-foreground/20 mx-auto mb-4" />
+                                            <div className="relative">
+                                                <FileText className="h-16 w-16 text-muted-foreground/20 mx-auto mb-4" />
+                                                <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-full blur-xl"></div>
+                                            </div>
                                             <p className="text-muted-foreground italic text-lg">
                                                 Abstract not available for this paper
+                                            </p>
+                                            <p className="text-muted-foreground/60 text-sm mt-2">
+                                                Try viewing the full paper for more details
                                             </p>
                                         </div>
                                     )}
@@ -437,14 +823,42 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
                                         </div>
 
                                         <div className="flex flex-col space-y-1">
-                                            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Venue</div>
+                                            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                                                Venue
+                                                {!paper.venueName && isArxivPreprint(paper) && (
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger>
+                                                                <Info className="h-3 w-3 text-amber-500" />
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Not available for arXiv preprints</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                )}
+                                            </div>
                                             <div className="text-sm font-medium text-foreground">
                                                 {paper.venueName || <span className="text-muted-foreground/60 italic">Not specified</span>}
                                             </div>
                                         </div>
 
                                         <div className="flex flex-col space-y-1">
-                                            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Publisher</div>
+                                            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                                                Publisher
+                                                {!paper.publisher && isArxivPreprint(paper) && (
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger>
+                                                                <Info className="h-3 w-3 text-amber-500" />
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Not available for arXiv preprints</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                )}
+                                            </div>
                                             <div className="text-sm font-medium text-foreground">
                                                 {paper.publisher || <span className="text-muted-foreground/60 italic">Not specified</span>}
                                             </div>
@@ -473,14 +887,42 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
                                 <CardContent className="pt-0 space-y-5">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="flex flex-col space-y-1">
-                                            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Volume</div>
+                                            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                                                Volume
+                                                {!paper.volume && isArxivPreprint(paper) && (
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger>
+                                                                <Info className="h-3 w-3 text-amber-500" />
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Not available for arXiv preprints</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                )}
+                                            </div>
                                             <div className="text-sm font-medium text-foreground">
                                                 {paper.volume || <span className="text-muted-foreground/60 italic">N/A</span>}
                                             </div>
                                         </div>
 
                                         <div className="flex flex-col space-y-1">
-                                            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Issue</div>
+                                            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                                                Issue
+                                                {!paper.issue && isArxivPreprint(paper) && (
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger>
+                                                                <Info className="h-3 w-3 text-amber-500" />
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Not available for arXiv preprints</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                )}
+                                            </div>
                                             <div className="text-sm font-medium text-foreground">
                                                 {paper.issue || <span className="text-muted-foreground/60 italic">N/A</span>}
                                             </div>
@@ -488,7 +930,21 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
                                     </div>
 
                                     <div className="flex flex-col space-y-1">
-                                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pages</div>
+                                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                                            Pages
+                                            {!paper.pages && isArxivPreprint(paper) && (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger>
+                                                            <Info className="h-3 w-3 text-amber-500" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Not available for arXiv preprints</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            )}
+                                        </div>
                                         <div className="text-sm font-medium text-foreground">
                                             {paper.pages || <span className="text-muted-foreground/60 italic">Not specified</span>}
                                         </div>
@@ -606,7 +1062,15 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
                                 {paper.authors && paper.authors.length > 0 ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {paper.authors.map((author, index) => (
-                                            <Card key={index} className="bg-gradient-to-br from-muted/20 to-muted/40 border-muted/50 hover:shadow-lg transition-all duration-300">
+                                            <Card
+                                                key={index}
+                                                className="bg-gradient-to-br from-muted/20 to-muted/40 border-muted/50 hover:shadow-lg transition-all duration-300 cursor-pointer hover:border-primary/40 hover:shadow-primary/10"
+                                                onClick={() => {
+                                                    if (author.name) {
+                                                        openAuthorDialog(author.name)
+                                                    }
+                                                }}
+                                            >
                                                 <CardContent className="p-6">
                                                     <div className="flex items-start gap-4">
                                                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/30 to-primary/60 flex items-center justify-center flex-shrink-0 shadow-lg">
@@ -615,7 +1079,7 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
                                                             </span>
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="font-semibold text-foreground mb-2">
+                                                            <p className="font-semibold text-foreground mb-2 hover:text-primary transition-colors">
                                                                 {author.name || 'Name not available'}
                                                             </p>
                                                             {author.affiliation && (
@@ -632,9 +1096,12 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
                                                             )}
                                                             {!author.affiliation && !author.orcid && (
                                                                 <p className="text-sm text-muted-foreground/70 italic">
-                                                                    No additional information
+                                                                    Click to view author profile
                                                                 </p>
                                                             )}
+                                                        </div>
+                                                        <div className="flex-shrink-0">
+                                                            <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                                         </div>
                                                     </div>
                                                 </CardContent>
@@ -692,6 +1159,13 @@ export function PaperDetailModal({ paper, isOpen, onClose, onViewPdf, projectId 
 
                 </div>
             </ScrollArea>
+
+            {/* Author Dialog */}
+            <AuthorDialog
+                authorName={authorName}
+                open={isAuthorDialogOpen}
+                onOpenChange={setIsAuthorDialogOpen}
+            />
         </div>
     )
 }

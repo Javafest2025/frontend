@@ -340,7 +340,7 @@ export function SearchConfigDialog({
                                                                         onValueChange={field.onChange}
                                                                         suggestions={RESEARCH_DOMAINS}
                                                                         placeholder="Select or type a research domain (e.g., Machine Learning, Computer Vision)"
-                                                                        searchFunction={(query: string, suggestions: string[]) => 
+                                                                        searchFunction={(query: string, suggestions: string[]) =>
                                                                             searchSuggestionsAsStrings(query, { kinds: ['domain'] })
                                                                         }
                                                                         disabled={isLoading}

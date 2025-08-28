@@ -13,7 +13,7 @@ export function EditorArea({ children, onChatToggle, onSidebarToggle, showMobile
     return (
         <div className="flex flex-col h-full relative">
             {/* Main Content Area */}
-            <div className="flex-1 relative overflow-y-auto">
+            <div className="flex-1 relative overflow-y-auto custom-scrollbar">
                 {children}
             </div>
         </div>

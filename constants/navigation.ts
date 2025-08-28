@@ -1,4 +1,4 @@
-import { Home, BookOpen, Bell, User, Workflow } from "lucide-react"
+import { Home, BookOpen, Bell, User, Workflow, Bot } from "lucide-react"
 
 export const NAV_ITEMS = [
   {
@@ -25,5 +25,10 @@ export const NAV_ITEMS = [
     name: "Workflows",
     href: "/interface/workflows",
     icon: Workflow,
+  },
+  {
+    name: "ScholarBot",
+    href: "/scholarbot",
+    icon: Bot,
   },
 ]

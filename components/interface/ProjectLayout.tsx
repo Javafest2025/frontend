@@ -2,6 +2,7 @@
 
 import React, { useState } from "react"
 import { ProjectSidebar } from "./ProjectSidebar"
+import { Header } from "@/components/layout/Header"
 import { ChatPanel } from "@/components/layout/ChatPanel"
 import { cn } from "@/lib/utils/cn"
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile"
@@ -24,19 +25,21 @@ export function ProjectLayout({ children, projectId, autoCollapseSidebar = false
 
     return (
         <div className="flex h-screen w-full overflow-hidden bg-background">
-            {/* Project-specific Sidebar - Hidden on mobile, collapsible on tablet */}
+            {/* Project-specific Sidebar - Full height, positioned on the left */}
             {!isMobile && (
-                <ProjectSidebar
-                    projectId={projectId}
-                    collapsed={shouldCollapseSidebar ? true : sidebarCollapsed}
-                    onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-                    className={cn(
-                        "transition-all duration-300",
-                        shouldCollapseSidebar && "w-16",
-                        !shouldCollapseSidebar && sidebarCollapsed && "w-16",
-                        !shouldCollapseSidebar && !sidebarCollapsed && "w-72"
-                    )}
-                />
+                <div className="flex-shrink-0">
+                    <ProjectSidebar
+                        projectId={projectId}
+                        collapsed={shouldCollapseSidebar ? true : sidebarCollapsed}
+                        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+                        className={cn(
+                            "h-screen transition-all duration-300",
+                            shouldCollapseSidebar && "w-16",
+                            !shouldCollapseSidebar && sidebarCollapsed && "w-16",
+                            !shouldCollapseSidebar && !sidebarCollapsed && "w-72"
+                        )}
+                    />
+                </div>
             )}
 
             {/* Mobile Sidebar Overlay */}
@@ -57,14 +60,17 @@ export function ProjectLayout({ children, projectId, autoCollapseSidebar = false
                         projectId={projectId}
                         collapsed={false}
                         onToggle={() => setSidebarOpen(false)}
-                        className="w-72"
+                        className="w-72 h-full"
                     />
                 </div>
             )}
 
-            {/* Main Content Area */}
+            {/* Right side content area - Header and main content */}
             <div className="flex flex-1 flex-col min-w-0">
-                {/* Main Content */}
+                {/* Header - Positioned after the sidebar */}
+                <Header />
+
+                {/* Main Content Area */}
                 <div className="flex-1 overflow-hidden">
                     {children}
                 </div>

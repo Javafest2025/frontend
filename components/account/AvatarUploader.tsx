@@ -1,44 +1,51 @@
 "use client"
 
-import { useState, useRef } from "react"
+import React, { useState, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import {
     Camera,
     Upload,
     Trash2,
     Loader2,
-    CheckCircle,
-    AlertCircle,
-    User
+    User,
+    Crop
 } from "lucide-react"
 import { accountApi } from "@/lib/api/user-service"
 import { cn } from "@/lib/utils/cn"
+import { ImageCropper } from "./ImageCropper"
 
 interface AvatarUploaderProps {
-    currentAvatarUrl?: string
-    onAvatarUpdate?: (newUrl: string) => void
-    onAvatarDelete?: () => void
-    className?: string
+    readonly currentAvatarUrl?: string
+    readonly onAvatarUpdate?: (newUrl: string) => void
+    readonly onAvatarDelete?: () => void
+    readonly onLoadingChange?: (isLoading: boolean) => void
+    readonly className?: string
 }
 
 export function AvatarUploader({
     currentAvatarUrl,
     onAvatarUpdate,
     onAvatarDelete,
+    onLoadingChange,
     className
 }: AvatarUploaderProps) {
     const [isUploading, setIsUploading] = useState(false)
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
     const [isDragging, setIsDragging] = useState(false)
+    const [showCropper, setShowCropper] = useState(false)
+    const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const handleFileSelect = (file: File) => {
+        console.log("AvatarUploader: File selected:", file)
+        console.log("File type:", file.type)
+        console.log("File size:", file.size)
+
         // Validate file type
         const allowedTypes = ['image/png', 'image/jpeg', 'image/webp']
         if (!allowedTypes.includes(file.type)) {
@@ -54,35 +61,54 @@ export function AvatarUploader({
             return
         }
 
-        // Create preview
-        const preview = URL.createObjectURL(file)
-        setPreviewUrl(preview)
-
-        // Upload the file
-        handleUpload(file)
+        // Show cropper instead of immediate upload
+        console.log("AvatarUploader: Setting selected file and showing cropper")
+        setSelectedFile(file)
+        setShowCropper(true)
     }
 
-    const handleUpload = async (file: File) => {
+    const handleCropComplete = async (croppedImageBlob: Blob) => {
         setIsUploading(true)
+        setShowCropper(false)
+        onLoadingChange?.(true) // Notify parent component
+
         try {
-            const result = await accountApi.uploadProfileImage(file)
+            // Convert blob to file with proper metadata
+            const croppedFile = new File([croppedImageBlob], 'profile-picture.jpg', {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+            })
+
+            console.log("Cropped file created:", croppedFile)
+            console.log("File size:", croppedFile.size)
+            console.log("File type:", croppedFile.type)
+
+            const result = await accountApi.uploadProfileImage(croppedFile)
 
             if (result.success && result.url) {
                 toast.success("Avatar updated successfully!")
                 onAvatarUpdate?.(result.url)
-                setPreviewUrl(null)
+                setSelectedFile(null)
             } else {
                 toast.error(result.message || "Failed to upload avatar")
-                setPreviewUrl(null)
+                setSelectedFile(null)
             }
         } catch (error) {
             console.error("Upload error:", error)
             toast.error("Failed to upload avatar")
-            setPreviewUrl(null)
+            setSelectedFile(null)
         } finally {
             setIsUploading(false)
+            onLoadingChange?.(false) // Notify parent component
         }
     }
+
+    const handleCropCancel = () => {
+        setShowCropper(false)
+        setSelectedFile(null)
+    }
+
+
 
     const handleDelete = async () => {
         setIsUploading(true)
@@ -132,6 +158,35 @@ export function AvatarUploader({
 
     const displayUrl = previewUrl || currentAvatarUrl
 
+    // Show cropper if file is selected
+    console.log("AvatarUploader: Render state - showCropper:", showCropper, "selectedFile:", selectedFile)
+
+    // Show the container when cropper is active
+    React.useEffect(() => {
+        const container = document.getElementById('avatar-uploader-container')
+        if (container) {
+            if (showCropper && selectedFile) {
+                container.classList.remove('hidden')
+                container.classList.add('flex', 'items-center', 'justify-center', 'bg-black/50', 'backdrop-blur-sm')
+            } else {
+                container.classList.add('hidden')
+                container.classList.remove('flex', 'items-center', 'justify-center', 'bg-black/50', 'backdrop-blur-sm')
+            }
+        }
+    }, [showCropper, selectedFile])
+
+    if (showCropper && selectedFile) {
+        console.log("AvatarUploader: Rendering ImageCropper")
+        return (
+            <ImageCropper
+                imageFile={selectedFile}
+                onCropComplete={handleCropComplete}
+                onCancel={handleCropCancel}
+                className={className}
+            />
+        )
+    }
+
     return (
         <Card className={cn("w-full max-w-md", className)}>
             <CardHeader>
@@ -140,7 +195,7 @@ export function AvatarUploader({
                     Profile Picture
                 </CardTitle>
                 <CardDescription>
-                    Upload a profile picture (JPEG, PNG, or WebP, max 3MB)
+                    Upload a profile picture and crop it to a perfect circle (JPEG, PNG, or WebP, max 3MB)
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -183,7 +238,7 @@ export function AvatarUploader({
                         type="file"
                         accept="image/png,image/jpeg,image/webp"
                         onChange={handleFileInputChange}
-                        className="hidden"
+                        className="hidden avatar-uploader-input"
                         disabled={isUploading}
                     />
 
@@ -204,12 +259,15 @@ export function AvatarUploader({
                                     browse files
                                 </button>
                             </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                You'll be able to crop and adjust your image
+                            </p>
                         </div>
                         <div className="flex justify-center gap-2 text-xs text-muted-foreground">
                             <Badge variant="secondary">JPEG</Badge>
                             <Badge variant="secondary">PNG</Badge>
                             <Badge variant="secondary">WebP</Badge>
-                                                         <Badge variant="secondary">Max 3MB</Badge>
+                            <Badge variant="secondary">Max 3MB</Badge>
                         </div>
                     </div>
                 </div>
@@ -229,8 +287,8 @@ export function AvatarUploader({
                             </>
                         ) : (
                             <>
-                                <Upload className="h-4 w-4 mr-2" />
-                                Choose File
+                                <Crop className="h-4 w-4 mr-2" />
+                                Choose & Crop
                             </>
                         )}
                     </Button>
