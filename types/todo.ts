@@ -2,7 +2,7 @@ export type TodoStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled'
 
 export type TodoPriority = 'low' | 'medium' | 'high' | 'urgent'
 
-export type TodoCategory = 'research' | 'writing' | 'review' | 'analysis' | 'meeting' | 'deadline' | 'personal' | 'collaboration'
+export type TodoCategory = 'literature_review' | 'experiment' | 'data_collection' | 'data_analysis' | 'modeling' | 'writing' | 'review' | 'submission' | 'presentation' | 'collaboration' | 'meeting' | 'deadline' | 'funding' | 'administrative' | 'personal' | 'misc'
 
 export interface Todo {
   id: string

@@ -12,6 +12,9 @@ import { Upload, FileText, X, CheckCircle, AlertCircle, Loader2, Eye, EyeOff } f
 import { PDFExtractor } from "@/lib/pdf-extractor"
 import { libraryApi } from "@/lib/api/project-service"
 import { cn } from "@/lib/utils"
+import { useRouter } from "next/navigation"
+import { AuthorDialog } from "@/components/interface/AuthorDialog"
+import { useAuthorDialog } from "@/hooks/useAuthorDialog"
 
 interface PDFUploadDialogProps {
     isOpen: boolean
@@ -28,6 +31,7 @@ interface UploadProgress {
 }
 
 export function PDFUploadDialog({ isOpen, onClose, projectId, onUploadComplete }: PDFUploadDialogProps) {
+    const router = useRouter()
     const [selectedFiles, setSelectedFiles] = useState<File[]>([])
     const [uploadProgress, setUploadProgress] = useState<UploadProgress>({
         stage: 'selecting',
@@ -44,6 +48,7 @@ export function PDFUploadDialog({ isOpen, onClose, projectId, onUploadComplete }
     const [isUploading, setIsUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const { toast } = useToast()
+    const { authorName, isOpen: isAuthorDialogOpen, openAuthorDialog, closeAuthorDialog, setIsOpen: setIsAuthorDialogOpen } = useAuthorDialog()
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files || [])
@@ -158,8 +163,17 @@ export function PDFUploadDialog({ isOpen, onClose, projectId, onUploadComplete }
                     message: `Processing ${file.name}...`
                 })
 
+                // Get user data for authentication
+                const { getUserData } = await import("@/lib/api/user-service/auth")
+                const userData = getUserData()
+
+                if (!userData?.id) {
+                    throw new Error('User not authenticated')
+                }
+
                 // Create paper entry in backend
                 const paperData = {
+                    userId: userData.id,
                     projectId: projectId,
                     title: metadata.title,
                     abstract: metadata.abstract || null,
@@ -339,7 +353,15 @@ export function PDFUploadDialog({ isOpen, onClose, projectId, onUploadComplete }
                                                             <p className="text-sm text-muted-foreground">Authors:</p>
                                                             <div className="flex flex-wrap gap-1 mt-1">
                                                                 {metadata.authors.slice(0, 3).map((author, i) => (
-                                                                    <Badge key={i} variant="secondary" className="text-xs">
+                                                                    <Badge
+                                                                        key={i}
+                                                                        variant="secondary"
+                                                                        className="text-xs cursor-pointer hover:bg-primary/20 transition-colors"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            openAuthorDialog(author)
+                                                                        }}
+                                                                    >
                                                                         {author}
                                                                     </Badge>
                                                                 ))}
@@ -429,6 +451,13 @@ export function PDFUploadDialog({ isOpen, onClose, projectId, onUploadComplete }
                     </div>
                 </div>
             </DialogContent>
+
+            {/* Author Dialog */}
+            <AuthorDialog
+                authorName={authorName}
+                open={isAuthorDialogOpen}
+                onOpenChange={setIsAuthorDialogOpen}
+            />
         </Dialog>
     )
 } 

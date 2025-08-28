@@ -2,3 +2,6 @@
 export * from './projects'
 export * from './websearch'
 export * from './library'
+export * from './authors'
+export * from './todos'
+export * from './scholarbot'

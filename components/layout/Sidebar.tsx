@@ -41,42 +41,50 @@ const NAV_ITEMS = [
     href: "/interface/home",
     icon: Home,
     description: "Welcome guide and getting started",
-    loadingMessage: "Loading home dashboard..."
+    loadingMessage: "Loading home dashboard...",
+    animationClass: "group-hover:animate-bounce"
   },
   {
     name: "Projects",
     href: "/interface/projects",
     icon: BookOpen,
     description: "Research project management",
-    loadingMessage: "Loading research projects..."
+    loadingMessage: "Loading research projects...",
+    animationClass: "group-hover:animate-pulse group-hover:scale-110"
   },
   {
     name: "ToDo",
     href: "/interface/todo",
     icon: CheckSquare,
     description: "Task management and planning",
-    loadingMessage: "Loading task management..."
+    loadingMessage: "Loading task management...",
+    animationClass: "group-hover:scale-110 group-hover:rotate-12"
   },
   {
     name: "Call4Papper",
     href: "/interface/papercall",
     icon: GraduationCap,
     description: "Academic deadlines and research opportunities",
-    loadingMessage: "Loading academic notifications..."
-  },
+    loadingMessage: "Loading academic notifications...",
+    animationClass: "group-hover:animate-bounce group-hover:scale-110"
+  }
   // {
   //   name: "Notifications",
   //   href: "/interface/notifications",
   //   icon: Bell,
   //   description: "System notifications and alerts",
   //   loadingMessage: "Loading notifications..."
-  // },
+  // }
+]
+
+const SETTINGS_ITEMS = [
   {
     name: "Settings",
     href: "/interface/settings",
     icon: Settings,
     description: "Application preferences and customization",
-    loadingMessage: "Loading settings..."
+    loadingMessage: "Loading settings...",
+    animationClass: "group-hover:animate-slow-spin"
   }
 ]
 
@@ -86,7 +94,8 @@ const BOTTOM_ITEMS = [
     href: "/interface/account",
     icon: User,
     description: "User profile and preferences",
-    loadingMessage: "Loading account settings..."
+    loadingMessage: "Loading account settings...",
+    animationClass: "group-hover:animate-pulse group-hover:scale-110"
   }
 ]
 
@@ -111,7 +120,7 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
     }, 100)
   }
 
-  const SidebarItem = ({ item, isBottom = false }: { item: typeof NAV_ITEMS[0] | typeof BOTTOM_ITEMS[0], isBottom?: boolean }) => {
+  const SidebarItem = ({ item, isBottom = false }: { item: typeof NAV_ITEMS[0] | typeof SETTINGS_ITEMS[0] | typeof BOTTOM_ITEMS[0], isBottom?: boolean }) => {
     const isActive = pathname.startsWith(item.href)
 
     const content = (
@@ -170,7 +179,8 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
             "h-4 w-4 transition-all duration-300",
             isActive
               ? "text-primary drop-shadow-glow"
-              : "text-foreground/70 group-hover:text-primary"
+              : "text-foreground/70 group-hover:text-primary",
+            item.animationClass
           )} />
         </div>
         {!collapsed && (
@@ -229,7 +239,7 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
             onClick={() => handleNavigation("/interface/home", "Loading home dashboard...")}
             className="flex items-center gap-3 group"
           >
-            <div className="relative">
+            <div className="relative group-hover:animate-pulse">
               <Brain className="h-8 w-8 text-primary" />
               <div className="absolute inset-0 h-8 w-8 bg-primary/20 rounded-full blur-md" />
             </div>
@@ -250,7 +260,7 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
               onClick={() => handleNavigation("/interface/home", "Loading home dashboard...")}
               className="flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 group hover:scale-105"
             >
-              <div className="relative">
+              <div className="relative group-hover:animate-pulse">
                 <Brain className="h-6 w-6 text-primary" />
                 <div className="absolute inset-0 h-6 w-6 bg-primary/20 rounded-full blur-md" />
               </div>
@@ -294,6 +304,11 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
         <div className="my-4 px-3">
           <div className="h-px bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
         </div>
+
+        {/* NEW Separator (horizontal bar) */}
+        <div className="my-4 px-3">
+          <div className="h-px bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
+        </div>
       </nav>
 
       {/* Bottom Section */}
@@ -305,6 +320,23 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
               0 0 0 1px hsl(var(--accent-1) / 0.05)
             `
         }}>
+        {/* Settings Section */}
+        {!collapsed && (
+          <div className="mb-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-3">
+              Settings
+            </h3>
+          </div>
+        )}
+        {SETTINGS_ITEMS.map((item) => (
+          <SidebarItem key={item.name} item={item} />
+        ))}
+
+        {/* Separator */}
+        <div className="my-3 px-3">
+          <div className="h-px bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
+        </div>
+
         {!collapsed && (
           <div className="mb-3">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-3">
@@ -320,14 +352,14 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
         {collapsed ? (
           <EnhancedTooltip content="Logout: Sign out of your account" side="right">
             <LogoutButton className="flex items-center justify-center gap-3 rounded-xl px-2 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border border-transparent hover:bg-red-500/10 hover:border-red-500/30 hover:shadow-lg hover:shadow-red-500/10 text-foreground/80 hover:text-red-500 bg-background/20">
-              <div className="relative p-1.5 rounded-lg transition-all duration-300 group-hover:bg-red-500/10">
+              <div className="relative p-1.5 rounded-lg transition-all duration-300 group-hover:bg-red-500/10 group-hover:translate-x-1">
                 <LogOut className="h-4 w-4 text-foreground/70 group-hover:text-red-500 transition-all duration-300" />
               </div>
             </LogoutButton>
           </EnhancedTooltip>
         ) : (
           <LogoutButton className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border border-transparent hover:bg-red-500/10 hover:border-red-500/30 hover:shadow-lg hover:shadow-red-500/10 text-foreground/80 hover:text-red-500 bg-background/20 w-full">
-            <div className="relative p-1.5 rounded-lg transition-all duration-300 group-hover:bg-red-500/10">
+            <div className="relative p-1.5 rounded-lg transition-all duration-300 group-hover:bg-red-500/10 group-hover:translate-x-1">
               <LogOut className="h-4 w-4 text-foreground/70 group-hover:text-red-500 transition-all duration-300" />
             </div>
             <span className="truncate font-medium">Logout</span>

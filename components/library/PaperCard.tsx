@@ -22,17 +22,24 @@ import { cn } from "@/lib/utils"
 import type { Paper } from "@/types/websearch"
 import { useState, useEffect } from "react"
 import { generatePdfThumbnail, downloadPdfWithAuth } from "@/lib/api/pdf"
+import { useRouter } from "next/navigation"
+import { AuthorDialog } from "@/components/interface/AuthorDialog"
+import { useAuthorDialog } from "@/hooks/useAuthorDialog"
 
 interface PaperCardProps {
     paper: Paper
     index: number
     onSelect: (paper: Paper) => void
     onViewPdf?: (paper: Paper) => void
+    onToggleFavorite?: (paper: Paper) => void
+    isFavorited?: boolean
 }
 
-export function PaperCard({ paper, index, onSelect, onViewPdf }: PaperCardProps) {
+export function PaperCard({ paper, index, onSelect, onViewPdf, onToggleFavorite, isFavorited = false }: PaperCardProps) {
+    const router = useRouter()
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null)
     const [thumbnailLoading, setThumbnailLoading] = useState(false)
+    const { authorName, isOpen: isAuthorDialogOpen, openAuthorDialog, closeAuthorDialog, setIsOpen: setIsAuthorDialogOpen } = useAuthorDialog()
 
     // Generate a gradient for the thumbnail based on paper title (fallback)
     const getGradientFromTitle = (title: string) => {
@@ -92,6 +99,14 @@ export function PaperCard({ paper, index, onSelect, onViewPdf }: PaperCardProps)
         }
     }
 
+    // Handle favorite toggle
+    const handleToggleFavorite = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (onToggleFavorite) {
+            onToggleFavorite(paper)
+        }
+    }
+
     const formatDate = (dateString: string) => {
         try {
             return new Date(dateString).getFullYear()
@@ -133,13 +148,15 @@ The methodology employed in this study combines quantitative and qualitative app
             className="group"
         >
             <Card
-                className="bg-background/50 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg shadow-primary/5 hover:shadow-primary/10"
+                className="bg-background/50 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg shadow-primary/5 hover:shadow-primary/10 group"
                 style={{
-                    boxShadow: '0 0 20px rgba(99, 102, 241, 0.05), inset 0 0 20px rgba(99, 102, 241, 0.02)'
+                    boxShadow: '0 0 20px hsl(var(--primary) / 0.05), inset 0 0 20px hsl(var(--primary) / 0.02)'
                 }}
                 onClick={() => onSelect(paper)}
             >
-                <CardContent className="p-0">
+                {/* Shimmer effect - only on hover */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
+                <CardContent className="p-0 relative z-10">
                     {/* Horizontal Layout */}
                     <div className="flex">
                         {/* Left Thumbnail Section - Clean PDF Preview */}
@@ -161,7 +178,7 @@ The methodology employed in this study combines quantitative and qualitative app
                                     )}>
                                         {/* Paper Document Icon Style */}
                                         <div className="text-white text-center p-6">
-                                            <FileText className="h-16 w-16 mx-auto mb-4 opacity-80" />
+                                            <FileText className="h-16 w-16 mx-auto mb-4 opacity-80 text-white" />
                                             <div className="text-sm font-medium line-clamp-3 leading-relaxed">
                                                 {paper.title}
                                             </div>
@@ -195,11 +212,26 @@ The methodology employed in this study combines quantitative and qualitative app
 
                                     {/* Authors */}
                                     <div className="flex items-center gap-2 mb-3">
-                                        <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                        <p className="text-sm text-muted-foreground line-clamp-1">
-                                            {paper.authors.slice(0, 4).map(a => a.name).join(", ")}
-                                            {paper.authors.length > 4 && ` +${paper.authors.length - 4} more`}
-                                        </p>
+                                        <Users className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                                        <div className="text-sm text-muted-foreground line-clamp-1 flex flex-wrap items-center gap-1">
+                                            {paper.authors.slice(0, 4).map((author, authorIndex) => (
+                                                <span key={authorIndex}>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            openAuthorDialog(author.name)
+                                                        }}
+                                                        className="hover:text-primary hover:underline transition-colors cursor-pointer"
+                                                    >
+                                                        {author.name}
+                                                    </button>
+                                                    {authorIndex < Math.min(paper.authors.length, 4) - 1 && ", "}
+                                                </span>
+                                            ))}
+                                            {paper.authors.length > 4 && (
+                                                <span> +{paper.authors.length - 4} more</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -212,7 +244,7 @@ The methodology employed in this study combines quantitative and qualitative app
                                             onClick={handlePdfDownload}
                                             className="bg-background/40 border-primary/20 hover:bg-primary/5"
                                         >
-                                            <Download className="h-4 w-4 mr-1" />
+                                            <Download className="h-4 w-4 mr-1 text-cyan-500" />
                                             Download
                                         </Button>
                                     )}
@@ -226,19 +258,16 @@ The methodology employed in this study combines quantitative and qualitative app
                                             }}
                                             className="bg-background/40 border-primary/20 hover:bg-primary/5"
                                         >
-                                            <ExternalLink className="h-4 w-4" />
+                                            <ExternalLink className="h-4 w-4 text-emerald-500" />
                                         </Button>
                                     )}
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            // TODO: Add to favorites
-                                        }}
-                                        className="h-8 w-8 p-0 hover:bg-primary/10"
+                                        onClick={handleToggleFavorite}
+                                        className="h-8 w-8 p-0 hover:bg-yellow-500/20"
                                     >
-                                        <Star className="h-4 w-4" />
+                                        <Star className={`h-4 w-4 transition-all duration-200 ${isFavorited ? 'text-yellow-500 fill-yellow-500' : 'text-yellow-500/60'}`} />
                                     </Button>
                                 </div>
                             </div>
@@ -246,16 +275,16 @@ The methodology employed in this study combines quantitative and qualitative app
                             {/* Metadata Row */}
                             <div className="flex items-center gap-6 mb-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-2">
-                                    <Calendar className="h-4 w-4" />
+                                    <Calendar className="h-4 w-4 text-green-500" />
                                     <span>{formatDate(paper.publicationDate)}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Quote className="h-4 w-4" />
+                                    <Quote className="h-4 w-4 text-purple-500" />
                                     <span>{paper.citationCount} citations</span>
                                 </div>
                                 {paper.venueName && (
                                     <div className="flex items-center gap-2">
-                                        <BookOpen className="h-4 w-4" />
+                                        <BookOpen className="h-4 w-4 text-orange-500" />
                                         <span className="line-clamp-1">{paper.venueName}</span>
                                     </div>
                                 )}
@@ -301,6 +330,13 @@ The methodology employed in this study combines quantitative and qualitative app
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Author Dialog */}
+            <AuthorDialog
+                authorName={authorName}
+                open={isAuthorDialogOpen}
+                onOpenChange={setIsAuthorDialogOpen}
+            />
         </motion.div>
     )
 } 

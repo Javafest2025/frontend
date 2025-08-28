@@ -78,16 +78,35 @@ export const accountApi = {
     // Update user account information
     updateAccount: async (accountData: Partial<UserAccountForm>): Promise<{ success: boolean, data?: UserAccount, message?: string }> => {
         try {
+            console.log("📤 Sending account update data:", accountData);
+
             const response = await authenticatedFetch(getMicroserviceUrl("user-service", "/api/v1/profile"), {
                 method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify(accountData)
             })
 
-            const data = await response.json()
+            console.log("📊 Update response status:", response.status, response.statusText);
 
             if (!response.ok) {
-                throw new Error(data.message || "Failed to update account")
+                const errorText = await response.text();
+                console.error("❌ Update failed:", response.status, errorText);
+
+                let errorMessage = "Failed to update account";
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorData.error || errorMessage;
+                } catch (parseError) {
+                    errorMessage = errorText || errorMessage;
+                }
+
+                throw new Error(errorMessage);
             }
+
+            const data = await response.json();
+            console.log("✅ Update response data:", data);
 
             return {
                 success: true,

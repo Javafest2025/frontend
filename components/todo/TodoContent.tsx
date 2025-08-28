@@ -46,18 +46,28 @@ import {
   ArrowDown,
   ArrowLeft,
   Eye,
-  EyeOff
+  EyeOff,
+  RefreshCw
 } from "lucide-react"
 import { format, formatDistance, isAfter, isBefore, isToday, isThisWeek, parseISO, startOfDay } from "date-fns"
 import { cn } from "@/lib/utils/cn"
-import { todosApi } from "@/lib/api/todos"
+import { todosApi } from "@/lib/api/project-service/todos"
 import { Todo, TodoFilters, TodoSortOptions, TodoSummary, TodoForm } from "@/types/todo"
 import { STATUS_CONFIG, PRIORITY_CONFIG, CATEGORY_CONFIG, SORT_OPTIONS, MOCK_TODOS } from "@/constants/todos"
 
 export function TodoContent() {
   const [todos, setTodos] = useState<Todo[]>([])
+
+  // Add shimmer animation styles
+  const shimmerStyles = `
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+  `
   const [summary, setSummary] = useState<TodoSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [selectedTodos, setSelectedTodos] = useState<string[]>([])
   const [showCompleted, setShowCompleted] = useState(true)
 
@@ -76,7 +86,7 @@ export function TodoContent() {
     title: '',
     description: '',
     priority: 'medium',
-    category: 'research',
+    category: 'literature_review',
     due_date: '',
     estimated_time: 60,
     related_project_id: '',
@@ -167,6 +177,31 @@ export function TodoContent() {
     loadData()
   }, [filters, sort])
 
+  // Refresh function
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true)
+      
+      // Load todos and summary from API
+      const [todosResult, summaryResult] = await Promise.all([
+        todosApi.getTodos(filters, sort),
+        todosApi.getSummary()
+      ])
+
+      console.log("Todos refreshed:", todosResult.todos.length)
+      console.log("Summary refreshed:", summaryResult)
+
+      setTodos(todosResult.todos)
+      setSummary(summaryResult)
+      toast.success("Todos refreshed successfully")
+    } catch (error) {
+      console.error("Failed to refresh todos:", error)
+      toast.error("Failed to refresh todos from server")
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
   // Filter and sort todos
   const filteredTodos = useMemo(() => {
     let filtered = todos.filter(todo => {
@@ -227,18 +262,21 @@ export function TodoContent() {
   const handleStatusUpdate = async (todoId: string, status: Todo['status']) => {
     try {
       // Update local state immediately
-      setTodos(prev =>
-        prev.map(t =>
-          t.id === todoId
-            ? {
-              ...t,
-              status,
-              completed_at: status === 'completed' ? new Date().toISOString() : undefined,
-              updated_at: new Date().toISOString()
-            }
-            : t
-        )
+      const updatedTodos = todos.map(t =>
+        t.id === todoId
+          ? {
+            ...t,
+            status,
+            completed_at: status === 'completed' ? new Date().toISOString() : undefined,
+            updated_at: new Date().toISOString()
+          }
+          : t
       )
+      setTodos(updatedTodos)
+
+      // Recalculate summary from current todos state
+      const updatedSummary = calculateSummaryFromTodos(updatedTodos)
+      setSummary(updatedSummary)
 
       // API call
       const result = await todosApi.updateTodoStatus(todoId, status)
@@ -246,9 +284,6 @@ export function TodoContent() {
         toast.error(result.message || "Failed to update todo status")
       } else {
         toast.success(`Todo marked as ${status.replace('_', ' ')}`)
-        // Refresh summary after status update
-        const summaryResult = await todosApi.getSummary()
-        setSummary(summaryResult)
       }
     } catch (error) {
       console.error("Failed to update todo status:", error)
@@ -280,14 +315,15 @@ export function TodoContent() {
       const result = await todosApi.createTodo(form)
 
       if (result.success && result.data) {
-        setTodos(prev => [result.data!, ...prev])
+        const updatedTodos = [result.data!, ...todos]
+        setTodos(updatedTodos)
         setShowCreateDialog(false)
         resetForm()
         setDueTime("12:00") // Reset time input
 
-        // Refresh summary
-        const summaryResult = await todosApi.getSummary()
-        setSummary(summaryResult)
+        // Recalculate summary from current todos state
+        const updatedSummary = calculateSummaryFromTodos(updatedTodos)
+        setSummary(updatedSummary)
 
         toast.success("Todo created successfully")
       } else {
@@ -305,11 +341,12 @@ export function TodoContent() {
       const result = await todosApi.deleteTodo(todoId)
 
       if (result.success) {
-        setTodos(prev => prev.filter(t => t.id !== todoId))
+        const updatedTodos = todos.filter(t => t.id !== todoId)
+        setTodos(updatedTodos)
 
-        // Refresh summary
-        const summaryResult = await todosApi.getSummary()
-        setSummary(summaryResult)
+        // Recalculate summary from current todos state
+        const updatedSummary = calculateSummaryFromTodos(updatedTodos)
+        setSummary(updatedSummary)
 
         toast.success("Todo deleted successfully")
       } else {
@@ -327,7 +364,7 @@ export function TodoContent() {
       title: '',
       description: '',
       priority: 'medium',
-      category: 'research',
+      category: 'literature_review',
       due_date: '',
       estimated_time: 60,
       related_project_id: '',
@@ -352,6 +389,32 @@ export function TodoContent() {
       isBefore(parseISO(todo.due_date), startOfDay(new Date()))
   }
 
+  // Calculate summary from current todos state
+  const calculateSummaryFromTodos = (todos: Todo[]): TodoSummary => {
+    return {
+      total: todos.length,
+      by_status: {
+        pending: todos.filter(t => t.status === 'pending').length,
+        in_progress: todos.filter(t => t.status === 'in_progress').length,
+        completed: todos.filter(t => t.status === 'completed').length,
+        cancelled: todos.filter(t => t.status === 'cancelled').length
+      },
+      by_priority: {
+        urgent: todos.filter(t => t.priority === 'urgent').length,
+        high: todos.filter(t => t.priority === 'high').length,
+        medium: todos.filter(t => t.priority === 'medium').length,
+        low: todos.filter(t => t.priority === 'low').length
+      },
+      overdue: todos.filter(t => isOverdue(t)).length,
+      due_today: todos.filter(t =>
+        t.due_date && isToday(parseISO(t.due_date))
+      ).length,
+      due_this_week: todos.filter(t =>
+        t.due_date && isThisWeek(parseISO(t.due_date))
+      ).length
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -362,6 +425,7 @@ export function TodoContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 relative overflow-hidden">
+      <style dangerouslySetInnerHTML={{ __html: shimmerStyles }} />
       {/* Background Effects */}
       <div className="absolute inset-0 bg-grid-pattern opacity-5" />
       <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-primary/10 via-purple-500/5 to-transparent rounded-full blur-3xl" />
@@ -455,7 +519,7 @@ export function TodoContent() {
                             {Object.entries(CATEGORY_CONFIG).map(([key, config]) => (
                               <SelectItem key={key} value={key}>
                                 <div className="flex items-center gap-2">
-                                  <config.icon className={cn("h-4 w-4", config.color)} />
+                                  <config.icon className={cn("h-4 w-4", config.iconColor)} />
                                   {config.label}
                                 </div>
                               </SelectItem>
@@ -543,50 +607,57 @@ export function TodoContent() {
           {/* Summary Stats */}
           {summary && (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
-              <Card className="bg-background/40 backdrop-blur-xl border border-primary/10">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-primary/10 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-primary">{summary.total}</div>
                   <div className="text-xs text-muted-foreground">Total</div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/40 backdrop-blur-xl border border-blue-500/20">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-blue-500/20 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-blue-500">{summary.by_status.pending}</div>
                   <div className="text-xs text-muted-foreground">Pending</div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/40 backdrop-blur-xl border border-yellow-500/20">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-yellow-500/20 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-yellow-500/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-yellow-500">{summary.by_status.in_progress}</div>
                   <div className="text-xs text-muted-foreground">In Progress</div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/40 backdrop-blur-xl border border-green-500/20">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-green-500/20 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-green-500/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-green-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-green-500">{summary.by_status.completed}</div>
                   <div className="text-xs text-muted-foreground">Completed</div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/40 backdrop-blur-xl border border-red-500/20">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-red-500/20 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-red-500/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-red-500">{summary.overdue}</div>
                   <div className="text-xs text-muted-foreground">Overdue</div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/40 backdrop-blur-xl border border-orange-500/20">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-orange-500/20 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-orange-500/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-orange-500">{summary.due_today}</div>
                   <div className="text-xs text-muted-foreground">Due Today</div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/40 backdrop-blur-xl border border-purple-500/20">
-                <CardContent className="p-4 text-center">
+              <Card className="group relative bg-background/40 backdrop-blur-xl border border-purple-500/20 overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <CardContent className="p-4 text-center relative z-10">
                   <div className="text-2xl font-bold text-purple-500">{summary.due_this_week}</div>
                   <div className="text-xs text-muted-foreground">This Week</div>
                 </CardContent>
@@ -638,6 +709,18 @@ export function TodoContent() {
               {showCompleted ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
               {showCompleted ? 'Hide Completed' : 'Show Completed'}
             </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="bg-background/40 backdrop-blur-xl border-primary/20 hover:bg-primary/5"
+              title="Refresh todos"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
           </div>
         </div>
       </motion.div>
@@ -678,13 +761,22 @@ export function TodoContent() {
                 >
                   <Card
                     className={cn(
-                      "bg-background/40 backdrop-blur-xl border shadow-lg cursor-pointer transition-all hover:shadow-xl",
+                      "group relative bg-background/40 backdrop-blur-xl border shadow-lg cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:bg-background/50 hover:shadow-xl hover:shadow-primary/10 overflow-hidden",
                       status.borderColor,
-                      overdue && "border-red-500/30 bg-red-500/5",
+                      // Priority-based border accent
+                      todo.priority === 'urgent' && "border-l-4 border-l-red-500/50",
+                      todo.priority === 'high' && "border-l-4 border-l-orange-500/50",
+                      todo.priority === 'medium' && "border-l-4 border-l-yellow-500/50",
+                      todo.priority === 'low' && "border-l-4 border-l-green-500/50",
+                      overdue && "border-red-500/30 bg-red-500/5 hover:bg-red-500/10 hover:shadow-red-500/20",
                       todo.status === 'completed' && "opacity-75"
                     )}
                   >
-                    <CardContent className="p-6">
+                    {/* Glassy shimmer effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                    {/* Category-based glow effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1200 ease-out delay-100"></div>
+                    <CardContent className="p-6 relative z-10">
                       <div className="flex items-start gap-4">
                         {/* Status Toggle */}
                         <div
@@ -698,12 +790,17 @@ export function TodoContent() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0"
+                            className={cn(
+                              "h-6 w-6 p-0 transition-all duration-200",
+                              todo.status === 'completed'
+                                ? "text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                                : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                            )}
                           >
                             {todo.status === 'completed' ? (
-                              <CheckCircle className="h-5 w-5 text-green-500" />
+                              <CheckCircle className="h-5 w-5" />
                             ) : (
-                              <Square className="h-5 w-5 text-muted-foreground hover:text-primary" />
+                              <Square className="h-5 w-5" />
                             )}
                           </Button>
                         </div>
@@ -713,13 +810,18 @@ export function TodoContent() {
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <h4 className={cn(
-                                "font-semibold",
-                                todo.status === 'completed' && "line-through text-muted-foreground"
+                                "font-semibold text-foreground transition-colors duration-200",
+                                todo.status === 'completed'
+                                  ? "line-through text-muted-foreground/60"
+                                  : "group-hover:text-primary/90"
                               )}>
                                 {todo.title}
                               </h4>
                               {overdue && (
-                                <Badge variant="destructive" className="text-xs">
+                                <Badge
+                                  variant="destructive"
+                                  className="text-xs bg-red-500/90 border-red-500/50 text-white shadow-sm"
+                                >
                                   Overdue
                                 </Badge>
                               )}
@@ -731,7 +833,11 @@ export function TodoContent() {
                                 value={todo.status}
                                 onValueChange={(value: Todo['status']) => handleStatusUpdate(todo.id, value)}
                               >
-                                <SelectTrigger className="h-7 w-[130px]">
+                                <SelectTrigger className={cn(
+                                  "h-7 w-[130px] transition-all duration-200",
+                                  status.color.replace('text-', 'border-').replace('-500', '-500/30'),
+                                  "hover:bg-background/50"
+                                )}>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -749,7 +855,7 @@ export function TodoContent() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 w-7 p-0"
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-all duration-200"
                                 onClick={() => {
                                   setEditingTodo(todo)
                                   setForm({
@@ -773,7 +879,7 @@ export function TodoContent() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 w-7 p-0 text-red-500 hover:text-red-600"
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all duration-200"
                                 onClick={() => handleDeleteTodo(todo.id)}
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -785,14 +891,23 @@ export function TodoContent() {
                               >
                                 {priority.label}
                               </Badge>
-                              <Badge variant="outline" className="text-xs">
+                              <Badge
+                                variant="outline"
+                                className={cn("text-xs", category.color, category.borderColor)}
+                              >
+                                <category.icon className={cn("h-3 w-3 mr-1", category.iconColor)} />
                                 {category.label}
                               </Badge>
                             </div>
                           </div>
 
                           {todo.description && (
-                            <p className="text-muted-foreground text-sm mb-3">
+                            <p className={cn(
+                              "text-sm mb-3 transition-colors duration-200",
+                              todo.status === 'completed'
+                                ? "text-muted-foreground/50 line-through"
+                                : "text-muted-foreground group-hover:text-muted-foreground/80"
+                            )}>
                               {todo.description}
                             </p>
                           )}
@@ -800,9 +915,18 @@ export function TodoContent() {
                           {/* Subtasks Section */}
                           {todo.subtasks.length > 0 && (
                             <div className="mb-3 space-y-2">
-                              <div className="flex items-center justify-between text-sm text-muted-foreground mb-1">
-                                <span>Subtasks</span>
-                                <span>{todo.subtasks.filter(s => s.completed).length}/{todo.subtasks.length}</span>
+                              <div className="flex items-center justify-between text-sm mb-1">
+                                <span className="text-muted-foreground font-medium">Subtasks</span>
+                                <span className={cn(
+                                  "font-semibold",
+                                  todo.subtasks.filter(s => s.completed).length === todo.subtasks.length
+                                    ? "text-green-500"
+                                    : todo.subtasks.filter(s => s.completed).length > 0
+                                      ? "text-blue-500"
+                                      : "text-amber-500"
+                                )}>
+                                  {todo.subtasks.filter(s => s.completed).length}/{todo.subtasks.length}
+                                </span>
                               </div>
                               <div className="space-y-1.5">
                                 {todo.subtasks.map((subtask) => (
@@ -812,7 +936,7 @@ export function TodoContent() {
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       // Update local state immediately for better UX
-                                      setTodos(prev => prev.map(t =>
+                                      const updatedTodos = todos.map(t =>
                                         t.id === todo.id
                                           ? {
                                             ...t,
@@ -823,24 +947,32 @@ export function TodoContent() {
                                             )
                                           }
                                           : t
-                                      ))
+                                      )
+                                      setTodos(updatedTodos)
+
+                                      // Recalculate summary from current todos state
+                                      const updatedSummary = calculateSummaryFromTodos(updatedTodos)
+                                      setSummary(updatedSummary)
+
                                       // API call
                                       todosApi.toggleSubtask(todo.id, subtask.id)
                                     }}
                                   >
                                     <div className={cn(
-                                      "w-4 h-4 border rounded-sm cursor-pointer transition-colors flex items-center justify-center",
+                                      "w-4 h-4 border rounded-sm cursor-pointer transition-all duration-200 flex items-center justify-center",
                                       subtask.completed
-                                        ? "bg-primary border-primary"
-                                        : "border-muted-foreground/30 hover:border-primary/50"
+                                        ? "bg-green-500 border-green-500 shadow-sm"
+                                        : "border-muted-foreground/40 hover:border-green-500/60 hover:bg-green-500/10"
                                     )}>
                                       {subtask.completed && (
                                         <CheckCircle className="h-3 w-3 text-white" />
                                       )}
                                     </div>
                                     <span className={cn(
-                                      "flex-1 cursor-pointer",
-                                      subtask.completed && "line-through text-muted-foreground"
+                                      "flex-1 cursor-pointer transition-colors duration-200",
+                                      subtask.completed
+                                        ? "line-through text-muted-foreground/60"
+                                        : "text-foreground hover:text-primary/80"
                                     )}>
                                       {subtask.title}
                                     </span>
@@ -851,56 +983,115 @@ export function TodoContent() {
                           )}
 
                           {/* Meta Information */}
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <div className="flex items-center gap-4">
-                              {todo.due_date && (
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  Due {formatDateForCard(todo.due_date)}
-                                </div>
-                              )}
-
-                              {todo.estimated_time && (
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {Math.round(todo.estimated_time / 60)}h {todo.estimated_time % 60}m
-                                </div>
-                              )}
-
-                              {todo.subtasks.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <CheckSquare className="h-3 w-3" />
-                                  {todo.subtasks.filter(s => s.completed).length}/{todo.subtasks.length} subtasks
-                                </div>
-                              )}
+                          <div className="bg-background/20 rounded-lg p-2 mt-3 border border-primary/30 shadow-sm">
+                            <div className="flex items-center gap-1 text-primary/80 mb-2">
+                              <Clock className="h-3 w-3 text-primary/80" />
+                              <span className="text-xs font-semibold text-primary/90">Details</span>
                             </div>
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-4">
+                                {todo.due_date && (
+                                  <div className={cn(
+                                    "flex items-center gap-1 transition-colors duration-200",
+                                    overdue
+                                      ? "text-red-400"
+                                      : isToday(new Date(todo.due_date))
+                                        ? "text-orange-400"
+                                        : isThisWeek(new Date(todo.due_date))
+                                          ? "text-yellow-400"
+                                          : "text-muted-foreground group-hover:text-muted-foreground/80"
+                                  )}>
+                                    <Clock className={cn(
+                                      "h-3 w-3",
+                                      overdue
+                                        ? "text-red-400"
+                                        : isToday(new Date(todo.due_date))
+                                          ? "text-orange-400"
+                                          : isThisWeek(new Date(todo.due_date))
+                                            ? "text-yellow-400"
+                                            : "text-muted-foreground/70"
+                                    )} />
+                                    <span className="font-medium">
+                                      Due {formatDateForCard(todo.due_date)}
+                                    </span>
+                                  </div>
+                                )}
 
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                variant="outline"
-                                className={cn("text-xs", status.color, status.borderColor)}
-                              >
-                                {status.label}
-                              </Badge>
-                              <span>
-                                {todo.created_at && !isNaN(new Date(todo.created_at).getTime())
-                                  ? formatDistance(parseISO(todo.created_at), new Date(), { addSuffix: true })
-                                  : ""}
-                              </span>
-                            </div>
-                          </div>
+                                {todo.estimated_time && (
+                                  <div className="flex items-center gap-1 text-cyan-400 group-hover:text-cyan-300 transition-colors duration-200">
+                                    <Timer className="h-3 w-3 text-cyan-400" />
+                                    <span className="font-medium">
+                                      {Math.round(todo.estimated_time / 60)}h {todo.estimated_time % 60}m
+                                    </span>
+                                  </div>
+                                )}
 
-                          {/* Tags */}
-                          {todo.tags.length > 0 && (
-                            <div className="flex items-center gap-1 mt-3">
-                              <Tag className="h-3 w-3 text-muted-foreground" />
-                              {todo.tags.map(tag => (
-                                <Badge key={tag} variant="secondary" className="text-xs">
-                                  {tag}
+                                {todo.subtasks.length > 0 && (
+                                  <div className={cn(
+                                    "flex items-center gap-1 transition-colors duration-200",
+                                    todo.subtasks.filter(s => s.completed).length === todo.subtasks.length
+                                      ? "text-green-400 group-hover:text-green-300"
+                                      : todo.subtasks.filter(s => s.completed).length > 0
+                                        ? "text-green-400 group-hover:text-green-300"
+                                        : "text-green-400 group-hover:text-green-300"
+                                  )}>
+                                    <CheckSquare className={cn(
+                                      "h-3 w-3",
+                                      todo.subtasks.filter(s => s.completed).length === todo.subtasks.length
+                                        ? "text-green-400"
+                                        : todo.subtasks.filter(s => s.completed).length > 0
+                                          ? "text-green-400"
+                                          : "text-green-400"
+                                    )} />
+                                    <span className="font-medium">
+                                      {todo.subtasks.filter(s => s.completed).length}/{todo.subtasks.length} subtasks
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className={cn("text-xs", status.color, status.borderColor)}
+                                >
+                                  {status.label}
                                 </Badge>
-                              ))}
+                                <span className={cn(
+                                  "transition-colors duration-200 font-medium",
+                                  (() => {
+                                    const timeDiff = todo.created_at ? new Date().getTime() - new Date(todo.created_at).getTime() : 0
+                                    const minutesDiff = Math.floor(timeDiff / (1000 * 60))
+
+                                    if (minutesDiff < 5) return "text-green-400 group-hover:text-green-300"
+                                    if (minutesDiff < 30) return "text-blue-400 group-hover:text-blue-300"
+                                    if (minutesDiff < 60) return "text-yellow-400 group-hover:text-yellow-300"
+                                    return "text-muted-foreground/70 group-hover:text-muted-foreground/90"
+                                  })()
+                                )}>
+                                  {todo.created_at && !isNaN(new Date(todo.created_at).getTime())
+                                    ? formatDistance(parseISO(todo.created_at), new Date(), { addSuffix: true })
+                                    : ""}
+                                </span>
+                              </div>
                             </div>
-                          )}
+
+                            {/* Tags */}
+                            {todo.tags.length > 0 && (
+                              <div className="flex items-center gap-1 mt-3">
+                                <Tag className="h-3 w-3 text-muted-foreground/70 group-hover:text-muted-foreground/90 transition-colors duration-200" />
+                                {todo.tags.map(tag => (
+                                  <Badge
+                                    key={tag}
+                                    variant="secondary"
+                                    className="text-xs bg-muted/50 hover:bg-muted/70 transition-colors duration-200"
+                                  >
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -974,7 +1165,7 @@ export function TodoContent() {
                     {Object.entries(CATEGORY_CONFIG).map(([key, config]) => (
                       <SelectItem key={key} value={key}>
                         <div className="flex items-center gap-2">
-                          <config.icon className={cn("h-4 w-4", config.color)} />
+                          <config.icon className={cn("h-4 w-4", config.iconColor)} />
                           {config.label}
                         </div>
                       </SelectItem>

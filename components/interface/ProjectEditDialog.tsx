@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -19,7 +19,7 @@ import {
     getTagSuggestions,
     searchSuggestionsAsStrings
 } from "@/constants/research-data"
-import { Loader2, Sparkles, Brain, Target, Hash, Settings, X, BarChart3 } from "lucide-react"
+import { Loader2, Sparkles, Brain, Target, Hash, Settings, X, BarChart3, FileText, BookOpen, Tag, Zap, CheckCircle, Play, Pause, CheckCircle2, Archive } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils/cn"
 
@@ -47,6 +47,15 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
 
     const watchedDomain = watch("domainValue")
     const watchedTopics = watch("topicsArray")
+    const prevDomainRef = useRef<string>("")
+
+    // Clear topics when domain changes
+    useEffect(() => {
+        if (prevDomainRef.current && prevDomainRef.current !== watchedDomain && watchedTopics && watchedTopics.length > 0) {
+            setValue("topicsArray", [])
+        }
+        prevDomainRef.current = watchedDomain
+    }, [watchedDomain, watchedTopics, setValue])
 
     const topicSuggestions = useMemo(() => {
         return watchedDomain ? getTopicSuggestions(watchedDomain) : []
@@ -144,17 +153,17 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                 `
                             }}
                         >
-                            <div className="max-w-7xl mx-auto px-6 py-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/20">
-                                            <Settings className="h-5 w-5 text-primary" />
+                            <div className="w-full px-6 py-4">
+                                <div className="flex items-center justify-between w-full">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 via-blue-500/20 to-purple-500/20 border border-primary/30 shadow-lg">
+                                            <Settings className="h-6 w-6 text-primary drop-shadow-sm" />
                                         </div>
                                         <div>
-                                            <h1 className="text-xl font-bold text-gradient-primary">
+                                            <h1 className="text-2xl font-bold text-gradient-primary">
                                                 Edit Project
                                             </h1>
-                                            <p className="text-sm text-muted-foreground">
+                                            <p className="text-sm text-muted-foreground mt-1">
                                                 Update your research project settings and configuration
                                             </p>
                                         </div>
@@ -164,7 +173,7 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                         size="icon"
                                         onClick={handleClose}
                                         disabled={isLoading}
-                                        className="h-9 w-9 rounded-lg bg-background/40 backdrop-blur-xl border border-border hover:bg-destructive/10 hover:text-destructive transition-all duration-300"
+                                        className="h-10 w-10 rounded-xl bg-background/40 backdrop-blur-xl border border-border hover:bg-destructive/10 hover:text-destructive hover:scale-105 transition-all duration-300"
                                         style={{
                                             boxShadow: `
                                                 0 0 8px hsl(var(--primary) / 0.08),
@@ -172,7 +181,7 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                             `
                                         }}
                                     >
-                                        <X className="h-4 w-4" />
+                                        <X className="h-5 w-5" />
                                     </Button>
                                 </div>
                             </div>
@@ -190,18 +199,23 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                     <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8">
                                         {/* Left Column */}
                                         <div className="space-y-8 flex flex-col lg:col-span-1">
-                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg transition-all duration-300 hover:shadow-primary/5"
+                                            <Card className="bg-background/40 backdrop-blur-xl border border-primary/20 shadow-lg transition-all duration-300 hover:shadow-primary/10 hover:border-primary/30"
                                                 style={{
                                                     boxShadow: `
-                                                        0 0 20px hsl(var(--primary) / 0.1),
-                                                        0 0 40px hsl(var(--accent) / 0.06)
-                                                    `
+                                        0 0 20px hsl(var(--primary) / 0.1),
+                                        0 0 40px hsl(var(--accent) / 0.06)
+                                    `
                                                 }}
                                             >
-                                                <CardHeader>
-                                                    <CardTitle className="text-base flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full bg-primary" />
-                                                        Project Name *
+                                                <CardHeader className="pb-3">
+                                                    <CardTitle className="text-base flex items-center gap-3">
+                                                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 border border-primary/20">
+                                                            <FileText className="h-4 w-4 text-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-semibold">Project Name</span>
+                                                            <span className="text-red-500 ml-1">*</span>
+                                                        </div>
                                                     </CardTitle>
                                                 </CardHeader>
                                                 <CardContent>
@@ -224,18 +238,20 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                                 </CardContent>
                                             </Card>
 
-                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-primary/5"
+                                            <Card className="bg-background/40 backdrop-blur-xl border border-blue-500/20 shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-blue-500/10 hover:border-blue-500/30"
                                                 style={{
                                                     boxShadow: `
-                                                        0 0 20px hsl(var(--primary) / 0.1),
-                                                        0 0 40px hsl(var(--accent) / 0.06)
-                                                    `
+                                        0 0 20px hsl(var(--primary) / 0.1),
+                                        0 0 40px hsl(var(--accent) / 0.06)
+                                    `
                                                 }}
                                             >
-                                                <CardHeader>
-                                                    <CardTitle className="text-base flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full bg-blue-500" />
-                                                        Description
+                                                <CardHeader className="pb-3">
+                                                    <CardTitle className="text-base flex items-center gap-3">
+                                                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                                                            <BookOpen className="h-4 w-4 text-blue-500" />
+                                                        </div>
+                                                        <span className="font-semibold">Description</span>
                                                     </CardTitle>
                                                 </CardHeader>
                                                 <CardContent className="flex-1 flex flex-col">
@@ -260,24 +276,26 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
 
                                         {/* Middle Column */}
                                         <div className="space-y-8 flex flex-col lg:col-span-1">
-                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-primary/5"
+                                            <Card className="bg-background/40 backdrop-blur-xl border border-green-500/20 shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-green-500/10 hover:border-green-500/30"
                                                 style={{
                                                     boxShadow: `
-                                                        0 0 20px hsl(var(--primary) / 0.1),
-                                                        0 0 40px hsl(var(--accent) / 0.06)
-                                                    `
+                                        0 0 20px hsl(var(--primary) / 0.1),
+                                        0 0 40px hsl(var(--accent) / 0.06)
+                                    `
                                                 }}
                                             >
-                                                <CardHeader>
+                                                <CardHeader className="pb-3">
                                                     <CardTitle className="text-base flex items-center justify-between gap-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Target className="h-4 w-4 text-green-500" />
-                                                            Research Topics
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-green-500/10 border border-green-500/20">
+                                                                <Target className="h-4 w-4 text-green-500" />
+                                                            </div>
+                                                            <span className="font-semibold">Research Topics</span>
                                                         </div>
                                                         {watchedDomain && (
-                                                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                                <Sparkles className="h-3 w-3" />
-                                                                {topicSuggestions.length} suggestions
+                                                            <div className="flex items-center gap-1 text-xs text-muted-foreground bg-gradient-to-r from-green-500/10 to-emerald-500/10 px-3 py-1.5 rounded-full border border-green-500/20">
+                                                                <Sparkles className="h-3 w-3 text-green-500" />
+                                                                Domain-aware topics
                                                             </div>
                                                         )}
                                                     </CardTitle>
@@ -295,28 +313,31 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                                                 maxTags={10}
                                                                 disabled={isLoading || !watchedDomain}
                                                                 className="w-full flex-1"
+                                                                theme="green"
                                                             />
                                                         )}
                                                     />
                                                 </CardContent>
                                             </Card>
 
-                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-primary/5"
+                                            <Card className="bg-background/40 backdrop-blur-xl border border-orange-500/20 shadow-lg flex-1 flex flex-col transition-all duration-300 hover:shadow-orange-500/10 hover:border-orange-500/30"
                                                 style={{
                                                     boxShadow: `
-                                                        0 0 20px hsl(var(--primary) / 0.1),
-                                                        0 0 40px hsl(var(--accent) / 0.06)
-                                                    `
+                                        0 0 20px hsl(var(--primary) / 0.1),
+                                        0 0 40px hsl(var(--accent) / 0.06)
+                                    `
                                                 }}
                                             >
-                                                <CardHeader>
+                                                <CardHeader className="pb-3">
                                                     <CardTitle className="text-base flex items-center justify-between gap-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Hash className="h-4 w-4 text-orange-500" />
-                                                            Tags
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                                                                <Tag className="h-4 w-4 text-orange-500" />
+                                                            </div>
+                                                            <span className="font-semibold">Tags</span>
                                                         </div>
-                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                            <Sparkles className="h-3 w-3" />
+                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground bg-gradient-to-r from-orange-500/10 to-amber-500/10 px-3 py-1.5 rounded-full border border-orange-500/20">
+                                                            <Sparkles className="h-3 w-3 text-orange-500" />
                                                             Context-aware suggestions
                                                         </div>
                                                     </CardTitle>
@@ -334,6 +355,7 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                                                 maxTags={15}
                                                                 disabled={isLoading}
                                                                 className="w-full flex-1"
+                                                                theme="orange"
                                                             />
                                                         )}
                                                     />
@@ -343,23 +365,30 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
 
                                         {/* Right Column */}
                                         <div className="space-y-8 flex flex-col lg:col-span-1">
-                                            <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg transition-all duration-300 hover:shadow-primary/5"
+                                            <Card className="bg-background/40 backdrop-blur-xl border border-purple-500/20 shadow-lg transition-all duration-300 hover:shadow-purple-500/10 hover:border-purple-500/30"
                                                 style={{
                                                     boxShadow: `
-                                                        0 0 20px hsl(var(--primary) / 0.1),
-                                                        0 0 40px hsl(var(--accent) / 0.06)
-                                                    `
+                                        0 0 20px hsl(var(--primary) / 0.1),
+                                        0 0 40px hsl(var(--accent) / 0.06)
+                                    `
                                                 }}
                                             >
-                                                <CardHeader>
-                                                    <CardTitle className="text-base flex items-center gap-2">
-                                                        <Settings className="h-4 w-4 text-purple-500" />
-                                                        Details
+                                                <CardHeader className="pb-3">
+                                                    <CardTitle className="text-base flex items-center justify-between gap-2">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                                                                <Settings className="h-4 w-4 text-purple-500" />
+                                                            </div>
+                                                            <span className="font-semibold">Details</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground bg-gradient-to-r from-purple-500/10 to-violet-500/10 px-3 py-1.5 rounded-full border border-purple-500/20">
+                                                            <Sparkles className="h-3 w-3 text-purple-500" />
+                                                            Smart suggestions
+                                                        </div>
                                                     </CardTitle>
                                                 </CardHeader>
                                                 <CardContent className="space-y-4">
                                                     <div>
-                                                        <label className="text-xs font-medium text-muted-foreground">Research Domain</label>
                                                         <Controller
                                                             name="domainValue"
                                                             control={control}
@@ -369,11 +398,12 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                                                     onValueChange={field.onChange}
                                                                     suggestions={RESEARCH_DOMAINS}
                                                                     placeholder="Select or type a domain"
-                                                                    searchFunction={(query: string, suggestions: string[]) => 
+                                                                    searchFunction={(query: string, suggestions: string[]) =>
                                                                         searchSuggestionsAsStrings(query, { kinds: ['domain'] })
                                                                     }
                                                                     disabled={isLoading}
-                                                                    className="w-full mt-1"
+                                                                    className="w-full"
+                                                                    theme="purple"
                                                                 />
                                                             )}
                                                         />
@@ -391,10 +421,22 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                                                     <SelectValue placeholder="Select status" />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    <SelectItem value="ACTIVE">Active</SelectItem>
-                                                                    <SelectItem value="PAUSED">Paused</SelectItem>
-                                                                    <SelectItem value="COMPLETED">Completed</SelectItem>
-                                                                    <SelectItem value="ARCHIVED">Archived</SelectItem>
+                                                                    <SelectItem value="ACTIVE" className="flex items-center gap-2">
+                                                                        <Play className="h-4 w-4 text-green-500" />
+                                                                        <span>Active</span>
+                                                                    </SelectItem>
+                                                                    <SelectItem value="PAUSED" className="flex items-center gap-2">
+                                                                        <Pause className="h-4 w-4 text-yellow-500" />
+                                                                        <span>Paused</span>
+                                                                    </SelectItem>
+                                                                    <SelectItem value="COMPLETED" className="flex items-center gap-2">
+                                                                        <CheckCircle2 className="h-4 w-4 text-blue-500" />
+                                                                        <span>Completed</span>
+                                                                    </SelectItem>
+                                                                    <SelectItem value="ARCHIVED" className="flex items-center gap-2">
+                                                                        <Archive className="h-4 w-4 text-gray-500" />
+                                                                        <span>Archived</span>
+                                                                    </SelectItem>
                                                                 </SelectContent>
                                                             </Select>
                                                         </div>
@@ -440,13 +482,13 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                         </motion.div>
                                     )}
 
-                                    <div className="flex flex-col sm:flex-row gap-4 pt-6 mt-auto border-t border-border">
+                                    <div className="flex flex-col sm:flex-row gap-4 pt-8 mt-auto border-t border-border/50">
                                         <Button
                                             type="button"
                                             variant="outline"
                                             onClick={handleClose}
                                             disabled={isLoading}
-                                            className="flex-1 h-11 bg-background/40 backdrop-blur-xl border-border hover:bg-accent transition-all duration-300"
+                                            className="flex-1 h-12 bg-background/40 backdrop-blur-xl border-border hover:bg-accent hover:scale-105 transition-all duration-300 font-medium"
                                             style={{
                                                 boxShadow: `
                                                     0 0 10px hsl(var(--primary) / 0.08),
@@ -459,7 +501,7 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                         <Button
                                             type="submit"
                                             disabled={isLoading}
-                                            className="flex-1 h-11 gradient-primary-to-accent text-primary-foreground border-0 transition-all duration-300 hover:scale-[1.02]"
+                                            className="flex-1 h-12 gradient-primary-to-accent text-primary-foreground border-0 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/25 font-medium"
                                             style={{
                                                 boxShadow: `
                                                     0 0 15px hsl(var(--primary) / 0.4),
@@ -475,7 +517,7 @@ export function ProjectEditDialog({ isOpen, project, onClose, onProjectUpdated }
                                                 </>
                                             ) : (
                                                 <>
-                                                    <Settings className="mr-2 h-4 w-4" />
+                                                    <CheckCircle className="mr-2 h-4 w-4" />
                                                     Update Project
                                                 </>
                                             )}
