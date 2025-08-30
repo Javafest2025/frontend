@@ -1,10 +1,11 @@
 "use client"
 
-import React from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { ExternalLink, X } from "lucide-react"
+import { X, Maximize2, Minimize2 } from "lucide-react"
+import { PDFViewer } from "@/components/document/PdfViewer"
 import type { Paper } from "@/types/websearch"
+import { useState } from "react"
 
 interface PdfViewerModalProps {
     paper: Paper | null
@@ -13,74 +14,83 @@ interface PdfViewerModalProps {
 }
 
 export function PdfViewerModal({ paper, isOpen, onClose }: PdfViewerModalProps) {
-    if (!paper) return null
+    const [isFullscreen, setIsFullscreen] = useState(false)
 
-    const pdfUrl = paper.pdfUrl || paper.pdfContentUrl
+    // Debug: Log the paper object to see if it has an id
+    console.log("PdfViewerModal paper object:", paper)
+    console.log("Paper ID:", paper?.id)
+
+    // Get PDF URL from either pdfUrl or pdfContentUrl
+    const pdfUrl = paper?.pdfUrl || paper?.pdfContentUrl
+
+    if (!isOpen || !paper || !pdfUrl) return null
+
+    const handleFullscreen = () => {
+        setIsFullscreen(!isFullscreen)
+    }
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-6xl h-[90vh] p-0">
-                <DialogHeader className="px-6 py-4 border-b">
-                    <DialogTitle className="text-lg font-semibold line-clamp-2 pr-8">
-                        {paper.title}
-                    </DialogTitle>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={onClose}
-                        className="absolute right-4 top-4 h-8 w-8 p-0"
-                    >
-                        <X className="h-4 w-4" />
-                    </Button>
-                </DialogHeader>
-                
-                <div className="flex-1 flex flex-col">
-                    {pdfUrl ? (
-                        <div className="flex-1 relative">
-                            <iframe
-                                src={pdfUrl}
-                                className="w-full h-full border-0"
-                                title={`PDF: ${paper.title}`}
-                            />
-                        </div>
-                    ) : (
-                        <div className="flex-1 flex items-center justify-center bg-muted/30">
-                            <div className="text-center space-y-4">
-                                <div className="text-muted-foreground">
-                                    PDF not available for viewing
-                                </div>
-                                {paper.paperUrl && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => window.open(paper.paperUrl, '_blank')}
-                                        className="gap-2"
-                                    >
-                                        <ExternalLink className="h-4 w-4" />
-                                        View on Publisher Site
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
-                
-                <div className="px-6 py-3 border-t bg-muted/30 flex justify-between items-center">
-                    <div className="text-sm text-muted-foreground">
-                        {paper.authors.map(author => author.name).join(", ")}
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={(e) => {
+                if (e.target === e.currentTarget) onClose()
+            }}
+        >
+            <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className={`bg-background border border-primary/20 rounded-lg shadow-2xl flex flex-col ${isFullscreen
+                    ? "w-full h-full rounded-none"
+                    : "w-full h-full max-w-7xl max-h-[95vh]"
+                    }`}
+            >
+                {/* Header */}
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/20">
+                    <div className="flex-1 min-w-0">
+                        <h2 className="text-base font-semibold line-clamp-1 pr-4">
+                            {paper.title}
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                            {paper.authors.slice(0, 3).map(a => a.name).join(", ")}
+                            {paper.authors.length > 3 && ` +${paper.authors.length - 3} more`}
+                        </p>
                     </div>
-                    {pdfUrl && (
+                    <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => window.open(pdfUrl, '_blank')}
-                            className="gap-2"
+                            onClick={handleFullscreen}
+                            className="hidden md:flex"
                         >
-                            <ExternalLink className="h-4 w-4" />
-                            Open in New Tab
+                            {isFullscreen ? (
+                                <Minimize2 className="h-4 w-4" />
+                            ) : (
+                                <Maximize2 className="h-4 w-4" />
+                            )}
                         </Button>
-                    )}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={onClose}
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
-            </DialogContent>
-        </Dialog>
+
+                {/* PDF Viewer */}
+                <div className="flex-1 overflow-hidden">
+                    <PDFViewer
+                        documentUrl={pdfUrl}
+                        documentName={paper.title}
+                        paperId={paper.id}
+                    />
+                </div>
+            </motion.div>
+        </motion.div>
     )
-}
+} 

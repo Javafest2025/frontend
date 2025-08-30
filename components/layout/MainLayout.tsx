@@ -40,9 +40,9 @@ export function MainLayout({ children }: Props) {
             onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
             className={cn(
               "transition-all duration-300",
-              shouldCollapseSidebar && "w-12",
-              !shouldCollapseSidebar && sidebarCollapsed && "w-12",
-              !shouldCollapseSidebar && !sidebarCollapsed && "w-56"
+              shouldCollapseSidebar && "w-16",
+              !shouldCollapseSidebar && sidebarCollapsed && "w-16",
+              !shouldCollapseSidebar && !sidebarCollapsed && "w-64"
             )}
           />
         )}
@@ -64,7 +64,7 @@ export function MainLayout({ children }: Props) {
             <Sidebar
               collapsed={false}
               onToggle={() => setSidebarOpen(false)}
-              className="w-56"
+              className="w-64"
             />
           </div>
         )}

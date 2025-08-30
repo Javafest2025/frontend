@@ -32,7 +32,8 @@ import {
     Share2
 } from "lucide-react"
 import { cn, isValidUUID } from "@/lib/utils"
-import { extractPaper, getStructuredFacts, hasStructuredFacts } from "@/lib/api/extract"
+// Temporarily disabled extraction dependencies to avoid 404 errors
+// import { extractPaper, getStructuredFacts, hasStructuredFacts } from "@/lib/api/extract"
 import { downloadPdfWithAuth } from "@/lib/api/pdf"
 import type { Paper } from "@/types/websearch"
 
@@ -109,60 +110,10 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
     }, [params, searchParams])
 
     const handleSummarize = async () => {
-        // Validate project ID before making API calls
-        if (!isValidUUID(projectId)) {
-            console.error('Invalid project ID in handleSummarize:', projectId)
-            setSummaryError('Invalid project ID format')
-            return
-        }
-
-        setIsSummarizing(true)
-        setSummaryError(null)
-        setSummaryData(null)
-
-        try {
-            // First check if structured data already exists
-            const hasData = await hasStructuredFacts(paperId)
-
-            if (hasData.hasStructuredFacts) {
-                // Data already exists, fetch directly without timer
-                const facts = await getStructuredFacts(paperId)
-                setSummaryData(facts)
-            } else {
-                // No data exists, start the extraction process with timer
-                setCountdown(60)
-
-                // Start the extraction process
-                await extractPaper(paperId)
-
-                // Start countdown timer
-                const countdownInterval = setInterval(() => {
-                    setCountdown(prev => {
-                        if (prev <= 1) {
-                            clearInterval(countdownInterval)
-                            return 0
-                        }
-                        return prev - 1
-                    })
-                }, 1000)
-
-                // Wait for 60 seconds
-                await new Promise(resolve => setTimeout(resolve, 60000))
-
-                // Clear the interval in case it's still running
-                clearInterval(countdownInterval)
-                setCountdown(0)
-
-                // Now fetch the structured facts
-                const facts = await getStructuredFacts(paperId)
-                setSummaryData(facts)
-            }
-        } catch (err: any) {
-            setSummaryError(err.message || 'Failed to summarize')
-        } finally {
-            setIsSummarizing(false)
-            setCountdown(0)
-        }
+        // Temporarily disabled due to extraction service unavailability
+        setSummaryError('Paper summarization is temporarily unavailable due to service maintenance. Please try again later.')
+        setIsSummarizing(false)
+        setCountdown(0)
     }
 
     const handlePdfDownload = async () => {

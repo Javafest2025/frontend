@@ -132,7 +132,7 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
           isActive
             ? "bg-gradient-to-r from-primary/20 to-accent/10 text-primary border-primary/50"
             : "text-foreground/80 hover:text-foreground border-primary/20 bg-background/20",
-          collapsed && "justify-center px-2"
+          collapsed && "justify-center px-3"
         )}
         style={isActive ? {
           boxShadow: `
@@ -170,13 +170,15 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
         }}
       >
         <div className={cn(
-          "relative p-1.5 rounded-lg transition-all duration-300",
+          "relative rounded-lg transition-all duration-300",
+          collapsed ? "p-2" : "p-1.5",
           isActive
             ? "bg-gradient-to-r from-primary/30 to-accent/20"
             : "group-hover:bg-primary/10"
         )}>
           <item.icon className={cn(
-            "h-4 w-4 transition-all duration-300",
+            "transition-all duration-300",
+            collapsed ? "h-5 w-5" : "h-4 w-4",
             isActive
               ? "text-primary drop-shadow-glow"
               : "text-foreground/70 group-hover:text-primary",
@@ -206,7 +208,7 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
   return (
     <div className={cn(
       "flex h-screen flex-col bg-background/80 backdrop-blur-xl border-r border-primary/30 transition-all duration-300 relative z-10",
-                  collapsed ? "w-12" : "w-56",
+      collapsed ? "w-16" : "w-64",
       className
     )}
       style={{
@@ -225,7 +227,7 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
       {/* Header */}
       <div className={cn(
         "flex h-16 items-center justify-between px-4 border-b border-primary/30 relative z-10",
-        collapsed && "px-2"
+        collapsed && "px-3"
       )}
         style={{
           boxShadow: `
@@ -258,11 +260,11 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
           <EnhancedTooltip content="ScholarAI: Research Assistant" side="right">
             <button
               onClick={() => handleNavigation("/interface/home", "Loading home dashboard...")}
-              className="flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 group hover:scale-105"
+              className="flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-300 group hover:scale-105"
             >
               <div className="relative group-hover:animate-pulse">
-                <Brain className="h-6 w-6 text-primary" />
-                <div className="absolute inset-0 h-6 w-6 bg-primary/20 rounded-full blur-md" />
+                <Brain className="h-7 w-7 text-primary" />
+                <div className="absolute inset-0 h-7 w-7 bg-primary/20 rounded-full blur-md" />
               </div>
             </button>
           </EnhancedTooltip>
@@ -288,7 +290,10 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-2 p-3 relative z-10 overflow-y-auto custom-scrollbar">
+      <nav className={cn(
+        "flex-1 space-y-2 relative z-10 overflow-y-auto custom-scrollbar",
+        collapsed ? "p-2" : "p-3"
+      )}>
         {!collapsed && (
           <div className="mb-4">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-3">
@@ -312,7 +317,10 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
       </nav>
 
       {/* Bottom Section */}
-      <div className="border-t border-primary/30 p-3 space-y-2 relative z-10"
+      <div className={cn(
+        "border-t border-primary/30 space-y-2 relative z-10",
+        collapsed ? "p-2" : "p-3"
+      )}
         style={{
           boxShadow: `
               0 -2px 0 0 hsl(var(--accent-1) / 0.2),
@@ -351,9 +359,9 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
         {/* Logout Button */}
         {collapsed ? (
           <EnhancedTooltip content="Logout: Sign out of your account" side="right">
-            <LogoutButton className="flex items-center justify-center gap-3 rounded-xl px-2 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border border-transparent hover:bg-red-500/10 hover:border-red-500/30 hover:shadow-lg hover:shadow-red-500/10 text-foreground/80 hover:text-red-500 bg-background/20">
-              <div className="relative p-1.5 rounded-lg transition-all duration-300 group-hover:bg-red-500/10 group-hover:translate-x-1">
-                <LogOut className="h-4 w-4 text-foreground/70 group-hover:text-red-500 transition-all duration-300" />
+            <LogoutButton className="flex items-center justify-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border border-transparent hover:bg-red-500/10 hover:border-red-500/30 hover:shadow-lg hover:shadow-red-500/10 text-foreground/80 hover:text-red-500 bg-background/20">
+              <div className="relative p-2 rounded-lg transition-all duration-300 group-hover:bg-red-500/10 group-hover:translate-x-1">
+                <LogOut className="h-5 w-5 text-foreground/70 group-hover:text-red-500 transition-all duration-300" />
               </div>
             </LogoutButton>
           </EnhancedTooltip>
