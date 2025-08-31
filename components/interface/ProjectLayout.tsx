@@ -11,9 +11,10 @@ type Props = {
     children: React.ReactNode
     projectId: string
     autoCollapseSidebar?: boolean
+    hideHeader?: boolean
 }
 
-export function ProjectLayout({ children, projectId, autoCollapseSidebar = false }: Props) {
+export function ProjectLayout({ children, projectId, autoCollapseSidebar = false, hideHeader = false }: Props) {
     const [isChatOpen, setIsChatOpen] = useState(false)
     const [sidebarCollapsed, setSidebarCollapsed] = useState(autoCollapseSidebar)
     const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -67,8 +68,8 @@ export function ProjectLayout({ children, projectId, autoCollapseSidebar = false
 
             {/* Right side content area - Header and main content */}
             <div className="flex flex-1 flex-col min-w-0">
-                {/* Header - Positioned after the sidebar */}
-                <Header />
+                {/* Header - Positioned after the sidebar, hidden for LaTeX editor */}
+                {!hideHeader && <Header />}
 
                 {/* Main Content Area */}
                 <div className="flex-1 overflow-hidden">

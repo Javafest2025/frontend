@@ -28,7 +28,9 @@ import {
   GitBranch,
   RotateCcw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  PanelRightOpen,
+  PanelRightClose
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { projectsApi } from "@/lib/api/project-service"
@@ -37,6 +39,7 @@ import { AIChatPanel } from "@/components/latex/AIChatPanel"
 import { AIAssistancePanel } from "@/components/latex/AIAssistancePanel"
 import { LaTeXPDFViewer } from "@/components/latex/LaTeXPDFViewer"
 import { EnhancedLatexEditor } from "@/components/latex/EnhancedLatexEditor"
+import { PapersSelector } from "@/components/latex/PapersSelector"
 
 interface Project {
   id: string
@@ -90,6 +93,12 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [isViewingVersion, setIsViewingVersion] = useState<boolean>(false)
   const [isLoadingVersions, setIsLoadingVersions] = useState<boolean>(false)
   const [lastVersionCallTime, setLastVersionCallTime] = useState<number>(0)
+  
+  // Papers Context State
+  const [selectedPapers, setSelectedPapers] = useState<any[]>([])
+  
+  // Sidebar Collapse State
+  const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true)
 
   // AI Suggestions State for Cursor-like Experience
   const [aiSuggestions, setAiSuggestions] = useState<Array<{
@@ -191,6 +200,20 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       setIsViewingVersion(false)
     }
   }, [currentDocument?.id])
+
+  // Keyboard shortcuts for sidebar toggle
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl/Cmd + Shift + I to toggle AI sidebar
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'I') {
+        event.preventDefault()
+        setIsRightSidebarCollapsed(prev => !prev)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // Listen for selection changes and clearing from the editor
   // But don't automatically set selectedText - only show Add to Chat button
@@ -586,6 +609,12 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
 
   const handleClearPositionMarkers = () => {
     setPositionMarkers([])
+  }
+
+  // Papers handler
+  const handlePapersLoad = (papers: any[]) => {
+    setSelectedPapers(papers.filter(paper => paper.isLatexContext))
+    console.log('Papers loaded for LaTeX context:', papers.filter(paper => paper.isLatexContext).length)
   }
 
   // Inline diff preview handlers
@@ -1363,19 +1392,30 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                 </div>
               </div>
               
-              <div className="flex-1 p-2">
-                <div className="flex items-center justify-between mb-1">
-                  <h4 className="font-medium text-sm">Documents</h4>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setShowCreateDialog(true)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+              <div className="flex-1 flex flex-col">
+                {/* Papers Section */}
+                <div className="flex-shrink-0">
+                  <PapersSelector 
+                    projectId={projectId}
+                    onPapersLoad={handlePapersLoad}
+                    className="h-64 border-b border-border"
+                  />
                 </div>
-                <ScrollArea className="h-full">
-                  <div className="space-y-1">
+                
+                {/* Documents Section */}
+                <div className="flex-1 p-2 min-h-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <h4 className="font-medium text-sm">Documents</h4>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setShowCreateDialog(true)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <ScrollArea className="h-full">
+                    <div className="space-y-1">
                     {documents.map((doc) => (
                       <div
                         key={doc.id}
@@ -1450,6 +1490,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                     </div>
                   </div>
                 )}
+                </div>
               </div>
             </div>
           </ResizablePanel>
@@ -1648,6 +1689,22 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                           </Button>
                         </div>
                       )}
+                      
+                      {/* Floating AI Assistant Button when sidebar is collapsed */}
+                      {isRightSidebarCollapsed && (
+                        <div className="absolute top-2 right-2 z-40">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => setIsRightSidebarCollapsed(false)}
+                            className="shadow-lg"
+                            title="Open AI Assistant"
+                          >
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            AI Chat
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                  
@@ -1796,64 +1853,121 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             </div>
           </ResizablePanel>
 
-          <ResizableHandle />
+          <ResizableHandle className={isRightSidebarCollapsed ? "hidden" : ""} />
 
           {/* Right Sidebar - AI Tools */}
-          <ResizablePanel defaultSize={20} minSize={16} maxSize={28}>
-            <div className="h-full flex flex-col bg-card border-l border-border">
-              <Tabs defaultValue="chat" className="h-full flex flex-col">
-                <TabsList className="w-full rounded-none border-b">
-                  <TabsTrigger value="chat" className="flex-1">💬 AI Chat</TabsTrigger>
-                  <TabsTrigger value="tools" className="flex-1">🛠️ AI Tools</TabsTrigger>
-                </TabsList>
+          {!isRightSidebarCollapsed ? (
+            <ResizablePanel defaultSize={20} minSize={16} maxSize={28}>
+              <div className="h-full flex flex-col bg-card border-l border-border">
+                {/* Sidebar Header with Collapse Button */}
+                <div className="flex items-center justify-between p-2 border-b border-border">
+                  <h3 className="font-medium text-sm">AI Assistant</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsRightSidebarCollapsed(true)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <PanelRightClose className="h-4 w-4" />
+                  </Button>
+                </div>
                 
-                <TabsContent value="chat" className="flex-1 m-0 p-0 h-full">
-                  <AIChatPanel
-                    content={editorContent}
-                    selectedText={(() => {
-                      const result = selectionAddedToChat ? selectedText : undefined
-                      console.log('🔗🔗🔗 === PASSING PROPS TO AIChatPanel === 🔗🔗🔗')
-                      console.log('selectionAddedToChat:', selectionAddedToChat)
-                      console.log('selectedText state:', selectedText)
-                      console.log('Computed selectedText prop for AIChatPanel:', result)
-                      console.log('🏁 === PROPS COMPUTATION COMPLETED ===')
-                      return result
-                    })()}
-                    cursorPosition={cursorPosition}
-                    onApplySuggestion={handleApplySuggestion}
-                    onSetPositionMarker={handleSetPositionMarker}
-                    onClearPositionMarkers={handleClearPositionMarkers}
-                    onCreateAiSuggestion={handleCreateAiSuggestion}
-                    pendingAiRequest={pendingAiRequest}
-                    setPendingAiRequest={setPendingAiRequest}
-                    onPreviewInlineDiff={handlePreviewInlineDiff}
-                    onClearSelection={() => {
-                      setSelectedText({ text: '', from: 0, to: 0 })
-                      setSelectionAddedToChat(false)
-                    }}
-                    getInsertAnchor={getInsertAnchor}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="tools" className="flex-1 m-0">
-                  <div className="p-2">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Lightbulb className="h-4 w-4" />
-                      <h3 className="font-medium text-sm">AI Writing Tools</h3>
+                <Tabs defaultValue="chat" className="h-full flex flex-col">
+                  <TabsList className="w-full rounded-none border-b">
+                    <TabsTrigger value="chat" className="flex-1">💬 AI Chat</TabsTrigger>
+                    <TabsTrigger value="tools" className="flex-1">🛠️ AI Tools</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="chat" className="flex-1 m-0 p-0 h-full">
+                    <AIChatPanel
+                      content={editorContent}
+                      selectedText={(() => {
+                        const result = selectionAddedToChat ? selectedText : undefined
+                        console.log('🔗🔗🔗 === PASSING PROPS TO AIChatPanel === 🔗🔗🔗')
+                        console.log('selectionAddedToChat:', selectionAddedToChat)
+                        console.log('selectedText state:', selectedText)
+                        console.log('Computed selectedText prop for AIChatPanel:', result)
+                        console.log('🏁 === PROPS COMPUTATION COMPLETED ===')
+                        return result
+                      })()}
+                      selectedPapers={selectedPapers}
+                      cursorPosition={cursorPosition}
+                      onApplySuggestion={handleApplySuggestion}
+                      onSetPositionMarker={handleSetPositionMarker}
+                      onClearPositionMarkers={handleClearPositionMarkers}
+                      onCreateAiSuggestion={handleCreateAiSuggestion}
+                      pendingAiRequest={pendingAiRequest}
+                      setPendingAiRequest={setPendingAiRequest}
+                      onPreviewInlineDiff={handlePreviewInlineDiff}
+                      onClearSelection={() => {
+                        setSelectedText({ text: '', from: 0, to: 0 })
+                        setSelectionAddedToChat(false)
+                      }}
+                      getInsertAnchor={getInsertAnchor}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="tools" className="flex-1 m-0">
+                    <div className="p-2">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Lightbulb className="h-4 w-4" />
+                        <h3 className="font-medium text-sm">AI Writing Tools</h3>
+                      </div>
+                      <ScrollArea className="h-full">
+                        <AIAssistancePanel 
+                          content={editorContent}
+                          onApplySuggestion={(suggestion) => {
+                            setEditorContent(prev => prev + '\n\n' + suggestion)
+                          }}
+                        />
+                      </ScrollArea>
                     </div>
-                    <ScrollArea className="h-full">
-                      <AIAssistancePanel 
-                        content={editorContent}
-                        onApplySuggestion={(suggestion) => {
-                          setEditorContent(prev => prev + '\n\n' + suggestion)
-                        }}
-                      />
-                    </ScrollArea>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </ResizablePanel>
+          ) : (
+            /* Collapsed Sidebar */
+            <div className="w-12 bg-card border-l border-border flex flex-col items-center py-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsRightSidebarCollapsed(false)}
+                className="h-10 w-10 p-0 mb-2"
+                title="Expand AI Assistant"
+              >
+                <PanelRightOpen className="h-5 w-5" />
+              </Button>
+              
+              {/* Show notification indicators when collapsed */}
+              {selectedPapers.length > 0 && (
+                <div className="relative mb-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsRightSidebarCollapsed(false)}
+                    className="h-10 w-10 p-0"
+                    title={`${selectedPapers.length} papers in context`}
+                  >
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                  <div className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs">
+                    {selectedPapers.length}
                   </div>
-                </TabsContent>
-              </Tabs>
+                </div>
+              )}
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsRightSidebarCollapsed(false)}
+                className="h-10 w-10 p-0"
+                title="AI Chat"
+              >
+                <MessageSquare className="h-4 w-4" />
+              </Button>
             </div>
-          </ResizablePanel>
+          )}
 
         </ResizablePanelGroup>
       </div>

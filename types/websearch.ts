@@ -29,6 +29,7 @@ export interface Paper {
     referenceCount: number;
     influentialCitationCount: number;
     fieldsOfStudy?: string[] | null;
+    isLatexContext?: boolean;
 }
 
 export interface WebSearchRequest {

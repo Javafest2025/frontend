@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
   Send, 
   MessageSquare, 
@@ -16,7 +17,13 @@ import {
   MapPin,
   Edit3,
   Trash2,
-  XCircle
+  XCircle,
+  Bot,
+  User,
+  Loader2,
+  Zap,
+  Code,
+  BookOpen
 } from 'lucide-react'
 import { latexApi } from '@/lib/api/latex-service'
 
@@ -36,6 +43,7 @@ interface AIChatPanelProps {
   content: string
   onApplySuggestion: (suggestion: string, position?: number, actionType?: string, selectionRange?: { from: number; to: number }) => void
   selectedText?: { text: string; from: number; to: number }
+  selectedPapers?: any[]
   cursorPosition?: number
   onSetPositionMarker?: (position: number, label: string) => void
   onClearPositionMarkers?: () => void
@@ -57,7 +65,8 @@ interface AIChatPanelProps {
 export function AIChatPanel({ 
   content, 
   onApplySuggestion, 
-  selectedText, 
+  selectedText,
+  selectedPapers = [],
   cursorPosition,
   onSetPositionMarker,
   onClearPositionMarkers,
@@ -68,7 +77,14 @@ export function AIChatPanel({
   onClearSelection,
   getInsertAnchor
 }: AIChatPanelProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome-latex-ai',
+      text: "Welcome to **LaTeXAI**! 🚀 I'm your specialized LaTeX assistant.\n\n**I can help you with:**\n• Writing and formatting LaTeX documents\n• Fixing compilation errors and syntax issues\n• Suggesting mathematical notation and environments\n• Optimizing document structure and styling\n• Using packages and custom commands\n• Converting content to LaTeX format\n\n**Enhanced with Papers Context:**\n" + (selectedPapers?.length > 0 ? `✅ ${selectedPapers.length} research papers loaded for context` : "📖 Add papers to provide research context for better assistance") + "\n\nSelect text in your document and ask me anything about LaTeX!",
+      sender: 'ai',
+      timestamp: new Date()
+    }
+  ])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [selectedTextDisplay, setSelectedTextDisplay] = useState<string>('')
@@ -100,6 +116,24 @@ export function AIChatPanel({
     }
     console.log('🏁 === AIChatPanel selectedText effect completed ===')
   }, [selectedText])
+
+  // Update welcome message when papers context changes
+  useEffect(() => {
+    if (selectedPapers) {
+      setMessages(prev => {
+        const welcomeIndex = prev.findIndex(msg => msg.id === 'welcome-latex-ai')
+        if (welcomeIndex !== -1) {
+          const updatedMessages = [...prev]
+          updatedMessages[welcomeIndex] = {
+            ...updatedMessages[welcomeIndex],
+            text: "Welcome to **LaTeXAI**! 🚀 I'm your specialized LaTeX assistant.\n\n**I can help you with:**\n• Writing and formatting LaTeX documents\n• Fixing compilation errors and syntax issues\n• Suggesting mathematical notation and environments\n• Optimizing document structure and styling\n• Using packages and custom commands\n• Converting content to LaTeX format\n\n**Enhanced with Papers Context:**\n" + (selectedPapers?.length > 0 ? `✅ ${selectedPapers.length} research papers loaded for context` : "📖 Add papers to provide research context for better assistance") + "\n\nSelect text in your document and ask me anything about LaTeX!"
+          }
+          return updatedMessages
+        }
+        return prev
+      })
+    }
+  }, [selectedPapers])
 
   // Cleanup selected text display when component unmounts or tab changes
   useEffect(() => {
@@ -220,11 +254,23 @@ export function AIChatPanel({
     setPendingAiRequest?.(true)
 
     try {
-      const response = await latexApi.processChatRequest({
+      // Prepare context information including papers
+      const contextInfo = {
         selectedText: selectedText?.text || '',
         userRequest: inputValue,
-        fullDocument: content
-      })
+        fullDocument: content,
+        papersContext: selectedPapers && selectedPapers.length > 0 ? {
+          count: selectedPapers.length,
+          papers: selectedPapers.map(paper => ({
+            title: paper.title,
+            authors: paper.authors?.map((a: any) => a.name).join(', ') || 'Unknown authors',
+            abstract: paper.abstract || '',
+            year: paper.publicationDate ? new Date(paper.publicationDate).getFullYear() : null
+          }))
+        } : null
+      }
+
+      const response = await latexApi.processChatRequest(contextInfo)
 
       // Parse AI response for Cursor-like integration
       const { actionType, suggestion, position, explanation } = parseAIResponseForCursor(response.data, inputValue, selectedText)
@@ -559,46 +605,96 @@ export function AIChatPanel({
     const hasSuggestion = message.latexSuggestion && message.latexSuggestion.trim()
 
     return (
-      <div key={message.id} className={`flex ${isAI ? 'justify-start' : 'justify-end'} mb-4`}>
-        <div className={`max-w-[80%] ${isAI ? 'bg-muted' : 'bg-primary text-primary-foreground'} rounded-lg p-3`}>
-           {/* For AI messages, only show the explanation text, not the full response */}
-           <div className="text-sm whitespace-pre-wrap">
-             {isAI && message.latexSuggestion ? 
-               // If there's a suggestion, show only the explanation part
-               message.text.split('```')[0].trim() || message.text
-               : 
-               // For user messages or AI messages without suggestions, show full text
-               message.text
-             }
-           </div>
-          
+      <div key={message.id} className={`flex gap-3 mb-6 ${isAI ? 'flex-row' : 'flex-row-reverse'}`}>
+        {/* Avatar */}
+        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+          isAI 
+            ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg' 
+            : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg'
+        }`}>
+          {isAI ? <Code className="w-4 h-4" /> : <User className="w-4 h-4" />}
+        </div>
+
+        {/* Message Content */}
+        <div className={`flex-1 max-w-[85%] ${isAI ? 'text-left' : 'text-right'}`}>
+          {/* Message Bubble */}
+          <div className={`inline-block p-4 rounded-2xl shadow-md ${
+            isAI
+              ? 'bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 text-slate-800'
+              : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
+          }`}>
+            {/* Message Text with Markdown-like styling */}
+            <div className="text-sm leading-relaxed">
+              {message.text.split('\n').map((line, index) => {
+                if (line.startsWith('**') && line.endsWith('**')) {
+                  return (
+                    <div key={index} className={`font-bold text-base mb-2 ${
+                      isAI ? 'text-orange-600' : 'text-blue-100'
+                    }`}>
+                      {line.slice(2, -2)}
+                    </div>
+                  )
+                } else if (line.startsWith('• ')) {
+                  return (
+                    <div key={index} className={`flex items-start gap-2 mb-1 ${
+                      isAI ? 'text-slate-700' : 'text-blue-50'
+                    }`}>
+                      <span className={`mt-1 w-1 h-1 rounded-full ${
+                        isAI ? 'bg-orange-400' : 'bg-blue-200'
+                      }`} />
+                      <span className="text-sm">{line.slice(2)}</span>
+                    </div>
+                  )
+                } else if (line.startsWith('✅ ') || line.startsWith('📖 ')) {
+                  return (
+                    <div key={index} className={`mb-2 p-2 rounded-lg ${
+                      isAI 
+                        ? 'bg-green-50 border border-green-200 text-green-700' 
+                        : 'bg-blue-400/20 text-blue-100'
+                    }`}>
+                      <span className="text-sm">{line}</span>
+                    </div>
+                  )
+                } else if (line.trim()) {
+                  return (
+                    <div key={index} className="mb-1">
+                      <span className="text-sm">{line}</span>
+                    </div>
+                  )
+                }
+                return <div key={index} className="mb-1" />
+              })}
+            </div>
+          </div>
+
+          {/* LaTeX Suggestion Box */}
           {hasSuggestion && (
             <div className="mt-3">
-               {/* Action buttons - positioned above the suggestion box */}
-               <div className="flex flex-wrap items-center gap-2 mb-3">
-                <Badge variant="outline" className="text-xs">
-                  <FileText className="h-3 w-3 mr-1" />
+              {/* Action buttons */}
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <Badge variant="outline" className="text-xs bg-orange-50 border-orange-200 text-orange-700">
+                  <Zap className="h-3 w-3 mr-1" />
                   LaTeX Suggestion
                 </Badge>
-                 {message.actionType && (
-                   <Badge variant="secondary" className="text-xs">
-                     {message.actionType.toUpperCase()}
-                   </Badge>
-                 )}
-                 {message.position !== undefined && (
-                   <Badge variant="outline" className="text-xs">
-                     <MapPin className="h-3 w-3 mr-1" />
-                     Pos: {message.position}
-                   </Badge>
-                 )}
-                 
-                 {/* Action buttons in a separate row if needed */}
-                 <div className="flex items-center gap-1 ml-auto">
+                {message.actionType && (
+                  <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-700">
+                    {message.actionType.toUpperCase()}
+                  </Badge>
+                )}
+                {message.position !== undefined && (
+                  <Badge variant="outline" className="text-xs">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    Pos: {message.position}
+                  </Badge>
+                )}
+                
+                {/* Action buttons */}
+                <div className="flex items-center gap-1 ml-auto">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleCopySuggestion(message.latexSuggestion!)}
-                    className="h-6 w-6 p-0"
+                    className="h-6 w-6 p-0 hover:bg-orange-100"
                   >
                     <Copy className="h-3 w-3" />
                   </Button>
@@ -607,14 +703,14 @@ export function AIChatPanel({
                       <Button
                         variant="ghost"
                         size="sm"
-                         onClick={() => handleAcceptSuggestion(
-                           message.id, 
-                           message.latexSuggestion!, 
-                           message.actionType,
-                           message.position,
-                           message.selectionRange
-                         )}
-                        className="h-6 w-6 p-0 text-green-600"
+                        onClick={() => handleAcceptSuggestion(
+                          message.id, 
+                          message.latexSuggestion!, 
+                          message.actionType,
+                          message.position,
+                          message.selectionRange
+                        )}
+                        className="h-6 w-6 p-0 text-green-600 hover:bg-green-100"
                       >
                         <Check className="h-3 w-3" />
                       </Button>
@@ -622,7 +718,7 @@ export function AIChatPanel({
                         variant="ghost"
                         size="sm"
                         onClick={() => handleRejectSuggestion(message.id)}
-                        className="h-6 w-6 p-0 text-red-600"
+                        className="h-6 w-6 p-0 text-red-600 hover:bg-red-100"
                       >
                         <X className="h-3 w-3" />
                       </Button>
@@ -640,15 +736,24 @@ export function AIChatPanel({
                   )}
                 </div>
               </div>
-               
-               {/* LaTeX suggestion box */}
-               <div className="bg-background border rounded p-3 font-mono text-xs overflow-x-auto">
-                {message.latexSuggestion}
+              
+              {/* LaTeX suggestion code box */}
+              <div className="bg-slate-900 border border-slate-700 rounded-lg p-4 font-mono text-xs overflow-x-auto shadow-lg">
+                <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-700">
+                  <Code className="h-3 w-3 text-orange-400" />
+                  <span className="text-orange-400 text-xs font-semibold">LaTeX Code</span>
+                </div>
+                <pre className="text-green-400 whitespace-pre-wrap leading-relaxed">
+                  {message.latexSuggestion}
+                </pre>
               </div>
             </div>
           )}
           
-          <div className={`text-xs mt-2 ${isAI ? 'text-muted-foreground' : 'text-primary-foreground/70'}`}>
+          {/* Timestamp */}
+          <div className={`text-xs mt-2 ${
+            isAI ? 'text-slate-500' : 'text-blue-300'
+          } ${isAI ? 'text-left' : 'text-right'}`}>
             {message.timestamp.toLocaleTimeString()}
           </div>
         </div>
@@ -657,23 +762,45 @@ export function AIChatPanel({
   }
 
     return (
-    <div className="h-full flex flex-col bg-card overflow-hidden">
+    <div className="h-full flex flex-col bg-gradient-to-b from-slate-50 to-white overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b">
-        <div className="flex items-center gap-2 text-lg font-semibold">
-          <MessageSquare className="h-5 w-5" />
-          AI Chat Assistant
+      <div className="flex-shrink-0 p-4 border-b border-orange-200 bg-gradient-to-r from-orange-50 to-red-50">
+        <div className="flex items-center gap-3 text-lg font-bold">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-md">
+            <Code className="h-4 w-4 text-white" />
+          </div>
+          <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+            LaTeXAI
+          </span>
+          <Badge variant="outline" className="text-xs bg-orange-100 border-orange-300 text-orange-700">
+            Specialized Assistant
+          </Badge>
         </div>
         
         {/* Context Information */}
-        <div className="mt-2 space-y-2">
+        <div className="mt-3 space-y-3">
+          {selectedPapers && selectedPapers.length > 0 && (
+            <div className="text-sm">
+              <Badge variant="secondary" className="text-xs mb-2 bg-green-100 text-green-700 border-green-300">
+                <BookOpen className="h-3 w-3 mr-1" />
+                Papers Context ({selectedPapers.length})
+              </Badge>
+              <div className="bg-green-50 border border-green-200 p-3 rounded-lg max-h-16 overflow-y-auto">
+                <div className="text-xs text-green-700 font-medium">
+                  {selectedPapers.map(paper => paper.title).join(', ')}
+                </div>
+              </div>
+            </div>
+          )}
+          
           {selectedTextDisplay && (
             <div className="relative group">
-              <Badge variant="secondary" className="text-xs mb-2">
+              <Badge variant="secondary" className="text-xs mb-2 bg-blue-100 text-blue-700 border-blue-300">
+                <Edit3 className="h-3 w-3 mr-1" />
                 Selected Text
               </Badge>
-              <div className="text-sm bg-muted p-2 rounded border max-h-20 overflow-y-auto">
-                "{selectedTextDisplay}"
+              <div className="text-sm bg-blue-50 border border-blue-200 p-3 rounded-lg max-h-20 overflow-y-auto">
+                <span className="text-blue-800 font-mono text-xs">"{selectedTextDisplay}"</span>
               </div>
               {/* Hover cancel button */}
               <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -775,12 +902,13 @@ export function AIChatPanel({
             )}
             {messages.map(renderMessage)}
             {isLoading && (
-              <div className="flex justify-start mb-4">
-                <div className="bg-muted rounded-lg p-3">
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                    <span className="text-sm">AI is thinking...</span>
-                  </div>
+              <div className="flex gap-3 mb-6">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white shadow-lg">
+                  <Code className="w-4 h-4" />
+                </div>
+                <div className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-2xl p-4 shadow-md">
+                  <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
+                  <span className="text-sm text-orange-700 font-medium">LaTeXAI is analyzing your request...</span>
                 </div>
               </div>
             )}
@@ -848,21 +976,26 @@ export function AIChatPanel({
           </div>
         )}
         
-        <div className="flex space-x-2">
+        <div className="flex space-x-3 bg-white border-t border-orange-200 p-4">
           <Input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask AI to help with LaTeX editing..."
+            placeholder="Ask LaTeXAI to help with your document..."
             disabled={isLoading}
-            className="flex-1"
+            className="flex-1 border-orange-200 focus:border-orange-400 focus:ring-orange-200"
           />
           <Button 
             onClick={handleSendMessage} 
             disabled={isLoading || !inputValue.trim()}
             size="sm"
+            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-md px-4"
           >
-            <Send className="h-4 w-4" />
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </div>
