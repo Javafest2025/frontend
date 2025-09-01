@@ -30,7 +30,8 @@ import {
   ChevronLeft,
   ChevronRight,
   PanelRightOpen,
-  PanelRightClose
+  PanelRightClose,
+  Code
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { projectsApi } from "@/lib/api/project-service"
@@ -1904,6 +1905,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                         setSelectionAddedToChat(false)
                       }}
                       getInsertAnchor={getInsertAnchor}
+                      onCollapse={() => setIsRightSidebarCollapsed(true)}
                     />
                   </TabsContent>
                   
@@ -1920,15 +1922,22 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             </ResizablePanel>
           ) : (
             /* Collapsed Sidebar */
-            <div className="w-12 bg-card border-l border-border flex flex-col items-center py-2">
+            <div className="w-20 bg-card border-l border-border flex flex-col items-center py-3">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsRightSidebarCollapsed(false)}
-                className="h-10 w-10 p-0 mb-2"
-                title="Expand AI Assistant"
+                className="h-16 w-16 p-2 mb-3 flex flex-col items-center justify-center
+                         bg-gradient-to-br from-orange-500 to-red-500 text-white
+                         hover:from-orange-600 hover:to-red-600
+                         rounded-xl shadow-lg transition-all duration-200 hover:scale-105"
+                title="Open LaTeX AI Assistant"
               >
-                <PanelRightOpen className="h-5 w-5" />
+                <Code className="h-4 w-4 mb-1 text-white" />
+                <div className="text-xs font-bold text-white leading-tight text-center">
+                  <div>LaTeX</div>
+                  <div>AI</div>
+                </div>
               </Button>
               
               {/* Show notification indicators when collapsed */}
@@ -1938,7 +1947,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsRightSidebarCollapsed(false)}
-                    className="h-10 w-10 p-0"
+                    className="h-10 w-10 p-0 hover:bg-muted"
                     title={`${selectedPapers.length} papers in context`}
                   >
                     <FileText className="h-4 w-4" />

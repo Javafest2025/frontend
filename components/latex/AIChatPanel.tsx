@@ -60,6 +60,7 @@ interface AIChatPanelProps {
   }>) => void
   onClearSelection?: () => void
   getInsertAnchor?: () => number
+  onCollapse?: () => void
 }
 
 export function AIChatPanel({ 
@@ -75,7 +76,8 @@ export function AIChatPanel({
   setPendingAiRequest,
   onPreviewInlineDiff,
   onClearSelection,
-  getInsertAnchor
+  getInsertAnchor,
+  onCollapse
 }: AIChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -783,16 +785,31 @@ export function AIChatPanel({
     <div className="h-full flex flex-col bg-card border-l border-border">
       {/* Header */}
       <div className="flex-shrink-0 p-3 border-b border-border bg-card">
-        <div className="flex items-center gap-3 text-lg font-bold">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-md">
-            <Code className="h-4 w-4 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 text-lg font-bold">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-md">
+              <Code className="h-4 w-4 text-white" />
+            </div>
+            <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+              LaTeXAI
+            </span>
+            <Badge variant="outline" className="text-xs">
+              Specialized Assistant
+            </Badge>
           </div>
-          <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-            LaTeXAI
-          </span>
-          <Badge variant="outline" className="text-xs">
-            Specialized Assistant
-          </Badge>
+          
+          {/* Collapse Button */}
+          {onCollapse && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onCollapse}
+              className="h-8 w-8 p-0 hover:bg-muted"
+              title="Collapse AI Assistant"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         
         {/* Context Information */}
@@ -1013,10 +1030,10 @@ export function AIChatPanel({
           <button
             onClick={handleSendMessage}
             disabled={isLoading || !inputValue.trim()}
-            className="h-10 w-10 shrink-0 rounded-xl text-white disabled:opacity-50
+            className="h-11 w-11 shrink-0 rounded-xl text-white disabled:opacity-50
                        bg-gradient-to-r from-rose-400 to-orange-400
                        hover:from-rose-500 hover:to-orange-500 focus:outline-none
-                       focus:ring-2 focus:ring-rose-300"
+                       focus:ring-2 focus:ring-rose-300 flex items-center justify-center"
             aria-label="Send"
           >
             {isLoading ? (
