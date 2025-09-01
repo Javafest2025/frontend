@@ -115,7 +115,7 @@ export function AIAssistancePanel({ content, onApplySuggestion }: AIAssistancePa
   }
 
   return (
-    <div className="space-y-4">
+    <div className="h-full bg-card p-3 space-y-4">
       {/* AI Tools */}
       <Card>
         <CardHeader className="pb-3">

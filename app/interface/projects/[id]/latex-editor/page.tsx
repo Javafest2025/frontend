@@ -1907,21 +1907,13 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                     />
                   </TabsContent>
                   
-                  <TabsContent value="tools" className="flex-1 m-0">
-                    <div className="p-2">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Lightbulb className="h-4 w-4" />
-                        <h3 className="font-medium text-sm">AI Writing Tools</h3>
-                      </div>
-                      <ScrollArea className="h-full">
-                        <AIAssistancePanel 
-                          content={editorContent}
-                          onApplySuggestion={(suggestion) => {
-                            setEditorContent(prev => prev + '\n\n' + suggestion)
-                          }}
-                        />
-                      </ScrollArea>
-                    </div>
+                  <TabsContent value="tools" className="flex-1 m-0 h-full">
+                    <AIAssistancePanel 
+                      content={editorContent}
+                      onApplySuggestion={(suggestion) => {
+                        setEditorContent(prev => prev + '\n\n' + suggestion)
+                      }}
+                    />
                   </TabsContent>
                 </Tabs>
               </div>

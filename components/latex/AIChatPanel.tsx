@@ -80,7 +80,7 @@ export function AIChatPanel({
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome-latex-ai',
-      text: "Welcome to **LaTeXAI**! 🚀 I'm your specialized LaTeX assistant.\n\n**I can help you with:**\n• Writing and formatting LaTeX documents\n• Fixing compilation errors and syntax issues\n• Suggesting mathematical notation and environments\n• Optimizing document structure and styling\n• Using packages and custom commands\n• Converting content to LaTeX format\n\n**Enhanced with Papers Context:**\n" + (selectedPapers?.length > 0 ? `✅ ${selectedPapers.length} research papers loaded for context` : "📖 Add papers to provide research context for better assistance") + "\n\nSelect text in your document and ask me anything about LaTeX!",
+      text: "Welcome to **LaTeXAI**! 🚀 I'm your specialized LaTeX assistant.\n\n**I can help you with:**\n• Writing and formatting LaTeX documents\n• Fixing compilation errors and syntax issues\n• Suggesting mathematical notation and environments\n• Optimizing document structure and styling\n• Using packages and custom commands\n• Converting content to LaTeX format\n\n**Enhanced with Papers Context:**\n" + (Array.isArray(selectedPapers) && selectedPapers.length > 0 ? `✅ ${selectedPapers.length} research papers loaded for context` : "📖 Add papers to provide research context for better assistance") + "\n\nSelect text in your document and ask me anything about LaTeX!",
       sender: 'ai',
       timestamp: new Date()
     }
@@ -93,6 +93,7 @@ export function AIChatPanel({
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   // Update selected text display when prop changes
   // Only show selection if it's explicitly provided (after Add to Chat click)
@@ -119,14 +120,14 @@ export function AIChatPanel({
 
   // Update welcome message when papers context changes
   useEffect(() => {
-    if (selectedPapers) {
+    if (Array.isArray(selectedPapers)) {
       setMessages(prev => {
         const welcomeIndex = prev.findIndex(msg => msg.id === 'welcome-latex-ai')
         if (welcomeIndex !== -1) {
           const updatedMessages = [...prev]
           updatedMessages[welcomeIndex] = {
             ...updatedMessages[welcomeIndex],
-            text: "Welcome to **LaTeXAI**! 🚀 I'm your specialized LaTeX assistant.\n\n**I can help you with:**\n• Writing and formatting LaTeX documents\n• Fixing compilation errors and syntax issues\n• Suggesting mathematical notation and environments\n• Optimizing document structure and styling\n• Using packages and custom commands\n• Converting content to LaTeX format\n\n**Enhanced with Papers Context:**\n" + (selectedPapers?.length > 0 ? `✅ ${selectedPapers.length} research papers loaded for context` : "📖 Add papers to provide research context for better assistance") + "\n\nSelect text in your document and ask me anything about LaTeX!"
+            text: "Welcome to **LaTeXAI**! 🚀 I'm your specialized LaTeX assistant.\n\n**I can help you with:**\n• Writing and formatting LaTeX documents\n• Fixing compilation errors and syntax issues\n• Suggesting mathematical notation and environments\n• Optimizing document structure and styling\n• Using packages and custom commands\n• Converting content to LaTeX format\n\n**Enhanced with Papers Context:**\n" + (selectedPapers.length > 0 ? `✅ ${selectedPapers.length} research papers loaded for context` : "📖 Add papers to provide research context for better assistance") + "\n\nSelect text in your document and ask me anything about LaTeX!"
           }
           return updatedMessages
         }
@@ -134,6 +135,19 @@ export function AIChatPanel({
       })
     }
   }, [selectedPapers])
+
+  // Autosize function for textarea
+  const autosize = () => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = '0px'
+    const next = Math.min(192, el.scrollHeight) // ~6-8 lines cap
+    el.style.height = next + 'px'
+  }
+
+  useEffect(() => { 
+    autosize() 
+  }, [inputValue])
 
   // Cleanup selected text display when component unmounts or tab changes
   useEffect(() => {
@@ -255,16 +269,17 @@ export function AIChatPanel({
 
     try {
       // Prepare context information including papers
+      const safePapers = Array.isArray(selectedPapers) ? selectedPapers : []
       const contextInfo = {
         selectedText: selectedText?.text || '',
         userRequest: inputValue,
         fullDocument: content,
-        papersContext: selectedPapers && selectedPapers.length > 0 ? {
-          count: selectedPapers.length,
-          papers: selectedPapers.map(paper => ({
-            title: paper.title,
-            authors: paper.authors?.map((a: any) => a.name).join(', ') || 'Unknown authors',
-            abstract: paper.abstract || '',
+        papersContext: safePapers.length > 0 ? {
+          count: safePapers.length,
+          papers: safePapers.map(paper => ({
+            title: String(paper.title ?? ''),
+            authors: Array.isArray(paper.authors) ? paper.authors.map((a: any) => String(a.name ?? '')).join(', ') : 'Unknown authors',
+            abstract: String(paper.abstract ?? ''),
             year: paper.publicationDate ? new Date(paper.publicationDate).getFullYear() : null
           }))
         } : null
@@ -530,21 +545,23 @@ export function AIChatPanel({
   }
 
   const extractExplanation = (response: string): string => {
+    const safeResponse = String(response ?? '')
+    
     // Extract everything before the first LaTeX code block
-    const beforeLatex = response.split('```')[0].trim()
+    const beforeLatex = safeResponse.split('```')[0].trim()
     if (beforeLatex && beforeLatex.length > 10) {
       return beforeLatex
     }
     
     // If no clear separation, try to find explanatory text
-    const lines = response.split('\n')
+    const lines = safeResponse.split('\n')
     const explanationLines = lines.filter(line => 
       !line.includes('\\') && !line.includes('```') && 
       !line.includes('&') && !line.includes('hline') &&
-      line.trim().length > 0
+      String(line ?? '').trim().length > 0
     ).slice(0, 3) // Take first few explanation lines
     
-    if (explanationLines.length > 0) {
+    if (Array.isArray(explanationLines) && explanationLines.length > 0) {
       return explanationLines.join(' ').trim()
     }
     
@@ -582,7 +599,7 @@ export function AIChatPanel({
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSendMessage()
@@ -603,6 +620,7 @@ export function AIChatPanel({
   const renderMessage = (message: ChatMessage) => {
     const isAI = message.sender === 'ai'
     const hasSuggestion = message.latexSuggestion && message.latexSuggestion.trim()
+    const safeText = String(message.text ?? '')
 
     return (
       <div key={message.id} className={`flex gap-3 mb-6 ${isAI ? 'flex-row' : 'flex-row-reverse'}`}>
@@ -610,26 +628,26 @@ export function AIChatPanel({
         <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
           isAI 
             ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg' 
-            : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg'
+            : 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white shadow-lg'
         }`}>
-          {isAI ? <Code className="w-4 h-4" /> : <User className="w-4 h-4" />}
+          {isAI ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
         </div>
 
         {/* Message Content */}
         <div className={`flex-1 max-w-[85%] ${isAI ? 'text-left' : 'text-right'}`}>
           {/* Message Bubble */}
-          <div className={`inline-block p-4 rounded-2xl shadow-md ${
+          <div className={`inline-block max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${
             isAI
-              ? 'bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 text-slate-800'
-              : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
+              ? 'bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 text-slate-800 dark:from-slate-800 dark:to-slate-700 dark:text-slate-100 dark:border-slate-600'
+              : 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white'
           }`}>
             {/* Message Text with Markdown-like styling */}
             <div className="text-sm leading-relaxed">
-              {message.text.split('\n').map((line, index) => {
+              {safeText.split('\n').map((line, index) => {
                 if (line.startsWith('**') && line.endsWith('**')) {
                   return (
                     <div key={index} className={`font-bold text-base mb-2 ${
-                      isAI ? 'text-orange-600' : 'text-blue-100'
+                      isAI ? 'text-orange-600 dark:text-orange-400' : 'text-blue-100'
                     }`}>
                       {line.slice(2, -2)}
                     </div>
@@ -637,7 +655,7 @@ export function AIChatPanel({
                 } else if (line.startsWith('• ')) {
                   return (
                     <div key={index} className={`flex items-start gap-2 mb-1 ${
-                      isAI ? 'text-slate-700' : 'text-blue-50'
+                      isAI ? 'text-slate-700 dark:text-slate-300' : 'text-blue-50'
                     }`}>
                       <span className={`mt-1 w-1 h-1 rounded-full ${
                         isAI ? 'bg-orange-400' : 'bg-blue-200'
@@ -649,7 +667,7 @@ export function AIChatPanel({
                   return (
                     <div key={index} className={`mb-2 p-2 rounded-lg ${
                       isAI 
-                        ? 'bg-green-50 border border-green-200 text-green-700' 
+                        ? 'bg-green-50 border border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300' 
                         : 'bg-blue-400/20 text-blue-100'
                     }`}>
                       <span className="text-sm">{line}</span>
@@ -744,7 +762,7 @@ export function AIChatPanel({
                   <span className="text-orange-400 text-xs font-semibold">LaTeX Code</span>
                 </div>
                 <pre className="text-green-400 whitespace-pre-wrap leading-relaxed">
-                  {message.latexSuggestion}
+                  {String(message.latexSuggestion ?? '')}
                 </pre>
               </div>
             </div>
@@ -762,9 +780,9 @@ export function AIChatPanel({
   }
 
     return (
-    <div className="h-full flex flex-col bg-gradient-to-b from-slate-50 to-white overflow-hidden">
+    <div className="h-full flex flex-col bg-card border-l border-border">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b border-orange-200 bg-gradient-to-r from-orange-50 to-red-50">
+      <div className="flex-shrink-0 p-3 border-b border-border bg-card">
         <div className="flex items-center gap-3 text-lg font-bold">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-md">
             <Code className="h-4 w-4 text-white" />
@@ -772,22 +790,22 @@ export function AIChatPanel({
           <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
             LaTeXAI
           </span>
-          <Badge variant="outline" className="text-xs bg-orange-100 border-orange-300 text-orange-700">
+          <Badge variant="outline" className="text-xs">
             Specialized Assistant
           </Badge>
         </div>
         
         {/* Context Information */}
         <div className="mt-3 space-y-3">
-          {selectedPapers && selectedPapers.length > 0 && (
+          {Array.isArray(selectedPapers) && selectedPapers.length > 0 && (
             <div className="text-sm">
-              <Badge variant="secondary" className="text-xs mb-2 bg-green-100 text-green-700 border-green-300">
+              <Badge variant="secondary" className="text-xs mb-2">
                 <BookOpen className="h-3 w-3 mr-1" />
                 Papers Context ({selectedPapers.length})
               </Badge>
-              <div className="bg-green-50 border border-green-200 p-3 rounded-lg max-h-16 overflow-y-auto">
-                <div className="text-xs text-green-700 font-medium">
-                  {selectedPapers.map(paper => paper.title).join(', ')}
+              <div className="bg-muted border border-border p-3 rounded-lg max-h-16 overflow-y-auto">
+                <div className="text-xs text-muted-foreground font-medium">
+                  {(Array.isArray(selectedPapers) ? selectedPapers : []).map(paper => paper.title).join(', ')}
                 </div>
               </div>
             </div>
@@ -879,9 +897,8 @@ export function AIChatPanel({
       {/* Messages Area - Fixed height constraints */}
       <div className="flex-1 flex flex-col relative min-h-0 overflow-hidden">
         <div 
-          className="flex-1 overflow-y-auto px-4 max-h-0" 
           ref={scrollAreaRef}
-          style={{ minHeight: 0, flex: '1 1 auto' }}
+          className="flex-1 overflow-y-auto p-4"
         >
           <div className="py-4">
             {messages.length === 0 && (
@@ -952,51 +969,62 @@ export function AIChatPanel({
       )}
       
       {/* Input Area - Always visible at bottom */}
-      <div className="flex-shrink-0 border-t p-4 bg-card">
-        {/* Selection Confirmation Display - GitHub Copilot style */}
+      <div className="sticky bottom-0 p-3 border-t bg-background">
+        {/* Selection Confirmation Display */}
         {selectedTextDisplay && (
-          <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-md text-xs flex items-center justify-between">
-            <div className="flex items-center gap-2 text-blue-700">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          <div className="mb-3 p-2 bg-muted border border-border rounded-md text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="w-2 h-2 bg-primary rounded-full"></div>
               <span className="font-medium">
-                {selectedTextDisplay.split('\n').filter(line => line.trim().length > 0).length === 1 
-                  ? `Selected: "${selectedTextDisplay.trim().slice(0, 50)}${selectedTextDisplay.trim().length > 50 ? '...' : ''}"`
-                  : `Selected ${selectedTextDisplay.split('\n').filter(line => line.trim().length > 0).length} lines`
-                }
+                {(() => {
+                  const safeText = String(selectedTextDisplay ?? '')
+                  const lines = safeText.split('\n').filter(line => String(line ?? '').trim().length > 0)
+                  return lines.length === 1 
+                    ? `Selected: "${safeText.trim().slice(0, 50)}${safeText.trim().length > 50 ? '...' : ''}"`
+                    : `Selected ${lines.length} lines`
+                })()}
               </span>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleClearSelection}
-              className="h-5 w-5 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+              className="h-5 w-5 p-0"
             >
               <X className="h-3 w-3" />
             </Button>
           </div>
         )}
         
-        <div className="flex space-x-3 bg-white border-t border-orange-200 p-4">
-          <Input
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Ask LaTeXAI to help with your document..."
-            disabled={isLoading}
-            className="flex-1 border-orange-200 focus:border-orange-400 focus:ring-orange-200"
-          />
-          <Button 
-            onClick={handleSendMessage} 
+        <div className="flex items-end gap-2">
+          <div className="flex-1 rounded-2xl border border-border bg-card">
+            <textarea
+              ref={textareaRef}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder="Ask LaTeXAI to help with your document..."
+              disabled={isLoading}
+              className="w-full resize-none bg-transparent px-4 py-3 outline-none
+                         placeholder:text-muted-foreground text-sm max-h-48 min-h-[44px]
+                         scrollbar-thin"
+            />
+          </div>
+          <button
+            onClick={handleSendMessage}
             disabled={isLoading || !inputValue.trim()}
-            size="sm"
-            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-md px-4"
+            className="h-10 w-10 shrink-0 rounded-xl text-white disabled:opacity-50
+                       bg-gradient-to-r from-rose-400 to-orange-400
+                       hover:from-rose-500 hover:to-orange-500 focus:outline-none
+                       focus:ring-2 focus:ring-rose-300"
+            aria-label="Send"
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />
             )}
-          </Button>
+          </button>
         </div>
       </div>
     </div>
