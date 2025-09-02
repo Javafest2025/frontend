@@ -24,10 +24,11 @@ import type { Paper } from "@/types/websearch"
 interface PapersSelectorProps {
   projectId: string
   onPapersLoad?: (papers: Paper[]) => void
+  onOpenPaper?: (paper: Paper) => void
   className?: string
 }
 
-export function PapersSelector({ projectId, onPapersLoad, className }: PapersSelectorProps) {
+export function PapersSelector({ projectId, onPapersLoad, onOpenPaper, className }: PapersSelectorProps) {
   const [allPapers, setAllPapers] = useState<Paper[]>([])
   const [contextPapers, setContextPapers] = useState<Paper[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -289,9 +290,15 @@ export function PapersSelector({ projectId, onPapersLoad, className }: PapersSel
                     <div
                       key={paper.id}
                       className={cn(
-                        "p-2 rounded-md border bg-accent/30 border-primary/50 relative",
-                        isRemoving && "opacity-50"
+                        "p-2 rounded-md border bg-accent/30 border-primary/50 relative cursor-pointer hover:bg-accent/50 transition-colors",
+                        isRemoving && "opacity-50 cursor-not-allowed"
                       )}
+                      onClick={() => {
+                        if (!isRemoving && onOpenPaper) {
+                          onOpenPaper(paper);
+                        }
+                      }}
+                      title={onOpenPaper ? "Click to open PDF in editor" : ""}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
@@ -314,15 +321,20 @@ export function PapersSelector({ projectId, onPapersLoad, className }: PapersSel
                           </div>
                         </div>
                         
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                          onClick={() => handleRemovePaper(paper.id)}
-                          disabled={isRemoving}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent triggering the paper click
+                              handleRemovePaper(paper.id);
+                            }}
+                            disabled={isRemoving}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                       
                       {isRemoving && (
@@ -422,7 +434,7 @@ export function PapersSelector({ projectId, onPapersLoad, className }: PapersSel
                             </div>
                             
                             {paper.pdfUrl && (
-                              <div className="mt-2">
+                              <div className="mt-2 flex gap-2">
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -432,6 +444,18 @@ export function PapersSelector({ projectId, onPapersLoad, className }: PapersSel
                                   <ExternalLink className="h-3 w-3 mr-1" />
                                   PDF
                                 </Button>
+                                
+                                {onOpenPaper && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={() => onOpenPaper(paper)}
+                                  >
+                                    <FileText className="h-3 w-3 mr-1" />
+                                    Open
+                                  </Button>
+                                )}
                               </div>
                             )}
                           </div>

@@ -39,8 +39,13 @@ import { latexApi } from "@/lib/api/latex-service"
 import { AIChatPanel } from "@/components/latex/AIChatPanel"
 import { AIAssistancePanel } from "@/components/latex/AIAssistancePanel"
 import { LaTeXPDFViewer } from "@/components/latex/LaTeXPDFViewer"
+import PDFViewer from "@/components/latex/PDFViewer"
 import { EnhancedLatexEditor } from "@/components/latex/EnhancedLatexEditor"
 import { PapersSelector } from "@/components/latex/PapersSelector"
+import { CenterTabs } from "@/components/latex/CenterTabs"
+import { TabProviderWrapper } from "@/components/latex/TabProviderWrapper"
+import type { OpenItem, TabViewState } from "@/types/tabs"
+import type { Paper } from "@/types/websearch"
 
 interface Project {
   id: string
@@ -97,7 +102,10 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   
   // Papers Context State
   const [selectedPapers, setSelectedPapers] = useState<any[]>([])
-  
+  const [handleOpenPaper, setHandleOpenPaper] = useState<((paper: Paper) => void) | null>(null)
+
+  // Tab System State (will be managed by TabProvider)
+  const [initialTexItem, setInitialTexItem] = useState<OpenItem | null>(null)
   // Sidebar Collapse State
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true)
 
@@ -338,6 +346,16 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       console.error('Save failed:', error)
     }
   }, [currentDocument?.id, editorContent])
+
+  // Callback to receive the openPaper function from TabProvider context
+  const onHandleOpenPaper = useCallback((openPaperFn: (paper: Paper) => void) => {
+    setHandleOpenPaper(() => openPaperFn);
+  }, [])
+
+  const handlePapersLoad = useCallback((papers: any[]) => {
+    setSelectedPapers(papers.filter(paper => paper.isLatexContext))
+    console.log('Papers loaded for LaTeX context:', papers.filter(paper => paper.isLatexContext).length)
+  }, [])
 
   // Test if PDF blob is valid
   const testPdfBlob = useCallback(async (blob: Blob): Promise<boolean> => {
@@ -612,11 +630,34 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     setPositionMarkers([])
   }
 
-  // Papers handler
-  const handlePapersLoad = (papers: any[]) => {
-    setSelectedPapers(papers.filter(paper => paper.isLatexContext))
-    console.log('Papers loaded for LaTeX context:', papers.filter(paper => paper.isLatexContext).length)
+  const handlePDFSelectionToChat = (text: string) => {
+    // Handle PDF text selection the same way as editor selection
+    console.log('PDF text selected for chat:', text)
+    setSelectedText({ text, from: 0, to: text.length })
+    setSelectionAddedToChat(true)
+    
+    // Switch to chat tab
+    setTimeout(() => {
+      const rightSidebarTabs = document.querySelector('[data-radix-tabs-trigger][value="chat"]') as HTMLElement
+      if (rightSidebarTabs) {
+        rightSidebarTabs.click()
+      }
+    }, 100)
   }
+
+  // Create initial tex item when currentDocument changes
+  useEffect(() => {
+    if (currentDocument) {
+      const texItem: OpenItem = {
+        id: `tex-${currentDocument.id}`,
+        kind: 'tex',
+        title: currentDocument.title,
+        source: 'document',
+        docId: currentDocument.id
+      }
+      setInitialTexItem(texItem)
+    }
+  }, [currentDocument])
 
   // Inline diff preview handlers
   const handlePreviewInlineDiff = (previews: Array<{
@@ -1379,29 +1420,30 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          
-          {/* Left Sidebar - Project Explorer */}
-          <ResizablePanel defaultSize={14} minSize={12} maxSize={20}>
-            <div className="h-full flex flex-col bg-card border-r border-border">
-              <div className="p-2 border-b border-border">
-                <h3 className="font-medium text-sm mb-1">Project</h3>
-                <div className="p-1.5 rounded-md bg-accent">
-                  <div className="flex items-center space-x-2">
-                    <Folder className="h-4 w-4" />
-                    <span className="truncate text-sm">{project?.name}</span>
+            
+            {/* Left Sidebar - Project Explorer */}
+            <ResizablePanel defaultSize={14} minSize={12} maxSize={20}>
+              <div className="h-full flex flex-col bg-card border-r border-border">
+                <div className="p-2 border-b border-border">
+                  <h3 className="font-medium text-sm mb-1">Project</h3>
+                  <div className="p-1.5 rounded-md bg-accent">
+                    <div className="flex items-center space-x-2">
+                      <Folder className="h-4 w-4" />
+                      <span className="truncate text-sm">{project?.name}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              <div className="flex-1 flex flex-col">
-                {/* Papers Section */}
-                <div className="flex-shrink-0">
-                  <PapersSelector 
-                    projectId={projectId}
-                    onPapersLoad={handlePapersLoad}
-                    className="h-64 border-b border-border"
-                  />
-                </div>
+                
+                <div className="flex-1 flex flex-col">
+                  {/* Papers Section */}
+                  <div className="flex-shrink-0">
+                    <PapersSelector 
+                      projectId={projectId}
+                      onPapersLoad={handlePapersLoad}
+                      onOpenPaper={handleOpenPaper || undefined}
+                      className="h-64 border-b border-border"
+                    />
+                  </div>
                 
                 {/* Documents Section */}
                 <div className="flex-1 p-2 min-h-0">
@@ -1501,7 +1543,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
           {/* Center - Editor */}
           <ResizablePanel defaultSize={66} minSize={50}>
             <div className="h-full flex flex-col">
-              {/* Show landing page if no documents, otherwise show editor */}
+              {/* Show landing page if no documents, otherwise show TabProviderWrapper */}
               {documents.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center p-8">
                   <div className="text-center max-w-2xl">
@@ -1566,289 +1608,55 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 flex">
-                  <Tabs defaultValue="editor" className="flex-1 flex flex-col" onValueChange={handleTabChange}>
-                    <div className="flex items-center justify-between mx-4 mt-1 flex-shrink-0">
-                      <TabsList className="w-fit">
-                        <TabsTrigger value="editor">Editor</TabsTrigger>
-                        <TabsTrigger value="preview">Preview</TabsTrigger>
-                        <TabsTrigger value="split">Split</TabsTrigger>
-                      </TabsList>
-                      <div className="flex items-center space-x-2">
-                        {!isViewingVersion ? (
-                          // Initial state: Only show "Check Versions" button
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => navigateToNextVersion()}
-                            disabled={!currentDocument?.id}
-                          >
-                            <ChevronRight className="h-4 w-4 mr-2" />
-                            Check Versions
-                          </Button>
-                        ) : (
-                          // Version viewing state: Show both navigation buttons
-                          <>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => navigateToPreviousVersion()}
-                              disabled={!currentDocument?.id}
-                            >
-                              <ChevronLeft className="h-4 w-4 mr-2" />
-                              Current
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => navigateToNextVersion()}
-                              disabled={!currentDocument?.id}
-                            >
-                              <ChevronRight className="h-4 w-4 mr-2" />
-                              Previously Saved
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                 
-                  <TabsContent value="editor" className="flex-1 m-0 h-full">
-                    <div className="w-full h-full relative">
-                      <EnhancedLatexEditor
-                        value={editorContent}
-                        onChange={(value) => {
-                          setEditorContent(value)
-                          setIsEditing(true)
-                        }}
-                        placeholder="Start writing your LaTeX document..."
-                        className="w-full h-full"
-                        onSelectionChange={handleEditorSelectionChange}
-                        onCursorPositionChange={handleEditorCursorPositionChange}
-                        onSetPositionMarker={handleSetPositionMarker}
-                        onClearPositionMarkers={handleClearPositionMarkers}
-                        onFocusLost={handleEditorFocusLost}
-                        onClick={handleEditorClick}
-                        onBlur={handleEditorBlur}
-                        aiSuggestions={aiSuggestions}
-                        onAcceptSuggestion={handleAcceptAiSuggestion}
-                        onRejectSuggestion={handleRejectAiSuggestion}
-                        inlineDiffPreviews={inlineDiffPreviews}
-                        onAcceptInlineDiff={handleAcceptInlineDiff}
-                        onRejectInlineDiff={handleRejectInlineDiff}
-                        onLastCursorChange={setLastCursorPos}
-                      />
-                      {showAddToChat && (
-                        <div 
-                          className="absolute top-2 right-2 flex space-x-2 z-50"
-                          onMouseDown={(e) => {
-                            // Prevent the editor from losing focus when clicking buttons
-                            e.preventDefault()
-                            e.stopPropagation()
-                          }}
-                        >
-                          <Button
-                            onMouseDown={(e) => {
-                              // Prevent editor focus loss
-                              e.preventDefault()
-                              e.stopPropagation()
-                            }}
-                            onClick={(e) => {
-                              console.log('🚀🚀🚀 === BUTTON CLICK EVENT TRIGGERED === 🚀🚀🚀')
-                              console.log('Event object:', e)
-                              console.log('Button clicked at:', new Date().toISOString())
-                              console.log('Current showAddToChat:', showAddToChat)
-                              console.log('Current tempSelectedText:', tempSelectedText)
-                              
-                              e.preventDefault()
-                              e.stopPropagation()
-                              
-                              console.log('🎯 About to call handleAddToChat function')
-                              handleAddToChat()
-                              console.log('✅ handleAddToChat function call completed')
-                            }}
-                            size="sm"
-                            className="text-xs"
-                          >
-                            Add to Chat
-                          </Button>
-                          <Button
-                            onMouseDown={(e) => {
-                              // Prevent editor focus loss
-                              e.preventDefault()
-                              e.stopPropagation()
-                            }}
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              handleCancelSelection()
-                            }}
-                            variant="outline"
-                            size="sm"
-                            className="text-xs"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      )}
-                      
-                      {/* Floating AI Assistant Button when sidebar is collapsed */}
-                      {isRightSidebarCollapsed && (
-                        <div className="absolute top-2 right-2 z-40">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => setIsRightSidebarCollapsed(false)}
-                            className="shadow-lg"
-                            title="Open AI Assistant"
-                          >
-                            <MessageSquare className="h-4 w-4 mr-2" />
-                            AI Chat
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-                 
-                  <TabsContent value="preview" className="flex-1 m-0">
-                    <div className="border border-border rounded-md m-2 bg-white" style={{ height: 'calc(100vh - 180px)' }}>
-                      <div className="flex items-center justify-between p-2 border-b border-border">
-                        <h3 className="text-sm font-medium">PDF Preview</h3>
-                        {isCompiling && (
-                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                            <RefreshCw className="h-4 w-4 animate-spin" />
-                            <span>Compiling LaTeX to PDF...</span>
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ height: 'calc(100vh - 240px)', overflow: 'auto' }}>
-                        {isCompiling ? (
-                          <div className="flex items-center justify-center h-full">
-                            <div className="text-center">
-                              <RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin" />
-                              <p className="text-muted-foreground">Compiling LaTeX to PDF...</p>
-                              <p className="text-sm text-muted-foreground mt-1">This may take a few seconds</p>
-                            </div>
-                          </div>
-                        ) : pdfPreviewUrl ? (
-                          <LaTeXPDFViewer
-                            documentUrl={pdfPreviewUrl}
-                            documentName="LaTeX Document"
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center h-full text-muted-foreground">
-                            <div className="text-center">
-                              <Eye className="h-8 w-8 mx-auto mb-2" />
-                              <p>Click "Compile" to generate PDF preview</p>
-                              <p className="text-sm mt-1">Your LaTeX will be compiled to PDF for preview</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </TabsContent>
-                 
-                  <TabsContent value="split" className="flex-1 m-0 h-full">
-                    <div className="flex gap-2 w-full h-full">
-                      <div className="flex-1 relative h-full">
-                        <EnhancedLatexEditor
-                          value={editorContent}
-                          onChange={(value) => {
-                            setEditorContent(value)
-                            setIsEditing(true)
-                          }}
-                          placeholder="Start writing your LaTeX document..."
-                          className="w-full h-full"
-                          onSelectionChange={handleEditorSelectionChange}
-                          onCursorPositionChange={handleEditorCursorPositionChange}
-                          onSetPositionMarker={handleSetPositionMarker}
-                          onClearPositionMarkers={handleClearPositionMarkers}
-                          onFocusLost={handleEditorFocusLost}
-                          onClick={handleEditorClick}
-                          onBlur={handleEditorBlur}
-                          onFocus={handleEditorFocus}
-                          aiSuggestions={aiSuggestions}
-                          onAcceptSuggestion={handleAcceptAiSuggestion}
-                          onRejectSuggestion={handleRejectAiSuggestion}
-                          inlineDiffPreviews={inlineDiffPreviews}
-                          onAcceptInlineDiff={handleAcceptInlineDiff}
-                          onRejectInlineDiff={handleRejectInlineDiff}
-                          onLastCursorChange={setLastCursorPos}
-                        />
-                        {showAddToChat && (
-                          <div 
-                            className="absolute top-2 right-2 flex space-x-2 z-50"
-                            onMouseDown={(e) => {
-                              // Prevent the editor from losing focus when clicking buttons
-                              e.preventDefault()
-                              e.stopPropagation()
-                            }}
-                          >
-                            <Button
-                              onMouseDown={(e) => {
-                                // Prevent editor focus loss
-                                e.preventDefault()
-                                e.stopPropagation()
-                              }}
-                              onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                console.log('=== SPLIT VIEW BUTTON CLICKED ===')
-                                console.log('showAddToChat:', showAddToChat)
-                                console.log('tempSelectedText:', tempSelectedText)
-                                handleAddToChat()
-                              }}
-                              size="sm"
-                              className="text-xs"
-                            >
-                              Add to Chat
-                            </Button>
-                            <Button
-                              onMouseDown={(e) => {
-                                // Prevent editor focus loss
-                                e.preventDefault()
-                                e.stopPropagation()
-                              }}
-                              onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                handleCancelSelection()
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="text-xs"
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 border border-border rounded-md bg-white h-full">
-                        <div className="h-full overflow-auto">
-                          {isCompiling ? (
-                            <div className="flex items-center justify-center h-full">
-                              <div className="text-center">
-                                <RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin" />
-                                <p className="text-muted-foreground">Compiling...</p>
-                              </div>
-                            </div>
-                          ) : pdfPreviewUrl ? (
-                            <LaTeXPDFViewer
-                              documentUrl={pdfPreviewUrl}
-                              documentName="LaTeX Document"
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center h-full text-muted-foreground">
-                              <div className="text-center">
-                                <Eye className="h-8 w-8 mx-auto mb-2" />
-                                <p>Click "Compile" to see PDF preview</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                  </Tabs>
+                <TabProviderWrapper
+                  currentDocument={currentDocument}
+                  editorContent={editorContent}
+                  onEditorContentChange={setEditorContent}
+                  isEditing={isEditing}
+                  onIsEditingChange={setIsEditing}
+                  selectedText={selectedText}
+                  onSelectionChange={setSelectedText}
+                  cursorPosition={cursorPosition}
+                  onCursorPositionChange={setCursorPosition}
+                  lastCursorPos={lastCursorPos}
+                  onLastCursorPosChange={setLastCursorPos}
+                  positionMarkers={positionMarkers}
+                  onSetPositionMarker={handleSetPositionMarker}
+                  onClearPositionMarkers={handleClearPositionMarkers}
+                  aiSuggestions={aiSuggestions}
+                  onAcceptSuggestion={handleAcceptAiSuggestion}
+                  onRejectSuggestion={handleRejectAiSuggestion}
+                  inlineDiffPreviews={inlineDiffPreviews}
+                  onAcceptInlineDiff={handleAcceptInlineDiff}
+                  onRejectInlineDiff={handleRejectInlineDiff}
+                  showAddToChat={showAddToChat}
+                  tempSelectedText={tempSelectedText}
+                  onHandleAddToChat={handleAddToChat}
+                  onHandleCancelSelection={handleCancelSelection}
+                  onHandleEditorClick={handleEditorClick}
+                  onHandleEditorBlur={handleEditorBlur}
+                  onHandleEditorFocus={handleEditorFocus}
+                  onHandleEditorFocusLost={() => handleEditorFocusLost({ cursorPosition: cursorPosition || 0 })}
+                  pdfPreviewUrl={pdfPreviewUrl}
+                  isCompiling={isCompiling}
+                  onPDFSelectionToChat={handlePDFSelectionToChat}
+                  onOpenPaperReady={(fn) => setHandleOpenPaper(() => fn)}
+                />
+              )}
+              
+              {/* Floating AI Assistant Button when sidebar is collapsed */}
+              {isRightSidebarCollapsed && currentDocument && (
+                <div className="absolute top-2 right-2 z-40">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setIsRightSidebarCollapsed(false)}
+                    className="shadow-lg"
+                    title="Open AI Assistant"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    AI Chat
+                  </Button>
                 </div>
               )}
             </div>
