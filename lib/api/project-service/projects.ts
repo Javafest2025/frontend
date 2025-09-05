@@ -99,7 +99,7 @@ export const projectsApi = {
     },
 
     // Get project by ID
-    async getProject(id: string): Promise<Project> {
+    async getProject(id: string, silent: boolean = false): Promise<Project> {
         try {
             // Validate project ID before making API call
             const { isValidUUID } = await import("@/lib/utils")
@@ -114,24 +114,38 @@ export const projectsApi = {
                 throw new Error('User not authenticated')
             }
 
-            console.log("🔍 Fetching project:", id)
+            if (!silent) {
+                console.log("🔍 Fetching project:", id)
+            }
             const response = await authenticatedFetch(
                 getMicroserviceUrl("project-service", `/api/v1/projects/${id}?userId=${userData.id}`)
             )
 
-            console.log("📊 Project response status:", response.status, response.statusText)
+            if (!silent) {
+                console.log("📊 Project response status:", response.status, response.statusText)
+            }
 
             if (!response.ok) {
                 const errorText = await response.text()
-                console.error("❌ Project fetch failed:", response.status, errorText)
+                if (!silent) {
+                    console.error("❌ Project fetch failed:", response.status, errorText)
+                }
+                // Provide more specific error messages
+                if (response.status === 404) {
+                    throw new Error(`Project not found or access denied: ${id}`)
+                }
                 throw new Error(`Failed to fetch project: ${response.status} ${response.statusText}`)
             }
 
             const data = await response.json()
-            console.log("✅ Project data received:", data)
+            if (!silent) {
+                console.log("✅ Project data received:", data)
+            }
             return data.data
         } catch (error) {
-            console.error("Get project error:", error)
+            if (!silent) {
+                console.error("Get project error:", error)
+            }
             throw error
         }
     },

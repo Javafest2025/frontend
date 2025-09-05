@@ -11,6 +11,23 @@ export default function InterfaceLayout({
 }: {
     children: React.ReactNode
 }) {
+    const pathname = usePathname()
+
+    // Check if we're on the summary page - render without main layout
+    const isSummaryPage = pathname.includes('/summary')
+
+    if (isSummaryPage) {
+        return (
+            <SettingsProvider>
+                <TooltipProvider>
+                    <ProtectedRoute>
+                        {children}
+                    </ProtectedRoute>
+                </TooltipProvider>
+            </SettingsProvider>
+        )
+    }
+
     return (
         <SettingsProvider>
             <TooltipProvider>

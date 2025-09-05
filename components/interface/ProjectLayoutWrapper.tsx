@@ -11,13 +11,20 @@ interface ProjectLayoutWrapperProps {
 
 export function ProjectLayoutWrapper({ children, projectId }: ProjectLayoutWrapperProps) {
     const pathname = usePathname()
-    
+
     // Check if we're on the LaTeX editor page
     const isLatexEditorPage = pathname.includes('/latex-editor')
-    
+
+    // Check if we're on the summary page - render without project layout
+    const isSummaryPage = pathname.includes('/summary')
+
+    if (isSummaryPage) {
+        return <>{children}</>
+    }
+
     return (
-        <ProjectLayout 
-            projectId={projectId} 
+        <ProjectLayout
+            projectId={projectId}
             autoCollapseSidebar={isLatexEditorPage}
         >
             {children}

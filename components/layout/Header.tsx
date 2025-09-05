@@ -151,17 +151,31 @@ const getBreadcrumbs = async (pathname: string): Promise<BreadcrumbItem[]> => {
             label = 'Home'
             fullLabel = 'Home'
         } else {
-            // Check if this is a project ID (UUID format)
+            // Check if this is a UUID format
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
             if (uuidRegex.test(segment)) {
-                try {
-                    // Try to fetch project name from API
-                    const { projectsApi } = await import('@/lib/api/project-service')
-                    const project = await projectsApi.getProject(segment)
-                    label = project.name
-                    fullLabel = project.name
-                } catch (error) {
-                    // Fallback to truncated ID if API fails
+                // Determine if this UUID should be treated as a project ID based on URL context
+                const isProjectContext = i > 0 && segments[i - 1] === 'projects'
+                const isPaperContext = i > 2 && segments[i - 1] === 'library' && segments[i - 2] !== undefined
+
+                if (isProjectContext && !isPaperContext) {
+                    // This is a project ID - try to fetch project name
+                    try {
+                        const { projectsApi } = await import('@/lib/api/project-service')
+                        const project = await projectsApi.getProject(segment, true) // silent = true
+                        label = project.name
+                        fullLabel = project.name
+                    } catch (error) {
+                        // Fallback to truncated ID if API fails (silently handle for breadcrumbs)
+                        label = `${segment.substring(0, 8)}...`
+                        fullLabel = segment
+                    }
+                } else if (isPaperContext) {
+                    // This is a paper ID - just show truncated ID
+                    label = `${segment.substring(0, 8)}...`
+                    fullLabel = segment
+                } else {
+                    // Unknown context - show truncated ID
                     label = `${segment.substring(0, 8)}...`
                     fullLabel = segment
                 }
