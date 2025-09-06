@@ -36,6 +36,25 @@ export interface SummarizationStatus {
     summarizationError?: string;
 }
 
+export interface ExtractedFigureResponse {
+    figureId: string;
+    label: string;
+    caption: string;
+    page: number;
+    imagePath: string;
+    figureType: string;
+    orderIndex: number;
+}
+
+export interface ExtractedTableResponse {
+    tableId: string;
+    label: string;
+    caption: string;
+    page: number;
+    csvPath: string;
+    orderIndex: number;
+}
+
 // Helper function to handle API response
 const handleApiResponse = async <T>(response: Response): Promise<T> => {
     if (!response.ok) {
@@ -143,4 +162,36 @@ export async function getSummarizationStatus(paperId: string): Promise<Summariza
     });
 
     return handleApiResponse<SummarizationStatus>(response);
+}
+
+/**
+ * Get extracted figures for a paper
+ */
+export async function getExtractedFigures(paperId: string): Promise<ExtractedFigureResponse[]> {
+    const url = getMicroserviceUrl("project-service", `/api/v1/extraction/figures/${paperId}`);
+
+    const response = await authenticatedFetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    return handleApiResponse<ExtractedFigureResponse[]>(response);
+}
+
+/**
+ * Get extracted tables for a paper
+ */
+export async function getExtractedTables(paperId: string): Promise<ExtractedTableResponse[]> {
+    const url = getMicroserviceUrl("project-service", `/api/v1/extraction/tables/${paperId}`);
+
+    const response = await authenticatedFetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    return handleApiResponse<ExtractedTableResponse[]>(response);
 }

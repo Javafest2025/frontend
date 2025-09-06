@@ -48,9 +48,15 @@ import {
     isPaperExtracted,
     triggerExtractionForPaper,
     getExtractionStatus,
-    type ExtractionResponse
+    getExtractedFigures,
+    getExtractedTables,
+    type ExtractionResponse,
+    type ExtractedFigureResponse,
+    type ExtractedTableResponse
 } from "@/lib/api/project-service/extraction"
 import type { Paper } from "@/types/websearch"
+import FigureGallery from "@/components/paper/FigureGallery"
+import TableGallery from "@/components/paper/TableGallery"
 
 interface PaperSummaryPageProps {
     params: Promise<{
@@ -75,6 +81,8 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
     const [isDownloading, setIsDownloading] = useState(false)
     const [extractionStatus, setExtractionStatus] = useState<ExtractionResponse | null>(null)
     const [showAllAnchors, setShowAllAnchors] = useState(false)
+    const [figures, setFigures] = useState<ExtractedFigureResponse[]>([])
+    const [tables, setTables] = useState<ExtractedTableResponse[]>([])
 
     // Load paper data and check summary status on mount
     useEffect(() => {
@@ -284,6 +292,29 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
     const handleBack = () => {
         router.push(`/interface/projects/${projectId}/library`)
     }
+
+    const loadGalleryData = async () => {
+        if (!paperId) return
+
+        try {
+            const [figuresData, tablesData] = await Promise.all([
+                getExtractedFigures(paperId),
+                getExtractedTables(paperId)
+            ])
+
+            setFigures(figuresData)
+            setTables(tablesData)
+        } catch (error) {
+            console.error('Error loading gallery data:', error)
+        }
+    }
+
+    // Load gallery data when summary is completed
+    useEffect(() => {
+        if (processingState === 'completed' && paperId) {
+            loadGalleryData()
+        }
+    }, [processingState, paperId])
 
 
     // Loading states
@@ -1479,6 +1510,26 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
                                             )}
                                         </CardContent>
                                     </Card>
+                                </motion.div>
+                            )}
+
+                            {/* Paper Galleries Section */}
+                            {processingState === 'completed' && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.4 }}
+                                    className="space-y-12 mt-12"
+                                >
+                                    {/* Figures Gallery */}
+                                    <div className="bg-white/50 dark:bg-gray-900/50 rounded-2xl p-8">
+                                        <FigureGallery figures={figures} paperId={paperId} />
+                                    </div>
+
+                                    {/* Tables Gallery */}
+                                    <div className="bg-white/50 dark:bg-gray-900/50 rounded-2xl p-8">
+                                        <TableGallery tables={tables} paperId={paperId} />
+                                    </div>
                                 </motion.div>
                             )}
                         </motion.div>
