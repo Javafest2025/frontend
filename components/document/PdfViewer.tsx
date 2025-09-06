@@ -132,6 +132,15 @@ export function PDFViewer({ documentUrl, documentName = "Document", paperId }: P
   // Floating add-to-chat button for selected text
   const [selectionText, setSelectionText] = useState('')
   const [selectionPos, setSelectionPos] = useState<{ x: number; y: number } | null>(null)
+  
+  // Selected text context for chat
+  const [selectedTextForChat, setSelectedTextForChat] = useState<{
+    text: string
+    from: number
+    to: number
+    pageNumber?: number
+    sectionTitle?: string
+  } | null>(null)
 
   // Chat metadata and resizing
   const [chatName, setChatName] = useState('New Chat')
@@ -1088,7 +1097,20 @@ export function PDFViewer({ documentUrl, documentName = "Document", paperId }: P
           style={{ top: selectionPos.y + window.scrollY + 8, left: selectionPos.x + window.scrollX + 8 }}
           className="fixed z-50 flex items-center gap-1 px-2 py-1 rounded-md bg-primary text-primary-foreground text-xs shadow hover:bg-primary/90"
           onClick={() => {
-            setExternalContexts((ctx) => [...ctx, selectionText])
+            // Set selected text for chat context
+            const selection = window.getSelection()
+            if (selection && selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0)
+              setSelectedTextForChat({
+                text: selectionText,
+                from: range.startOffset,
+                to: range.endOffset,
+                pageNumber: currentPage + 1, // Convert 0-based to 1-based
+                sectionTitle: undefined // Could be enhanced to detect section
+              })
+            }
+            
+            // Clear selection and show chat
             window.getSelection()?.removeAllRanges()
             setSelectionPos(null)
             setShowChat(true)
@@ -1287,6 +1309,8 @@ export function PDFViewer({ documentUrl, documentName = "Document", paperId }: P
           isExtracting={isExtracting}
           extractionStatus={extractionStatus}
           extractionError={extractionError}
+          selectedText={selectedTextForChat}
+          onClearSelectedText={() => setSelectedTextForChat(null)}
         />
       </div>
 

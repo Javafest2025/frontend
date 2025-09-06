@@ -11,6 +11,13 @@ export interface ChatRequest {
   message: string;
   sessionId?: string; // Will be converted to UUID on backend
   sessionTitle?: string;
+  selectedText?: string; // Add selected text context
+  selectionContext?: {
+    from: number;
+    to: number;
+    pageNumber?: number;
+    sectionTitle?: string;
+  };
 }
 
 export interface ChatResponse {
@@ -19,6 +26,14 @@ export interface ChatResponse {
   timestamp: string; // LocalDateTime from backend, received as string in JSON
   success: boolean;
   error?: string;
+  context?: {
+    sectionsUsed: string[];
+    figuresReferenced: string[];
+    tablesReferenced: string[];
+    equationsUsed: string[];
+    confidenceScore: number;
+    contentSources: string[];
+  };
 }
 
 export interface ChatMessage {
@@ -43,13 +58,22 @@ export const chatWithPaper = async (
   paperId: string,
   message: string,
   sessionId?: string,
-  sessionTitle?: string
+  sessionTitle?: string,
+  selectedText?: string,
+  selectionContext?: {
+    from: number;
+    to: number;
+    pageNumber?: number;
+    sectionTitle?: string;
+  }
 ): Promise<ChatResponse> => {
   try {
     const chatRequest: ChatRequest = {
       message,
       sessionId,
       sessionTitle,
+      selectedText,
+      selectionContext,
     };
 
     const response = await authenticatedFetch(
