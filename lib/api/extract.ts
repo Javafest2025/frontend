@@ -1,12 +1,15 @@
 import { getApiUrl } from "@/lib/config/api-config";
 
 export async function extractPaper(paperId: string) {
-    const url = getApiUrl(`/api/test/extraction/papers/${paperId}/extract`);
+    const url = getApiUrl(`/api/v1/extraction/trigger`);
     const response = await fetch(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+            paperId: paperId
+        })
     });
     if (!response.ok) {
         throw new Error(`Failed to extract paper: ${response.status}`);

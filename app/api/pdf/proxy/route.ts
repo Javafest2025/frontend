@@ -35,6 +35,11 @@ export async function GET(request: NextRequest) {
             'journals.plos.org',
             'www.biorxiv.org',
             'www.medrxiv.org',
+            // NCBI/PMC medical research repositories
+            'www.ncbi.nlm.nih.gov',
+            'ncbi.nlm.nih.gov',
+            'europepmc.org',
+            'www.europepmc.org',
             // Backblaze B2 domains for uploaded PDFs
             'f003.backblazeb2.com',
             'f004.backblazeb2.com',
@@ -66,6 +71,7 @@ export async function GET(request: NextRequest) {
 
         // Check if it's a B2 URL and handle accordingly
         const isB2Url = pdfUrl.hostname.startsWith('f') && pdfUrl.hostname.endsWith('.backblazeb2.com')
+        const isPMCUrl = pdfUrl.hostname.includes('ncbi.nlm.nih.gov')
         
         // Fetch the PDF with appropriate headers
         const response = await fetch(url, {
@@ -77,12 +83,20 @@ export async function GET(request: NextRequest) {
                 ...(isB2Url && {
                     'Cache-Control': 'no-cache',
                     'Pragma': 'no-cache'
+                }),
+                // Add specific headers for PMC URLs
+                ...(isPMCUrl && {
+                    'Accept': 'application/pdf,application/octet-stream,*/*',
+                    'Accept-Language': 'en-US,en;q=0.9'
                 })
             },
+            redirect: 'follow', // Follow redirects for PMC and other services
+            method: 'GET'
         })
 
         if (!response.ok) {
             console.error(`Failed to fetch PDF: ${response.status} ${response.statusText}`)
+            console.error(`Final URL after redirects: ${response.url}`)
             
             // Special handling for B2 URLs
             if (isB2Url) {
@@ -90,10 +104,28 @@ export async function GET(request: NextRequest) {
                 console.error(`Response headers:`, Object.fromEntries(response.headers.entries()))
             }
             
+            // Special handling for PMC URLs
+            if (isPMCUrl) {
+                console.error(`PMC URL failed: ${url}`)
+                console.error(`Final redirected URL: ${response.url}`)
+                
+                // Provide helpful error message for PMC
+                if (response.status === 404) {
+                    return NextResponse.json({
+                        error: 'PMC article not found. The article may not exist or PDF may not be available.',
+                        suggestion: 'Try checking the PMC ID or using a different download method.',
+                        url: url,
+                        finalUrl: response.url
+                    }, { status: 404 })
+                }
+            }
+            
             return NextResponse.json({
                 error: `Failed to fetch PDF: ${response.status} ${response.statusText}`,
                 url: url,
-                isB2Url: isB2Url
+                finalUrl: response.url,
+                isB2Url: isB2Url,
+                isPMCUrl: isPMCUrl
             }, { status: response.status })
         }
 

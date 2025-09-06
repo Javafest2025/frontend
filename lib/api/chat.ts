@@ -1,8 +1,8 @@
 import type { APIResponse } from "@/types/project";
 import { getApiUrl } from "@/lib/config/api-config";
 import { authenticatedFetch } from "@/lib/api/user-service";
-// Temporarily disabled extraction dependencies to avoid 404 errors
-// import { hasStructuredFacts, extractPaper } from "@/lib/api/extract";
+// Import extraction service functions
+import { hasStructuredFacts, extractPaper } from "@/lib/api/extract";
 
 /**
  * Chat API Request/Response Types - Must match backend DTOs exactly
@@ -148,16 +148,32 @@ export const checkPaperChatReadiness = async (paperId: string): Promise<{
   isReady: boolean;
   needsExtraction: boolean;
 }> => {
-  // Temporarily assume chat is always ready since extraction service is unavailable
-  console.log("Extraction service temporarily disabled - assuming chat is ready");
-  return { isReady: true, needsExtraction: false };
+  try {
+    // Check if paper has structured facts (extraction completed)
+    const hasStructuredData = await hasStructuredFacts(paperId);
+    
+    if (hasStructuredData.hasStructuredData) {
+      return { isReady: true, needsExtraction: false };
+    } else {
+      return { isReady: false, needsExtraction: true };
+    }
+  } catch (error) {
+    console.error("Error checking paper chat readiness:", error);
+    // Assume extraction is needed if we can't check
+    return { isReady: false, needsExtraction: true };
+  }
 };
 
 /**
  * Extract paper and wait for completion
  */
 export const extractPaperForChat = async (paperId: string): Promise<void> => {
-  // Temporarily disabled extraction functionality
-  console.log("Extraction service temporarily disabled - skipping extraction");
-  // No-op function to maintain API compatibility
+  try {
+    console.log(`🔄 Starting extraction for paper: ${paperId}`);
+    await extractPaper(paperId);
+    console.log(`✅ Extraction initiated for paper: ${paperId}`);
+  } catch (error) {
+    console.error(`❌ Failed to extract paper ${paperId}:`, error);
+    throw new Error(`Failed to extract paper: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 };

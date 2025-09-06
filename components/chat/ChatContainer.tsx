@@ -19,9 +19,23 @@ type ChatContainerProps = {
     externalContexts?: string[]
     onExternalContextsCleared?: () => void
     paperId?: string
+    // Extraction status from parent (PDF viewer)
+    isExtracted?: boolean
+    isExtracting?: boolean
+    extractionStatus?: string | null
+    extractionError?: string | null
 }
 
-export function ChatContainer({ onClose, externalContexts = [], onExternalContextsCleared, paperId }: ChatContainerProps) {
+export function ChatContainer({ 
+    onClose, 
+    externalContexts = [], 
+    onExternalContextsCleared, 
+    paperId,
+    isExtracted = false,
+    isExtracting = false,
+    extractionStatus = null,
+    extractionError = null
+}: ChatContainerProps) {
     const [messages, setMessages] = useState<Message[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [chatName, setChatName] = useState("New Chat")
@@ -34,11 +48,10 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
     ])
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
-    // New state for chat readiness
-    const [isChatReady, setIsChatReady] = useState<boolean | null>(null)
-    const [isExtracting, setIsExtracting] = useState(false)
-    const [extractionCountdown, setExtractionCountdown] = useState(60)
-    const [extractionError, setExtractionError] = useState<string | null>(null)
+    // New state for chat readiness - use props from parent (PDF viewer)
+    const isChatReady = isExtracted
+    const currentlyExtracting = isExtracting
+    const currentExtractionError = extractionError
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -48,76 +61,17 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
         scrollToBottom()
     }, [messages])
 
-    // Check chat readiness when paperId changes
+    // Add a welcome message when chat becomes ready
     useEffect(() => {
-        if (paperId) {
-            checkChatReadiness()
-        }
-    }, [paperId])
-
-    // Handle extraction countdown
-    useEffect(() => {
-        let interval: NodeJS.Timeout | null = null
-
-        if (isExtracting && extractionCountdown > 0) {
-            interval = setInterval(() => {
-                setExtractionCountdown(prev => {
-                    if (prev <= 1) {
-                        setIsExtracting(false)
-                        setIsChatReady(true)
-                        return 0
-                    }
-                    return prev - 1
-                })
-            }, 1000)
-        }
-
-        return () => {
-            if (interval) clearInterval(interval)
-        }
-    }, [isExtracting, extractionCountdown])
-
-    const checkChatReadiness = async () => {
-        if (!paperId) return
-
-        try {
-            setIsChatReady(null)
-            setExtractionError(null)
-
-            const readiness = await checkPaperChatReadiness(paperId)
-
-            if (readiness.isReady) {
-                setIsChatReady(true)
-            } else if (readiness.needsExtraction) {
-                // Start extraction process
-                await startExtraction()
+        if (isChatReady && messages.length === 0) {
+            const welcomeMessage: Message = {
+                id: "welcome",
+                role: "assistant",
+                content: "🎉 **Paper successfully extracted and ready for chat!**\n\nI've analyzed the content of this research paper and I'm ready to answer your questions. You can ask me about:\n\n• Key findings and conclusions\n• Methodology and experimental design\n• Related work and citations\n• Specific sections or concepts\n• Comparisons with other research\n\nWhat would you like to know about this paper?"
             }
-        } catch (error) {
-            console.error("Error checking chat readiness:", error)
-            setExtractionError("Failed to check if paper is ready for chat")
+            setMessages([welcomeMessage])
         }
-    }
-
-    const startExtraction = async () => {
-        if (!paperId) return
-
-        try {
-            setIsExtracting(true)
-            setExtractionCountdown(60)
-            setExtractionError(null)
-
-            // Start extraction in background
-            extractPaperForChat(paperId).catch(error => {
-                console.error("Extraction failed:", error)
-                setExtractionError("Failed to extract paper. Please try again.")
-                setIsExtracting(false)
-            })
-        } catch (error) {
-            console.error("Error starting extraction:", error)
-            setExtractionError("Failed to start paper extraction")
-            setIsExtracting(false)
-        }
-    }
+    }, [isChatReady, messages.length])
 
     const handleSend = async (message: string, context?: string[]) => {
         // Don't allow sending if chat is not ready
@@ -277,31 +231,28 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                         {/* Show extraction status when not ready */}
                         {!isChatReady && (
                             <div className="mt-8 px-4">
-                                {isExtracting ? (
+                                {currentlyExtracting ? (
                                     <div className="text-center py-8">
                                         <div className="flex items-center justify-center gap-3 mb-4">
                                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                             <div className="text-lg font-medium">Getting chatbot ready...</div>
                                         </div>
                                         <div className="text-sm text-muted-foreground mb-4">
-                                            Extracting paper content for AI analysis
-                                        </div>
-                                        <div className="text-2xl font-bold text-primary">
-                                            {extractionCountdown}s
+                                            {extractionStatus || "Extracting paper content for AI analysis"}
                                         </div>
                                         <div className="text-xs text-muted-foreground mt-2">
                                             This may take up to 60 seconds
                                         </div>
                                     </div>
-                                ) : extractionError ? (
+                                ) : currentExtractionError ? (
                                     <div className="text-center py-8">
                                         <div className="text-red-500 mb-4">
                                             <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
-                                            <div className="text-sm">{extractionError}</div>
+                                            <div className="text-sm">{currentExtractionError}</div>
                                         </div>
-                                        <Button onClick={startExtraction} variant="outline">
-                                            Try Again
-                                        </Button>
+                                        <div className="text-xs text-muted-foreground mt-2">
+                                            Please try refreshing the page to retry extraction
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="text-center py-8">
