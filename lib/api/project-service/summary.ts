@@ -184,42 +184,89 @@ const handleApiResponse = async <T>(response: Response): Promise<T> => {
 };
 
 /**
- * Generate summary for a paper
+ * Generate summary for a paper with timeout handling and optional abort signal
  */
-export async function generateSummary(paperId: string): Promise<PaperSummaryResponse> {
+export async function generateSummary(
+    paperId: string,
+    timeoutMs: number = 90000,
+    signal?: AbortSignal
+): Promise<PaperSummaryResponse> {
     const url = getMicroserviceUrl("project-service", `/api/v1/papers/${paperId}/summary/generate`);
 
-    const response = await authenticatedFetch(url, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-    });
+    // Create AbortController for timeout
+    const timeoutCtrl = new AbortController();
+    const onTimeout = setTimeout(() => timeoutCtrl.abort(), timeoutMs);
 
-    return handleApiResponse<PaperSummaryResponse>(response);
+    // Combine external signal + timeout
+    const combined = new AbortController();
+    const onAbort = () => combined.abort();
+    signal?.addEventListener("abort", onAbort);
+    timeoutCtrl.signal.addEventListener("abort", onAbort);
+
+    try {
+        const response = await authenticatedFetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            signal: combined.signal,
+        });
+
+        clearTimeout(onTimeout);
+        return handleApiResponse<PaperSummaryResponse>(response);
+    } catch (error) {
+        clearTimeout(onTimeout);
+        signal?.removeEventListener("abort", onAbort);
+
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw new Error(`Summary generation aborted`);
+        }
+
+        throw error;
+    }
 }
 
 /**
- * Regenerate summary for a paper
+ * Regenerate summary for a paper with timeout handling
  */
-export async function regenerateSummary(paperId: string): Promise<PaperSummaryResponse> {
+export async function regenerateSummary(paperId: string, timeoutMs: number = 90000): Promise<PaperSummaryResponse> {
     const url = getMicroserviceUrl("project-service", `/api/v1/papers/${paperId}/summary/regenerate`);
 
-    const response = await authenticatedFetch(url, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-    });
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    return handleApiResponse<PaperSummaryResponse>(response);
+    try {
+        const response = await authenticatedFetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        return handleApiResponse<PaperSummaryResponse>(response);
+    } catch (error) {
+        clearTimeout(timeoutId);
+
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw new Error(`Summary regeneration timed out after ${timeoutMs / 1000} seconds. Please try again.`);
+        }
+
+        throw error;
+    }
 }
 
+
 /**
- * Get summary for a paper
+ * Check if paper is summarized (returns boolean)
  */
-export async function getSummary(paperId: string): Promise<PaperSummaryResponse> {
-    const url = getMicroserviceUrl("project-service", `/api/v1/papers/${paperId}/summary`);
+export async function isPaperSummarized(paperId: string): Promise<boolean> {
+    const url = getMicroserviceUrl("project-service", `/api/v1/papers/${paperId}/summary/summarized`);
+
+    console.log('🔍 Checking if paper is summarized for paperId:', paperId);
+    console.log('🌐 Request URL:', url);
 
     const response = await authenticatedFetch(url, {
         method: "GET",
@@ -227,6 +274,29 @@ export async function getSummary(paperId: string): Promise<PaperSummaryResponse>
             "Content-Type": "application/json",
         },
     });
+
+    console.log('📊 Summarized check response status:', response.status);
+
+    return handleApiResponse<boolean>(response);
+}
+
+/**
+ * Get summary for a paper (only call this if you know the summary exists)
+ */
+export async function getSummary(paperId: string): Promise<PaperSummaryResponse> {
+    const url = getMicroserviceUrl("project-service", `/api/v1/papers/${paperId}/summary`);
+
+    console.log('📄 Fetching summary for paperId:', paperId);
+    console.log('🌐 Request URL:', url);
+
+    const response = await authenticatedFetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    console.log('📊 Summary fetch response status:', response.status);
 
     return handleApiResponse<PaperSummaryResponse>(response);
 }

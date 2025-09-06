@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, use } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -40,10 +40,12 @@ import {
 import { isValidUUID } from "@/lib/utils"
 import { downloadPdfWithAuth } from "@/lib/api/pdf"
 import {
+    isPaperSummarized,
     getSummary,
     generateSummary,
     type PaperSummaryResponse
 } from "@/lib/api/project-service/summary"
+import { singleFlight } from "@/lib/singleflight"
 import {
     isPaperExtracted,
     triggerExtractionForPaper,
@@ -57,6 +59,7 @@ import {
 import type { Paper } from "@/types/websearch"
 import FigureGallery from "@/components/paper/FigureGallery"
 import TableGallery from "@/components/paper/TableGallery"
+import { SummaryShimmer } from "@/components/paper/SummaryShimmer"
 
 interface PaperSummaryPageProps {
     params: Promise<{
@@ -70,28 +73,29 @@ type ProcessingState = 'idle' | 'checking_summary' | 'checking_extraction' | 'ex
 export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const [projectId, setProjectId] = useState<string>("")
-    const [paperId, setPaperId] = useState<string>("")
+    const { id: projectId, paperId } = use(params) as { id: string; paperId: string }
     const [paper, setPaper] = useState<Paper | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [processingState, setProcessingState] = useState<ProcessingState>('idle')
     const [summaryData, setSummaryData] = useState<PaperSummaryResponse | null>(null)
     const [summaryError, setSummaryError] = useState<string | null>(null)
     const [extractionTimer, setExtractionTimer] = useState<number>(60)
+    const [summaryTimer, setSummaryTimer] = useState<number>(90)
     const [isDownloading, setIsDownloading] = useState(false)
     const [extractionStatus, setExtractionStatus] = useState<ExtractionResponse | null>(null)
     const [showAllAnchors, setShowAllAnchors] = useState(false)
     const [figures, setFigures] = useState<ExtractedFigureResponse[]>([])
     const [tables, setTables] = useState<ExtractedTableResponse[]>([])
+    const [galleryLoading, setGalleryLoading] = useState(false)
+    const [galleryError, setGalleryError] = useState<string | null>(null)
+
+    // Guard to prevent duplicate requests in Strict Mode
+    const summarizationStartedRef = useRef(false)
 
     // Load paper data and check summary status on mount
     useEffect(() => {
         const loadData = async () => {
-            const resolvedParams = await params
-
             // Validate project ID format
-            const projectId = resolvedParams.id
-
             if (!isValidUUID(projectId)) {
                 console.error('Invalid project ID format:', projectId)
                 setSummaryError('Invalid project ID format')
@@ -99,13 +103,10 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
                 return
             }
 
-            setProjectId(projectId)
-            setPaperId(resolvedParams.paperId)
-
             try {
                 // Load paper data from URL search parameters
                 const paperData: Paper = {
-                    id: resolvedParams.paperId,
+                    id: paperId,
                     title: searchParams.get('title') || 'Unknown Title',
                     authors: searchParams.get('authors') ? searchParams.get('authors')!.split(', ').map(name => ({ name })) : [],
                     publicationDate: searchParams.get('publicationDate') || '',
@@ -128,9 +129,6 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
                 }
                 setPaper(paperData)
                 setIsLoading(false)
-
-                // Start the summarization flow
-                await startSummarizationFlow(resolvedParams.paperId)
             } catch (error) {
                 console.error('Error loading paper data:', error)
                 setSummaryError('Failed to load paper data')
@@ -138,45 +136,111 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
             }
         }
         loadData()
-    }, [params, searchParams])
+    }, [projectId, paperId, searchParams])
+
+    // Start summarization flow with useRef guard to prevent Strict Mode duplicates
+    useEffect(() => {
+        const run = async () => {
+            if (!paperId) return;
+
+            // Prevent duplicate requests in Strict Mode
+            if (summarizationStartedRef.current) return;
+            summarizationStartedRef.current = true;
+
+            const key = `summary-started:${paperId}`;
+            if (sessionStorage.getItem(key) === '1') return; // already kicked in this tab
+
+            sessionStorage.setItem(key, '1');
+            await startSummarizationFlow(paperId);
+        };
+        run();
+    }, [paperId]);
+
+    // Track ongoing requests to prevent duplicates
+    const [ongoingRequest, setOngoingRequest] = useState<string | null>(null)
 
     // Main summarization flow
-    const startSummarizationFlow = async (paperId: string) => {
+    const startSummarizationFlow = async (paperId: string, signal?: AbortSignal) => {
+        // Prevent duplicate requests for the same paper
+        if (ongoingRequest === paperId) {
+            console.log('Request already in progress for paperId:', paperId)
+            return
+        }
+
         try {
+            setOngoingRequest(paperId)
             setProcessingState('checking_summary')
 
             // Step 1: Check if summary already exists
-            try {
-                const summary = await getSummary(paperId)
-                setSummaryData(summary)
+            const isSummarized = await isPaperSummarized(paperId)
+            if (isSummarized) {
+                console.log('Paper is already summarized, fetching summary')
+                const existingSummary = await getSummary(paperId)
+                setSummaryData(existingSummary)
                 setProcessingState('completed')
+                setOngoingRequest(null)
                 return
-            } catch (error) {
-                // Summary doesn't exist, continue to next step
-                console.log('No existing summary found, proceeding with generation')
             }
+
+            console.log('Paper is not summarized, proceeding with generation')
 
             setProcessingState('checking_extraction')
 
             // Step 2: Check if paper is extracted
-            const isExtracted = await isPaperExtracted(paperId)
+            try {
+                const isExtracted = await isPaperExtracted(paperId)
+                console.log('Paper extraction status:', isExtracted)
 
-            if (!isExtracted) {
-                setProcessingState('extracting')
-                await triggerExtractionAndWait(paperId)
+                if (!isExtracted) {
+                    setProcessingState('extracting')
+                    await triggerExtractionAndWait(paperId)
+                }
+            } catch (error) {
+                console.error('Error checking extraction status:', error)
+                // Continue with generation even if extraction check fails
+                console.log('Continuing with summary generation despite extraction check error')
             }
 
             setProcessingState('generating_summary')
 
-            // Step 3: Generate summary
-            const summary = await generateSummary(paperId)
-            setSummaryData(summary)
-            setProcessingState('completed')
+            // Start summary timer
+            setSummaryTimer(90)
+            const summaryTimerInterval = setInterval(() => {
+                setSummaryTimer(prev => {
+                    if (prev <= 1) {
+                        clearInterval(summaryTimerInterval)
+                        return 0
+                    }
+                    return prev - 1
+                })
+            }, 1000)
+
+            try {
+                // Step 3: Generate summary with timeout and single-flight protection
+                console.log('Starting summary generation for paperId:', paperId)
+                const summary = await singleFlight(
+                    `summarize:${paperId}`,
+                    () => generateSummary(paperId, 90000, signal)
+                )
+                clearInterval(summaryTimerInterval)
+                setSummaryTimer(0)
+                console.log('Summary generated successfully for paperId:', paperId)
+                setSummaryData(summary)
+                setProcessingState('completed')
+                setOngoingRequest(null)
+            } catch (error) {
+                clearInterval(summaryTimerInterval)
+                setSummaryTimer(0)
+                console.error('Error generating summary for paperId:', paperId, error)
+                setOngoingRequest(null)
+                throw error
+            }
 
         } catch (error) {
             console.error('Error in summarization flow:', error)
             setSummaryError(error instanceof Error ? error.message : 'Failed to generate summary')
             setProcessingState('error')
+            setOngoingRequest(null)
         }
     }
 
@@ -264,11 +328,27 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
         setProcessingState('generating_summary')
         setSummaryError(null)
 
+        // Start summary timer
+        setSummaryTimer(90)
+        const summaryTimerInterval = setInterval(() => {
+            setSummaryTimer(prev => {
+                if (prev <= 1) {
+                    clearInterval(summaryTimerInterval)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
         try {
-            const summary = await generateSummary(paperId)
+            const summary = await generateSummary(paperId, 90000) // 90 second timeout
+            clearInterval(summaryTimerInterval)
+            setSummaryTimer(0)
             setSummaryData(summary)
             setProcessingState('completed')
         } catch (error) {
+            clearInterval(summaryTimerInterval)
+            setSummaryTimer(0)
             console.error('Error regenerating summary:', error)
             setSummaryError(error instanceof Error ? error.message : 'Failed to regenerate summary')
             setProcessingState('error')
@@ -296,25 +376,40 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
     const loadGalleryData = async () => {
         if (!paperId) return
 
+        setGalleryLoading(true)
+        setGalleryError(null)
+
         try {
+            console.log('Loading gallery data for paperId:', paperId)
             const [figuresData, tablesData] = await Promise.all([
                 getExtractedFigures(paperId),
                 getExtractedTables(paperId)
             ])
 
+            console.log('Gallery data loaded:', { figures: figuresData.length, tables: tablesData.length })
             setFigures(figuresData)
             setTables(tablesData)
         } catch (error) {
             console.error('Error loading gallery data:', error)
+            setGalleryError(error instanceof Error ? error.message : 'Failed to load gallery data')
+            // Set empty arrays on error to prevent undefined issues
+            setFigures([])
+            setTables([])
+        } finally {
+            setGalleryLoading(false)
         }
     }
 
-    // Load gallery data when summary is completed
+    const handleRetryGallery = () => {
+        loadGalleryData()
+    }
+
+    // Load gallery data when summary is completed OR when we have summary data
     useEffect(() => {
-        if (processingState === 'completed' && paperId) {
+        if ((processingState === 'completed' || summaryData) && paperId) {
             loadGalleryData()
         }
-    }, [processingState, paperId])
+    }, [processingState, summaryData, paperId])
 
 
     // Loading states
@@ -390,33 +485,67 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
 
         if (processingState === 'generating_summary') {
             return (
-                <div className="min-h-screen bg-background flex items-center justify-center">
-                    <div className="text-center max-w-md">
-                        <div className="relative mb-6">
-                            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center">
-                                <Brain className="h-10 w-10 text-white animate-pulse" />
+                <div className="min-h-screen bg-background overflow-y-auto">
+                    {/* Sticky Action Bar */}
+                    <div className="sticky top-0 z-50">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="mx-4 mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-background/80 backdrop-blur-xl border border-border/50 rounded-lg px-4 py-2 shadow-lg"
+                        >
+                            <div className="flex items-center space-x-4">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={handleBack}
+                                    className="h-12 w-12 rounded-full hover:bg-muted/50 transition-all duration-200 hover:scale-110 hover:shadow-md hover:bg-accent/20"
+                                >
+                                    <ArrowLeft className="h-6 w-6" />
+                                </Button>
+                                <div>
+                                    <h1 className="text-sm font-medium text-muted-foreground">Paper Summary</h1>
+                                    <p className="text-lg font-bold">AI Summary</p>
+                                </div>
                             </div>
-                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                                <Zap className="h-4 w-4 text-white animate-spin" />
+
+                            {/* Subtle Loading Indicator */}
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Brain className="h-4 w-4 text-blue-500 animate-pulse" />
+                                <span>Generating...</span>
+                                <div className="flex items-center gap-1">
+                                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+                                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                                </div>
                             </div>
-                        </div>
-                        <h3 className="text-xl font-semibold mb-2">Generating AI Summary</h3>
-                        <p className="text-muted-foreground mb-4">
-                            Our AI is analyzing the extracted content and generating a comprehensive summary.
-                        </p>
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm">
-                                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                                <span>Analyzing paper structure...</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
-                                <span>Extracting key findings...</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                                <span>Generating summary...</span>
-                            </div>
+                        </motion.div>
+                    </div>
+
+                    {/* Main Content with Shimmer */}
+                    <div className="pt-6 pb-8">
+                        <div className="container mx-auto px-4 py-8 max-w-none">
+                            {/* Paper Title */}
+                            {paper && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.1 }}
+                                    className="text-center mb-12"
+                                >
+                                    <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6 leading-tight max-w-5xl mx-auto">
+                                        {paper.title}
+                                    </h1>
+                                </motion.div>
+                            )}
+
+                            {/* Shimmer Loading - Shows actual content structure */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                            >
+                                <SummaryShimmer />
+                            </motion.div>
                         </div>
                     </div>
                 </div>
@@ -487,14 +616,34 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
                             </Button>
                         )}
 
+                        {summaryData && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleRetryGallery}
+                                disabled={galleryLoading}
+                                className="transition-all duration-200 hover:scale-105 hover:shadow-md hover:bg-accent/20"
+                            >
+                                {galleryLoading ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Database className="mr-2 h-4 w-4" />
+                                )}
+                                <span className="hidden sm:inline">Load Gallery</span>
+                            </Button>
+                        )}
+
                         {processingState === 'error' && (
                             <Button
                                 size="sm"
-                                className="bg-gradient-to-r from-green-500 to-blue-600 text-white hover:from-green-600/90 hover:to-blue-700/90"
+                                className="bg-gradient-to-r from-green-500 to-blue-600 text-white hover:from-green-600/90 hover:to-blue-700/90 disabled:opacity-50 disabled:cursor-not-allowed"
                                 onClick={() => startSummarizationFlow(paperId)}
+                                disabled={ongoingRequest === paperId}
                             >
-                                <Zap className="mr-2 h-4 w-4" />
-                                <span className="hidden sm:inline">Try Again</span>
+                                <Zap className={`mr-2 h-4 w-4 ${ongoingRequest === paperId ? 'animate-spin' : ''}`} />
+                                <span className="hidden sm:inline">
+                                    {ongoingRequest === paperId ? 'Processing...' : 'Try Again'}
+                                </span>
                             </Button>
                         )}
                     </div>
@@ -1514,7 +1663,7 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
                             )}
 
                             {/* Paper Galleries Section */}
-                            {processingState === 'completed' && (
+                            {summaryData && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -1523,12 +1672,44 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
                                 >
                                     {/* Figures Gallery */}
                                     <div className="bg-white/50 dark:bg-gray-900/50 rounded-2xl p-8">
-                                        <FigureGallery figures={figures} paperId={paperId} />
+                                        {galleryLoading ? (
+                                            <div className="text-center py-8">
+                                                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
+                                                <p className="text-muted-foreground">Loading figures...</p>
+                                            </div>
+                                        ) : galleryError ? (
+                                            <div className="text-center py-8">
+                                                <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-500" />
+                                                <p className="text-red-600 dark:text-red-400 mb-4">Failed to load figures: {galleryError}</p>
+                                                <Button onClick={handleRetryGallery} variant="outline" size="sm">
+                                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                                    Retry
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <FigureGallery figures={figures} paperId={paperId} />
+                                        )}
                                     </div>
 
                                     {/* Tables Gallery */}
                                     <div className="bg-white/50 dark:bg-gray-900/50 rounded-2xl p-8">
-                                        <TableGallery tables={tables} paperId={paperId} />
+                                        {galleryLoading ? (
+                                            <div className="text-center py-8">
+                                                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
+                                                <p className="text-muted-foreground">Loading tables...</p>
+                                            </div>
+                                        ) : galleryError ? (
+                                            <div className="text-center py-8">
+                                                <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-500" />
+                                                <p className="text-red-600 dark:text-red-400 mb-4">Failed to load tables: {galleryError}</p>
+                                                <Button onClick={handleRetryGallery} variant="outline" size="sm">
+                                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                                    Retry
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <TableGallery tables={tables} paperId={paperId} />
+                                        )}
                                     </div>
                                 </motion.div>
                             )}
