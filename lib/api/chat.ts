@@ -44,12 +44,61 @@ export interface ChatMessage {
 }
 
 export interface ChatSession {
-  id: string;
+  sessionId: string;
+  paperId: string;
   title: string;
   createdAt: string;
-  updatedAt: string;
+  lastMessageAt: string;
   messageCount: number;
+  isActive: boolean;
+  lastMessagePreview?: string;
+  isCurrent?: boolean;
 }
+
+/**
+ * Continue chat in an existing session
+ */
+export const continueChatSession = async (
+  paperId: string,
+  sessionId: string,
+  message: string,
+  selectedText?: string,
+  selectionContext?: {
+    from: number;
+    to: number;
+    pageNumber?: number;
+    sectionTitle?: string;
+  }
+): Promise<ChatResponse> => {
+  try {
+    const chatRequest = {
+      message,
+      selectedText,
+      selectionContext,
+    };
+
+    const response = await authenticatedFetch(
+      getApiUrl(`/api/papers/${paperId}/chat/sessions/${sessionId}/messages`),
+      {
+        method: "POST",
+        body: JSON.stringify(chatRequest),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to continue chat");
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Continue chat error:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to continue chat");
+  }
+};
 
 /**
  * Chat with a specific paper (paperId = docId)
@@ -128,12 +177,59 @@ export const getChatMessages = async (
 };
 
 /**
- * Get user's chat sessions
+ * Create a new chat session with initial message
  */
-export const getChatSessions = async (): Promise<ChatSession[]> => {
+export const createChatSession = async (
+  paperId: string,
+  initialMessage: string,
+  customTitle?: string,
+  selectedText?: string,
+  selectionContext?: {
+    from: number;
+    to: number;
+    pageNumber?: number;
+    sectionTitle?: string;
+  }
+): Promise<ChatResponse> => {
+  try {
+    const createSessionRequest = {
+      initialMessage,
+      customTitle,
+      userId: null, // Will be set by backend from auth
+      selectedText,
+      selectionContext,
+    };
+
+    const response = await authenticatedFetch(
+      getApiUrl(`/api/papers/${paperId}/chat/sessions`),
+      {
+        method: "POST",
+        body: JSON.stringify(createSessionRequest),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to create chat session");
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Create chat session error:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to create chat session");
+  }
+};
+
+/**
+ * Get user's chat sessions for a paper
+ */
+export const getChatSessions = async (paperId: string): Promise<ChatSession[]> => {
   try {
     const response = await authenticatedFetch(
-      getApiUrl("/api/papers/chat/sessions")
+      getApiUrl(`/api/papers/${paperId}/chat/sessions`)
     );
 
     if (!response.ok) {
@@ -141,8 +237,8 @@ export const getChatSessions = async (): Promise<ChatSession[]> => {
       throw new Error(error.message || "Failed to get chat sessions");
     }
 
-    const result: APIResponse<ChatSession[]> = await response.json();
-    return result.data;
+    const result = await response.json();
+    return Array.isArray(result) ? result : result.data || [];
   } catch (error) {
     console.error("Chat sessions error:", error);
     throw error instanceof Error
