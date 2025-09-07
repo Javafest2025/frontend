@@ -97,7 +97,30 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
         try {
             setIsLoadingSessions(true)
             const sessions = await getChatSessions(paperId)
-            setChatSessions(sessions)
+            
+            // Sort sessions: latest first, invalid ones at the end
+            const sortedSessions = sessions.sort((a, b) => {
+                // Check if sessions have valid dates
+                const aHasValidDate = a.lastMessageAt && a.lastMessageAt !== "Invalid Date"
+                const bHasValidDate = b.lastMessageAt && b.lastMessageAt !== "Invalid Date"
+                
+                // Invalid sessions go to the end
+                if (!aHasValidDate && bHasValidDate) return 1
+                if (aHasValidDate && !bHasValidDate) return -1
+                if (!aHasValidDate && !bHasValidDate) return 0
+                
+                // For valid sessions, sort by lastMessageAt (latest first)
+                const aTime = new Date(a.lastMessageAt).getTime()
+                const bTime = new Date(b.lastMessageAt).getTime()
+                
+                // If lastMessageAt is invalid, fall back to createdAt
+                const aFallback = isNaN(aTime) ? new Date(a.createdAt).getTime() : aTime
+                const bFallback = isNaN(bTime) ? new Date(b.createdAt).getTime() : bTime
+                
+                return bFallback - aFallback // Latest first (descending order)
+            })
+            
+            setChatSessions(sortedSessions)
         } catch (error) {
             console.error("Failed to load chat sessions:", error)
         } finally {
@@ -326,10 +349,17 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                     externalContexts.join('\n') || undefined
                 )
                 
-                // Set the session ID and update chat name
+                // Set the session ID and update chat name with AI-generated title
                 setCurrentSessionId(response.sessionId)
+                
+                // Update chat name in real-time with AI-generated title
+                if (response.title && response.title.trim() !== '') {
+                    setChatName(response.title)
+                    console.log("✨ Updated chat title to:", response.title)
+                }
+                
                 if (messages.length === 0) {
-                    // This is the first message, reload sessions to get updated title
+                    // This is the first message, reload sessions to get updated title in sidebar
                     setTimeout(() => loadChatSessions(), 1000)
                 }
             }

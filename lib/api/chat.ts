@@ -26,6 +26,7 @@ export interface ChatResponse {
   timestamp: string; // LocalDateTime from backend, received as string in JSON
   success: boolean;
   error?: string;
+  title?: string; // AI-generated session title
   context?: {
     sectionsUsed: string[];
     figuresReferenced: string[];
@@ -220,6 +221,7 @@ export const createChatSession = async (
       sessionId: sessionResult.sessionId,
       response: sessionResult.lastMessagePreview || "Session created successfully",
       timestamp: sessionResult.lastMessageAt || sessionResult.createdAt,
+      title: sessionResult.title, // Include AI-generated title
       success: true,
     };
     
