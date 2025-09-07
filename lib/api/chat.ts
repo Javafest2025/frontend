@@ -213,8 +213,17 @@ export const createChatSession = async (
       throw new Error(error.message || "Failed to create chat session");
     }
 
-    const result = await response.json();
-    return result;
+    const sessionResult = await response.json();
+    
+    // Convert ChatSession response to ChatResponse format for consistency
+    const chatResponse: ChatResponse = {
+      sessionId: sessionResult.sessionId,
+      response: sessionResult.lastMessagePreview || "Session created successfully",
+      timestamp: sessionResult.lastMessageAt || sessionResult.createdAt,
+      success: true,
+    };
+    
+    return chatResponse;
   } catch (error) {
     console.error("Create chat session error:", error);
     throw error instanceof Error
@@ -244,6 +253,41 @@ export const getChatSessions = async (paperId: string): Promise<ChatSession[]> =
     throw error instanceof Error
       ? error
       : new Error("Failed to get chat sessions");
+  }
+};
+
+/**
+ * Get chat session history with all messages
+ */
+export const getChatSessionHistory = async (
+  paperId: string,
+  sessionId: string
+): Promise<{
+  sessionId: string;
+  paperId: string;
+  title: string;
+  messages: ChatMessage[];
+  createdAt: string;
+  lastMessageAt: string;
+  messageCount: number;
+}> => {
+  try {
+    const response = await authenticatedFetch(
+      getApiUrl(`/api/papers/${paperId}/chat/sessions/${sessionId}`)
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to get session history");
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Get session history error:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to get session history");
   }
 };
 

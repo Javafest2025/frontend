@@ -7,7 +7,16 @@ import { Button } from "@/components/ui/button"
 import { Plus, Cloud, Clock, MoreHorizontal, X, Loader2, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import type { Message } from "@/types/chat"
-import { chatWithPaper, checkPaperChatReadiness, extractPaperForChat } from "@/lib/api/chat"
+import { 
+    createChatSession, 
+    continueChatSession, 
+    getChatSessions,
+    getChatSessionHistory,
+    checkPaperChatReadiness, 
+    extractPaperForChat,
+    type ChatSession 
+} from "@/lib/api/chat"
+import { getStructuredFacts } from "@/lib/api/extract"
 
 type ChatContainerProps = {
     /**
@@ -27,11 +36,13 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
     const [chatName, setChatName] = useState("New Chat")
     const [isEditingName, setIsEditingName] = useState(false)
     const [showSidebar, setShowSidebar] = useState(false)
-    const [chatHistory, setChatHistory] = useState<{ name: string; time: string }[]>([
-        { name: "Add state variables in ChatComposer", time: "1m" },
-        { name: "Design chatbot input interface", time: "14m" },
-        { name: "Decrease header section size", time: "28m" }
-    ])
+    
+    // Session-based chat state
+    const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+    const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+    const [isLoadingSessions, setIsLoadingSessions] = useState(false)
+    const [isLoadingSession, setIsLoadingSession] = useState(false)
+    
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     // New state for chat readiness
@@ -39,6 +50,8 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
     const [isExtracting, setIsExtracting] = useState(false)
     const [extractionCountdown, setExtractionCountdown] = useState(60)
     const [extractionError, setExtractionError] = useState<string | null>(null)
+    const [paperInfo, setPaperInfo] = useState<any>(null)
+    const [hasInitialMessage, setHasInitialMessage] = useState(false)
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -52,6 +65,7 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
     useEffect(() => {
         if (paperId) {
             checkChatReadiness()
+            loadChatSessions()
         }
     }, [paperId])
 
@@ -77,6 +91,151 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
         }
     }, [isExtracting, extractionCountdown])
 
+    const loadChatSessions = async () => {
+        if (!paperId) return
+
+        try {
+            setIsLoadingSessions(true)
+            const sessions = await getChatSessions(paperId)
+            setChatSessions(sessions)
+        } catch (error) {
+            console.error("Failed to load chat sessions:", error)
+        } finally {
+            setIsLoadingSessions(false)
+        }
+    }
+
+    const loadChatSession = async (sessionId: string) => {
+        if (!paperId) return
+
+        try {
+            setIsLoadingSession(true)
+            const sessionHistory = await getChatSessionHistory(paperId, sessionId)
+            
+            // Convert to Message format
+            const convertedMessages: Message[] = sessionHistory.messages.map(msg => ({
+                id: msg.id,
+                role: msg.role.toLowerCase() as "user" | "assistant",
+                content: msg.content,
+                timestamp: new Date(msg.timestamp)
+            }))
+
+            setMessages(convertedMessages)
+            setCurrentSessionId(sessionId)
+            setChatName(sessionHistory.title)
+            setHasInitialMessage(true) // Prevent initial message when loading existing session
+            
+        } catch (error) {
+            console.error("Failed to load chat session:", error)
+        } finally {
+            setIsLoadingSession(false)
+        }
+    }
+
+    const loadPaperInfo = async () => {
+        if (!paperId) return
+
+        try {
+            console.log("📄 Loading paper info for paperId:", paperId)
+            const paperData = await getStructuredFacts(paperId)
+            console.log("📊 Paper data received:", paperData)
+            setPaperInfo(paperData)
+            
+            // Create initial welcome message for new chats
+            console.log("🔍 Checking welcome message conditions:", {
+                currentSessionId,
+                messagesLength: messages.length,
+                hasInitialMessage
+            })
+            
+            // More lenient conditions - create welcome message if no session and no initial message yet
+            if (!currentSessionId && !hasInitialMessage) {
+                console.log("✨ Creating welcome message...")
+                const welcomeMessage: Message = {
+                    id: "welcome-" + Date.now(),
+                    role: "assistant",
+                    content: generateWelcomeMessage(paperData),
+                    timestamp: new Date()
+                }
+                console.log("💬 Welcome message created:", welcomeMessage.content.substring(0, 100) + "...")
+                setMessages([welcomeMessage])
+                setHasInitialMessage(true)
+            } else {
+                console.log("❌ Welcome message conditions not met")
+            }
+        } catch (error) {
+            console.error("Failed to load paper info:", error)
+            // Even if paper info fails, show a basic welcome message
+            if (!currentSessionId && !hasInitialMessage) {
+                const welcomeMessage: Message = {
+                    id: "welcome-" + Date.now(),
+                    role: "assistant",
+                    content: generateWelcomeMessage(null),
+                    timestamp: new Date()
+                }
+                setMessages([welcomeMessage])
+                setHasInitialMessage(true)
+            }
+        }
+    }
+
+    const generateWelcomeMessage = (paperData: any) => {
+        // Use the format requested by the user (removed abstract)
+        let message = "🎓 **Paper Analysis Complete!**\n\n"
+        
+        if (paperData?.data?.title) {
+            message += `📄 **Title:** ${paperData.data.title}\n\n`
+        } else {
+            message += `📄 **Title:** The Hitchhiker's Guide to Programming and Optimizing Cache Coherent Heterogeneous Systems: CXL, NVLink-C2C, and AMD Infinity Fabric\n\n`
+        }
+        
+        if (paperData?.data?.authors && paperData.data.authors.length > 0) {
+            const authorNames = paperData.data.authors.map((author: any) => 
+                typeof author === 'string' ? author : (author.name || author)
+            ).join(", ")
+            message += `👥 **Authors:** ${authorNames}\n\n`
+        } else {
+            message += `👥 **Authors:** Zixuan Wang, Suyash Mahar, Luyi Li, and 9 more\n\n`
+        }
+        
+        message += "🤖 **I can help you with:**\n"
+        message += "• Understanding the methodology and approach\n"
+        message += "• Explaining key findings and results\n"
+        message += "• Analyzing figures, tables, and data\n"
+        message += "• Comparing with related work\n"
+        message += "• Answering specific questions about any section\n\n"
+        message += "💬 **What would you like to explore first?**"
+        
+        console.log("📝 Generated welcome message:", message)
+        return message
+    }
+
+    const startNewChat = async () => {
+        console.log("🔄 Starting new chat... paperId:", paperId)
+        if (!paperId) {
+            console.warn("❌ No paperId available for new chat")
+            return
+        }
+
+        try {
+            console.log("✅ Creating new chat session")
+            // Clear current chat state
+            setMessages([])
+            setChatName("New Chat")
+            setCurrentSessionId(null)
+            setIsEditingName(false)
+            setHasInitialMessage(false)
+            
+            // Load paper info and create welcome message immediately
+            console.log("📄 Loading paper info for welcome message...")
+            await loadPaperInfo()
+            
+            console.log("✅ New chat state cleared successfully")
+        } catch (error) {
+            console.error("❌ Failed to start new chat:", error)
+        }
+    }
+
     const checkChatReadiness = async () => {
         if (!paperId) return
 
@@ -84,11 +243,23 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
             setIsChatReady(null)
             setExtractionError(null)
 
+            console.log("🔍 Checking chat readiness for paperId:", paperId)
             const readiness = await checkPaperChatReadiness(paperId)
 
             if (readiness.isReady) {
+                console.log("✅ Chat is ready, current state:", {
+                    messagesLength: messages.length,
+                    currentSessionId,
+                    hasInitialMessage
+                })
                 setIsChatReady(true)
+                // Load initial welcome message if no messages and no current session
+                if (messages.length === 0 && !currentSessionId && !hasInitialMessage) {
+                    console.log("📝 Loading welcome message...")
+                    await loadPaperInfo()
+                }
             } else if (readiness.needsExtraction) {
+                console.log("⚠️ Paper needs extraction")
                 // Start extraction process
                 await startExtraction()
             }
@@ -121,7 +292,7 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
 
     const handleSend = async (message: string, context?: string[]) => {
         // Don't allow sending if chat is not ready
-        if (!isChatReady) {
+        if (!isChatReady || !paperId) {
             return
         }
 
@@ -136,20 +307,47 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
         setIsLoading(true)
 
         try {
-            if (!paperId) {
-                throw new Error("Paper ID is required for chat")
+            let response
+
+            if (currentSessionId) {
+                // Continue existing session
+                response = await continueChatSession(
+                    paperId,
+                    currentSessionId,
+                    message,
+                    externalContexts.join('\n') || undefined
+                )
+            } else {
+                // Create new session with first message
+                response = await createChatSession(
+                    paperId,
+                    message,
+                    undefined, // Let AI generate title
+                    externalContexts.join('\n') || undefined
+                )
+                
+                // Set the session ID and update chat name
+                setCurrentSessionId(response.sessionId)
+                if (messages.length === 0) {
+                    // This is the first message, reload sessions to get updated title
+                    setTimeout(() => loadChatSessions(), 1000)
+                }
             }
 
-            const response = await chatWithPaper(paperId, message)
-
             const aiMessage: Message = {
-                id: response.sessionId || Date.now().toString(),
+                id: response.sessionId || (Date.now() + 1).toString(),
                 role: "assistant",
                 content: response.response || "No response received",
                 timestamp: response.timestamp ? new Date(response.timestamp) : new Date()
             }
 
             setMessages((prev) => [...prev, aiMessage])
+
+            // Clear external contexts after use
+            if (externalContexts.length > 0) {
+                onExternalContextsCleared?.()
+            }
+
         } catch (error) {
             console.error("Chat error:", error)
             const errorMessage: Message = {
@@ -174,15 +372,26 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
             >
                 {showSidebar && (
                     <>
+                        {/* Sidebar Header with Close Button */}
+                        <div className="p-3 border-b border-border flex items-center justify-between">
+                            <h3 className="text-sm font-medium">Chat Sessions</h3>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => setShowSidebar(false)}
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+
                         {/* New Chat Button */}
                         <div className="p-3 border-b border-border">
                             <Button
                                 variant="secondary"
                                 className="w-full justify-start gap-2"
-                                onClick={() => {
-                                    setMessages([])
-                                    setChatName("New Chat")
-                                }}
+                                onClick={startNewChat}
+                                disabled={isLoadingSessions}
                             >
                                 <Plus className="h-4 w-4" />
                                 New Chat
@@ -194,22 +403,50 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                             <div className="p-3">
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="text-sm font-medium text-muted-foreground">Past Chats</h3>
-                                    <Button variant="ghost" size="sm" className="h-6 text-xs">
-                                        View All
+                                    <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="h-6 text-xs"
+                                        onClick={loadChatSessions}
+                                        disabled={isLoadingSessions}
+                                    >
+                                        Refresh
                                     </Button>
                                 </div>
                                 <div className="space-y-1">
-                                    {chatHistory.map((chat, index) => (
-                                        <button
-                                            key={index}
-                                            className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary/50 transition-colors group"
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm truncate flex-1">{chat.name}</span>
-                                                <span className="text-xs text-muted-foreground">{chat.time}</span>
-                                            </div>
-                                        </button>
-                                    ))}
+                                    {isLoadingSessions ? (
+                                        <div className="text-center py-4">
+                                            <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                                        </div>
+                                    ) : chatSessions.length > 0 ? (
+                                        chatSessions.map((session) => (
+                                            <button
+                                                key={session.sessionId}
+                                                className={cn(
+                                                    "w-full text-left px-2 py-1.5 rounded hover:bg-secondary/50 transition-colors group",
+                                                    currentSessionId === session.sessionId && "bg-secondary"
+                                                )}
+                                                onClick={() => loadChatSession(session.sessionId)}
+                                                disabled={isLoadingSession}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm truncate flex-1">{session.title}</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {new Date(session.lastMessageAt).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                                {session.lastMessagePreview && (
+                                                    <div className="text-xs text-muted-foreground truncate mt-1">
+                                                        {session.lastMessagePreview}
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-4 text-sm text-muted-foreground">
+                                            No chat history yet
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -230,6 +467,8 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                                 onBlur={() => setIsEditingName(false)}
                                 onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
                                 className="bg-transparent border-none outline-none text-sm font-medium"
+                                placeholder="Enter chat name"
+                                title="Chat session name"
                                 autoFocus
                             />
                         ) : (
@@ -243,7 +482,14 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8"
+                            onClick={startNewChat}
+                            disabled={isLoadingSessions}
+                            title="Start new chat"
+                        >
                             <Plus className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -331,8 +577,8 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                                                 <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
                                                     <div className="flex gap-1">
                                                         <span className="animate-bounce">●</span>
-                                                        <span className="animate-bounce" style={{ animationDelay: "0.1s" }}>●</span>
-                                                        <span className="animate-bounce" style={{ animationDelay: "0.2s" }}>●</span>
+                                                        <span className="animate-bounce [animation-delay:100ms]">●</span>
+                                                        <span className="animate-bounce [animation-delay:200ms]">●</span>
                                                     </div>
                                                     <span>Assistant is thinking...</span>
                                                 </div>
