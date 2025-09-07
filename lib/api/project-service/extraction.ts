@@ -76,7 +76,23 @@ const handleApiResponse = async <T>(response: Response): Promise<T> => {
     try {
         return await response.json();
     } catch (error) {
-        throw new Error("Invalid JSON response from server");
+        // Try to get the response text to provide more context
+        let responseText = '';
+        try {
+            responseText = await response.text();
+        } catch (textError) {
+            responseText = 'Unable to read response text';
+        }
+
+        // Log the actual response for debugging
+        console.error('Failed to parse JSON response:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: response.url,
+            responseText: responseText.substring(0, 500) // Limit to first 500 chars
+        });
+
+        throw new Error(`Invalid JSON response from server (${response.status} ${response.statusText}). Response: ${responseText.substring(0, 200)}`);
     }
 };
 
@@ -162,6 +178,40 @@ export async function getSummarizationStatus(paperId: string): Promise<Summariza
     });
 
     return handleApiResponse<SummarizationStatus>(response);
+}
+
+/**
+ * Get extraction status only for a paper
+ */
+export async function getExtractionStatusOnly(paperId: string): Promise<string> {
+    const url = getMicroserviceUrl("project-service", `/api/v1/extraction/status-only/${paperId}`);
+
+    const response = await authenticatedFetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    const data = await handleApiResponse<{ status: string }>(response);
+    return data.status;
+}
+
+/**
+ * Get summarization status only for a paper
+ */
+export async function getSummarizationStatusOnly(paperId: string): Promise<string> {
+    const url = getMicroserviceUrl("project-service", `/api/v1/papers/${paperId}/summary/status-only`);
+
+    const response = await authenticatedFetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    const data = await handleApiResponse<{ status: string }>(response);
+    return data.status;
 }
 
 /**

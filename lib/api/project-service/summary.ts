@@ -179,7 +179,23 @@ const handleApiResponse = async <T>(response: Response): Promise<T> => {
     try {
         return await response.json();
     } catch (error) {
-        throw new Error("Invalid JSON response from server");
+        // Try to get the response text to provide more context
+        let responseText = '';
+        try {
+            responseText = await response.text();
+        } catch (textError) {
+            responseText = 'Unable to read response text';
+        }
+
+        // Log the actual response for debugging
+        console.error('Failed to parse JSON response:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: response.url,
+            responseText: responseText.substring(0, 500) // Limit to first 500 chars
+        });
+
+        throw new Error(`Invalid JSON response from server (${response.status} ${response.statusText}). Response: ${responseText.substring(0, 200)}`);
     }
 };
 

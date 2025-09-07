@@ -24,7 +24,6 @@ import {
     Shield,
     CheckCircle,
     XCircle,
-    Timer,
     FileText,
     RefreshCw,
     BarChart3,
@@ -45,6 +44,10 @@ import {
     generateSummary,
     type PaperSummaryResponse
 } from "@/lib/api/project-service/summary"
+import {
+    getExtractionStatusOnly,
+    getSummarizationStatusOnly
+} from "@/lib/api/project-service/extraction"
 import { singleFlight } from "@/lib/singleflight"
 import {
     isPaperExtracted,
@@ -173,18 +176,50 @@ export default function PaperSummaryPage() {
                 return
             }
 
-            console.log('Paper is not summarized, proceeding with generation')
+            console.log('Paper is not summarized, checking status before proceeding')
+
+            // Step 2: Check summarization status - if PROCESSING, wait for completion
+            try {
+                const summarizationStatus = await getSummarizationStatusOnly(paperId)
+                if (summarizationStatus === 'PROCESSING') {
+                    console.log('Summarization already in progress, waiting for completion')
+                    setProcessingState('generating_summary')
+                    await waitForSummarizationCompletion(paperId)
+                    setOngoingRequest(null)
+                    return
+                }
+            } catch (error) {
+                console.error('Error checking summarization status:', error)
+                // Continue with the flow even if status check fails
+                console.log('Continuing with summarization flow despite status check error')
+            }
 
             setProcessingState('checking_extraction')
 
-            // Step 2: Check if paper is extracted
+            // Step 3: Check if paper is extracted
             try {
                 const isExtracted = await isPaperExtracted(paperId)
                 console.log('Paper extraction status:', isExtracted)
 
                 if (!isExtracted) {
-                    setProcessingState('extracting')
-                    await triggerExtractionAndWait(paperId)
+                    // Check extraction status - if PROCESSING, wait for completion
+                    try {
+                        const extractionStatus = await getExtractionStatusOnly(paperId)
+                        if (extractionStatus === 'PROCESSING') {
+                            console.log('Extraction already in progress, waiting for completion')
+                            setProcessingState('extracting')
+                            await waitForExtractionCompletion(paperId)
+                        } else {
+                            setProcessingState('extracting')
+                            await triggerExtractionAndWait(paperId)
+                        }
+                    } catch (error) {
+                        console.error('Error checking extraction status:', error)
+                        // Continue with extraction even if status check fails
+                        console.log('Continuing with extraction despite status check error')
+                        setProcessingState('extracting')
+                        await triggerExtractionAndWait(paperId)
+                    }
                 }
             } catch (error) {
                 console.error('Error checking extraction status:', error)
@@ -207,7 +242,7 @@ export default function PaperSummaryPage() {
             }, 1000)
 
             try {
-                // Step 3: Generate summary with timeout and single-flight protection
+                // Step 4: Generate summary with timeout and single-flight protection
                 console.log('Starting summary generation for paperId:', paperId)
                 const summary = await singleFlight(
                     `summarize:${paperId}`,
@@ -235,14 +270,115 @@ export default function PaperSummaryPage() {
         }
     }
 
+    // Wait for extraction completion
+    const waitForExtractionCompletion = async (paperId: string) => {
+        console.log('Waiting for extraction completion for paperId:', paperId)
+
+        // Start 5-minute timer
+        setExtractionTimer(300)
+        const timerInterval = setInterval(() => {
+            setExtractionTimer(prev => {
+                if (prev <= 1) {
+                    clearInterval(timerInterval)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        // Poll extraction status until completion
+        await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                clearInterval(pollInterval)
+                clearInterval(timerInterval)
+                reject(new Error('Extraction timeout - please try again'))
+            }, 300_000)
+
+            const pollInterval = setInterval(async () => {
+                try {
+                    const status = await getExtractionStatus(paperId)
+                    setExtractionStatus(status)
+
+                    if (status.status === 'COMPLETED') {
+                        clearTimeout(timeout)
+                        clearInterval(pollInterval)
+                        clearInterval(timerInterval)
+                        setExtractionTimer(0)
+                        resolve()
+                    } else if (status.status === 'FAILED') {
+                        clearTimeout(timeout)
+                        clearInterval(pollInterval)
+                        clearInterval(timerInterval)
+                        setExtractionTimer(0)
+                        reject(new Error(status.message || 'Extraction failed'))
+                    }
+                } catch (err) {
+                    clearTimeout(timeout)
+                    clearInterval(pollInterval)
+                    clearInterval(timerInterval)
+                    reject(err instanceof Error ? err : new Error(String(err)))
+                }
+            }, 2000)
+        })
+    }
+
+    // Wait for summarization completion
+    const waitForSummarizationCompletion = async (paperId: string) => {
+        console.log('Waiting for summarization completion for paperId:', paperId)
+
+        // Start 90-second timer
+        setSummaryTimer(90)
+        const timerInterval = setInterval(() => {
+            setSummaryTimer(prev => {
+                if (prev <= 1) {
+                    clearInterval(timerInterval)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        // Poll summarization status until completion
+        await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                clearInterval(pollInterval)
+                clearInterval(timerInterval)
+                reject(new Error('Summarization timeout - please try again'))
+            }, 90_000)
+
+            const pollInterval = setInterval(async () => {
+                try {
+                    const isSummarized = await isPaperSummarized(paperId)
+
+                    if (isSummarized) {
+                        clearTimeout(timeout)
+                        clearInterval(pollInterval)
+                        clearInterval(timerInterval)
+                        setSummaryTimer(0)
+
+                        // Fetch the completed summary
+                        const summary = await getSummary(paperId)
+                        setSummaryData(summary)
+                        resolve()
+                    }
+                } catch (err) {
+                    clearTimeout(timeout)
+                    clearInterval(pollInterval)
+                    clearInterval(timerInterval)
+                    reject(err instanceof Error ? err : new Error(String(err)))
+                }
+            }, 2000)
+        })
+    }
+
     // Trigger extraction and wait for completion
     const triggerExtractionAndWait = async (paperId: string) => {
         // Start extraction
         const extractionResponse = await triggerExtractionForPaper(paperId)
         setExtractionStatus(extractionResponse)
 
-        // Start 60-second timer
-        setExtractionTimer(60)
+        // Start 5-minute timer
+        setExtractionTimer(300)
         const timerInterval = setInterval(() => {
             setExtractionTimer(prev => {
                 if (prev <= 1) {
@@ -259,7 +395,7 @@ export default function PaperSummaryPage() {
                 clearInterval(pollInterval)
                 clearInterval(timerInterval)
                 reject(new Error('Extraction timeout - please try again'))
-            }, 60_000)
+            }, 300_000)
 
             const pollInterval = setInterval(async () => {
                 try {
@@ -378,236 +514,185 @@ export default function PaperSummaryPage() {
     }, [processingState, summaryData, paperId])
 
 
-    // Loading states
+    // Loading states - consistent loading screen regardless of processing state
     const renderLoadingState = () => {
-        if (isLoading) {
-            return (
-                <div className="min-h-screen bg-background flex items-center justify-center">
-                    <div className="text-center">
-                        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-                        <p className="text-muted-foreground">Loading paper summary...</p>
-                    </div>
-                </div>
-            )
-        }
-
-        if (processingState === 'checking_summary') {
-            return (
-                <div className="min-h-screen bg-background flex items-center justify-center">
-                    <div className="text-center">
-                        <Brain className="h-8 w-8 animate-pulse mx-auto mb-4 text-blue-500" />
-                        <p className="text-muted-foreground">Checking for existing summary...</p>
-                    </div>
-                </div>
-            )
-        }
-
-        if (processingState === 'checking_extraction') {
-            return (
-                <div className="min-h-screen bg-background flex items-center justify-center">
-                    <div className="text-center">
-                        <Database className="h-8 w-8 animate-pulse mx-auto mb-4 text-green-500" />
-                        <p className="text-muted-foreground">Checking paper extraction status...</p>
-                    </div>
-                </div>
-            )
-        }
-
-        if (processingState === 'extracting') {
-            return (
-                <div className="min-h-screen bg-background flex items-center justify-center">
-                    <div className="text-center max-w-md">
-                        <div className="relative mb-6">
-                            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-r from-orange-400 to-red-500 flex items-center justify-center">
-                                <Cpu className="h-10 w-10 text-white animate-pulse" />
-                            </div>
-                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                                <Timer className="h-4 w-4 text-white" />
+        // Show the same loading screen for all processing states
+        return (
+            <div className="min-h-screen bg-background overflow-y-auto">
+                {/* Sticky Action Bar */}
+                <div className="sticky top-0 z-50">
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="mx-4 mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-background/80 backdrop-blur-xl border border-border/50 rounded-lg px-4 py-2 shadow-lg"
+                    >
+                        <div className="flex items-center space-x-4">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={handleBack}
+                                className="h-12 w-12 rounded-full hover:bg-muted/50 transition-all duration-200 hover:scale-110 hover:shadow-md hover:bg-accent/20"
+                            >
+                                <ArrowLeft className="h-6 w-6" />
+                            </Button>
+                            <div>
+                                <h1 className="text-sm font-medium text-muted-foreground">Paper Summary</h1>
+                                <p className="text-lg font-bold">AI Summary</p>
                             </div>
                         </div>
-                        <h3 className="text-xl font-semibold mb-2">Paper Extraction Agent is at Work</h3>
-                        <p className="text-muted-foreground mb-4">
-                            Our AI agent is extracting content from your paper. This usually takes 30-60 seconds.
-                        </p>
-                        <div className="bg-muted/50 rounded-lg p-4 mb-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium">Time Remaining</span>
-                                <span className="text-sm font-mono">{extractionTimer}s</span>
-                            </div>
-                            <div className="w-full bg-muted rounded-full h-2">
-                                <div
-                                    className="bg-gradient-to-r from-orange-400 to-red-500 h-2 rounded-full transition-all duration-1000"
-                                    style={{ width: `${(extractionTimer / 60) * 100}%` }}
-                                />
-                            </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            Please wait while we process your paper...
-                        </p>
-                    </div>
-                </div>
-            )
-        }
 
-        if (processingState === 'generating_summary') {
-            return (
-                <div className="min-h-screen bg-background overflow-y-auto">
-                    {/* Sticky Action Bar */}
-                    <div className="sticky top-0 z-50">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="mx-4 mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-background/80 backdrop-blur-xl border border-border/50 rounded-lg px-4 py-2 shadow-lg"
-                        >
-                            <div className="flex items-center space-x-4">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={handleBack}
-                                    className="h-12 w-12 rounded-full hover:bg-muted/50 transition-all duration-200 hover:scale-110 hover:shadow-md hover:bg-accent/20"
-                                >
-                                    <ArrowLeft className="h-6 w-6" />
-                                </Button>
-                                <div>
-                                    <h1 className="text-sm font-medium text-muted-foreground">Paper Summary</h1>
-                                    <p className="text-lg font-bold">AI Summary</p>
+                        {/* Progress Steps with Checkmarks */}
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Brain className="h-4 w-4 text-blue-500 animate-pulse" />
+                                <span>Processing...</span>
+                                <div className="flex items-center gap-1">
+                                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+                                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
                                 </div>
                             </div>
 
-                            {/* Progress Steps with Checkmarks */}
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Brain className="h-4 w-4 text-blue-500 animate-pulse" />
-                                    <span>Generating...</span>
-                                    <div className="flex items-center gap-1">
-                                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
-                                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
-                                    </div>
+                            {/* Progress Steps */}
+                            <div className="flex items-center gap-3 text-xs">
+                                <div className="flex items-center gap-1 text-green-500">
+                                    <CheckCircle className="h-3 w-3" />
+                                    <span>Paper Loaded</span>
                                 </div>
-
-                                {/* Progress Steps */}
-                                <div className="flex items-center gap-3 text-xs">
-                                    <div className="flex items-center gap-1 text-green-500">
+                                <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
+                                <div className={`flex items-center gap-1 ${processingState === 'extracting' || processingState === 'generating_summary' ? 'text-green-500' : 'text-muted-foreground/50'}`}>
+                                    {processingState === 'extracting' || processingState === 'generating_summary' ? (
                                         <CheckCircle className="h-3 w-3" />
-                                        <span>Paper Loaded</span>
-                                    </div>
-                                    <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
-                                    <div className="flex items-center gap-1 text-green-500">
-                                        <CheckCircle className="h-3 w-3" />
-                                        <span>Content Extracted</span>
-                                    </div>
-                                    <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
-                                    <div className="flex items-center gap-1 text-blue-500">
-                                        <div className="w-3 h-3 border-2 border-blue-500 rounded-full animate-spin" />
-                                        <span>AI Analyzing</span>
-                                    </div>
-                                    <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
-                                    <div className="flex items-center gap-1 text-muted-foreground/50">
+                                    ) : (
                                         <div className="w-3 h-3 border border-muted-foreground/30 rounded-full" />
-                                        <span>Generating Summary</span>
+                                    )}
+                                    <span>Content Extracted</span>
+                                </div>
+                                <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
+                                <div className={`flex items-center gap-1 ${processingState === 'generating_summary' ? 'text-blue-500' : 'text-muted-foreground/50'}`}>
+                                    {processingState === 'generating_summary' ? (
+                                        <div className="w-3 h-3 border-2 border-blue-500 rounded-full animate-spin" />
+                                    ) : (
+                                        <div className="w-3 h-3 border border-muted-foreground/30 rounded-full" />
+                                    )}
+                                    <span>AI Analyzing</span>
+                                </div>
+                                <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
+                                <div className="flex items-center gap-1 text-muted-foreground/50">
+                                    <div className="w-3 h-3 border border-muted-foreground/30 rounded-full" />
+                                    <span>Generating Summary</span>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
+
+                {/* Main Content with Shimmer */}
+                <div className="pt-6 pb-8">
+                    <div className="container mx-auto px-4 py-8 max-w-none">
+                        {/* Paper Title */}
+                        {paper && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 }}
+                                className="text-center mb-12"
+                            >
+                                <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6 leading-tight max-w-5xl mx-auto">
+                                    {paper.title}
+                                </h1>
+                            </motion.div>
+                        )}
+
+                        {/* AI Processing Progress */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.15 }}
+                            className="mb-8"
+                        >
+                            <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                                <div className="relative">
+                                    <div className="flex items-center justify-center gap-3 mb-4">
+                                        <Brain className="h-6 w-6 text-blue-500 animate-pulse" />
+                                        <h3 className="text-lg font-semibold text-foreground">AI Summary Generation in Progress</h3>
                                     </div>
+
+                                    {/* Detailed Progress Steps */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <div className="flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
+                                            <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                            <div>
+                                                <div className="text-sm font-medium text-foreground">Paper Loaded</div>
+                                                <div className="text-xs text-muted-foreground">Content ready for analysis</div>
+                                            </div>
+                                        </div>
+
+                                        <div className={`flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm ${processingState === 'extracting' || processingState === 'generating_summary' ? 'ring-2 ring-green-500/30' : ''}`}>
+                                            {processingState === 'extracting' || processingState === 'generating_summary' ? (
+                                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                            ) : (
+                                                <div className="w-4 h-4 border border-muted-foreground/30 rounded-full flex-shrink-0" />
+                                            )}
+                                            <div>
+                                                <div className="text-sm font-medium text-foreground">Content Extracted</div>
+                                                <div className="text-xs text-muted-foreground">Text and metadata processed</div>
+                                            </div>
+                                        </div>
+
+                                        <div className={`flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm ${processingState === 'generating_summary' ? 'ring-2 ring-blue-500/30' : ''}`}>
+                                            {processingState === 'generating_summary' ? (
+                                                <div className="w-4 h-4 border-2 border-blue-500 rounded-full animate-spin flex-shrink-0" />
+                                            ) : (
+                                                <div className="w-4 h-4 border border-muted-foreground/30 rounded-full flex-shrink-0" />
+                                            )}
+                                            <div>
+                                                <div className="text-sm font-medium text-blue-500">AI Analyzing</div>
+                                                <div className="text-xs text-muted-foreground">Understanding paper structure</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
+                                            <div className="w-4 h-4 border border-muted-foreground/30 rounded-full flex-shrink-0" />
+                                            <div>
+                                                <div className="text-sm font-medium text-muted-foreground/70">Generating Summary</div>
+                                                <div className="text-xs text-muted-foreground/50">Creating comprehensive analysis</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Timer Display */}
+                                    {(processingState === 'extracting' || processingState === 'generating_summary') && (
+                                        <div className="mt-6 bg-muted/50 rounded-lg p-4">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-sm font-medium">Time Remaining</span>
+                                                <span className="text-sm font-mono">
+                                                    {processingState === 'extracting' ? extractionTimer : summaryTimer}s
+                                                </span>
+                                            </div>
+                                            <div className="w-full bg-muted rounded-full h-2">
+                                                <div
+                                                    className="bg-gradient-to-r from-blue-400 to-purple-500 h-2 rounded-full transition-all duration-1000"
+                                                    style={{
+                                                        width: `${processingState === 'extracting'
+                                                            ? ((300 - extractionTimer) / 300) * 100
+                                                            : ((90 - summaryTimer) / 90) * 100}%`
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </motion.div>
-                    </div>
 
-                    {/* Main Content with Shimmer */}
-                    <div className="pt-6 pb-8">
-                        <div className="container mx-auto px-4 py-8 max-w-none">
-                            {/* Paper Title */}
-                            {paper && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.1 }}
-                                    className="text-center mb-12"
-                                >
-                                    <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6 leading-tight max-w-5xl mx-auto">
-                                        {paper.title}
-                                    </h1>
-                                </motion.div>
-                            )}
-
-                            {/* AI Processing Progress */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.15 }}
-                                className="mb-8"
-                            >
-                                <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
-                                    <div className="relative">
-                                        <div className="flex items-center justify-center gap-3 mb-4">
-                                            <Brain className="h-6 w-6 text-blue-500 animate-pulse" />
-                                            <h3 className="text-lg font-semibold text-foreground">AI Summary Generation in Progress</h3>
-                                        </div>
-
-                                        {/* Detailed Progress Steps */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                            <div className="flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
-                                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                                <div>
-                                                    <div className="text-sm font-medium text-foreground">Paper Loaded</div>
-                                                    <div className="text-xs text-muted-foreground">Content ready for analysis</div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
-                                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                                <div>
-                                                    <div className="text-sm font-medium text-foreground">Content Extracted</div>
-                                                    <div className="text-xs text-muted-foreground">Text and metadata processed</div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
-                                                <div className="w-4 h-4 border-2 border-blue-500 rounded-full animate-spin flex-shrink-0" />
-                                                <div>
-                                                    <div className="text-sm font-medium text-blue-500">AI Analyzing</div>
-                                                    <div className="text-xs text-muted-foreground">Understanding paper structure</div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
-                                                <div className="w-4 h-4 border border-muted-foreground/30 rounded-full flex-shrink-0" />
-                                                <div>
-                                                    <div className="text-sm font-medium text-muted-foreground/70">Generating Summary</div>
-                                                    <div className="text-xs text-muted-foreground/50">Creating comprehensive analysis</div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Progress Bar */}
-                                        <div className="mt-4">
-                                            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                                                <span>Processing Progress</span>
-                                                <span>~60% Complete</span>
-                                            </div>
-                                            <div className="w-full h-2 bg-muted/40 rounded-full overflow-hidden">
-                                                <div className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 rounded-full animate-pulse" style={{ width: '60%' }} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
-
-                            {/* Shimmer Loading - Shows actual content structure */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                            >
-                                <SummaryShimmer />
-                            </motion.div>
-                        </div>
+                        {/* Shimmer Content */}
+                        <SummaryShimmer />
                     </div>
                 </div>
-            )
-        }
-
-        return null
+            </div>
+        )
     }
 
     const LOADING_STATES: ProcessingState[] = [
