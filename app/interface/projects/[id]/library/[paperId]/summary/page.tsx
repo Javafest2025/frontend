@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef, use } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState, useEffect, useRef } from "react"
+import { useRouter, useSearchParams, useParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -61,19 +61,14 @@ import FigureGallery from "@/components/paper/FigureGallery"
 import TableGallery from "@/components/paper/TableGallery"
 import { SummaryShimmer } from "@/components/paper/SummaryShimmer"
 
-interface PaperSummaryPageProps {
-    params: Promise<{
-        id: string
-        paperId: string
-    }>
-}
+type RouteParams = { id: string; paperId: string }
 
 type ProcessingState = 'idle' | 'checking_summary' | 'checking_extraction' | 'extracting' | 'generating_summary' | 'completed' | 'error'
 
-export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
+export default function PaperSummaryPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const { id: projectId, paperId } = use(params) as { id: string; paperId: string }
+    const { id: projectId, paperId } = useParams() as unknown as RouteParams
     const [paper, setPaper] = useState<Paper | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [processingState, setProcessingState] = useState<ProcessingState>('idle')
@@ -147,10 +142,6 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
             if (summarizationStartedRef.current) return;
             summarizationStartedRef.current = true;
 
-            const key = `summary-started:${paperId}`;
-            if (sessionStorage.getItem(key) === '1') return; // already kicked in this tab
-
-            sessionStorage.setItem(key, '1');
             await startSummarizationFlow(paperId);
         };
         run();
@@ -246,80 +237,55 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
 
     // Trigger extraction and wait for completion
     const triggerExtractionAndWait = async (paperId: string) => {
-        try {
-            // Start extraction
-            const extractionResponse = await triggerExtractionForPaper(paperId)
-            setExtractionStatus(extractionResponse)
+        // Start extraction
+        const extractionResponse = await triggerExtractionForPaper(paperId)
+        setExtractionStatus(extractionResponse)
 
-            // Start 60-second timer
-            setExtractionTimer(60)
-            const timerInterval = setInterval(() => {
-                setExtractionTimer(prev => {
-                    if (prev <= 1) {
-                        clearInterval(timerInterval)
-                        return 0
-                    }
-                    return prev - 1
-                })
-            }, 1000)
+        // Start 60-second timer
+        setExtractionTimer(60)
+        const timerInterval = setInterval(() => {
+            setExtractionTimer(prev => {
+                if (prev <= 1) {
+                    clearInterval(timerInterval)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
 
-            // Poll extraction status
+        // Actively poll and resolve/reject from the fresh result
+        await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                clearInterval(pollInterval)
+                clearInterval(timerInterval)
+                reject(new Error('Extraction timeout - please try again'))
+            }, 60_000)
+
             const pollInterval = setInterval(async () => {
                 try {
                     const status = await getExtractionStatus(paperId)
                     setExtractionStatus(status)
 
                     if (status.status === 'COMPLETED') {
+                        clearTimeout(timeout)
                         clearInterval(pollInterval)
                         clearInterval(timerInterval)
                         setExtractionTimer(0)
-                        return
-                    }
-
-                    if (status.status === 'FAILED') {
+                        resolve()
+                    } else if (status.status === 'FAILED') {
+                        clearTimeout(timeout)
                         clearInterval(pollInterval)
                         clearInterval(timerInterval)
-                        throw new Error(status.error || 'Extraction failed')
+                        reject(new Error(status.error || 'Extraction failed'))
                     }
-                } catch (error) {
-                    clearInterval(pollInterval)
-                    clearInterval(timerInterval)
-                    throw error
-                }
-            }, 5000) // Poll every 5 seconds
-
-            // Wait for extraction to complete or timeout
-            await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    clearInterval(pollInterval)
-                    clearInterval(timerInterval)
-                    reject(new Error('Extraction timeout - please try again'))
-                }, 60000) // 60 second timeout
-
-                const checkComplete = () => {
-                    if (extractionStatus?.status === 'COMPLETED') {
-                        clearTimeout(timeout)
-                        resolve(true)
-                    } else if (extractionStatus?.status === 'FAILED') {
-                        clearTimeout(timeout)
-                        reject(new Error(extractionStatus.error || 'Extraction failed'))
-                    }
-                }
-
-                // Check immediately and then every second
-                checkComplete()
-                const checkInterval = setInterval(checkComplete, 1000)
-
-                // Cleanup function
-                return () => {
+                } catch (err) {
                     clearTimeout(timeout)
-                    clearInterval(checkInterval)
+                    clearInterval(pollInterval)
+                    clearInterval(timerInterval)
+                    reject(err instanceof Error ? err : new Error(String(err)))
                 }
-            })
-
-        } catch (error) {
-            throw error
-        }
+            }, 5_000)
+        })
     }
 
     const handleRegenerateSummary = async () => {
@@ -644,7 +610,14 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
         return null
     }
 
-    if (isLoading || (processingState !== 'completed' && processingState !== 'error')) {
+    const LOADING_STATES: ProcessingState[] = [
+        'checking_summary',
+        'checking_extraction',
+        'extracting',
+        'generating_summary',
+    ]
+
+    if (isLoading || LOADING_STATES.includes(processingState)) {
         return renderLoadingState()
     }
 
