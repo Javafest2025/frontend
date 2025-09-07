@@ -39,25 +39,27 @@ export function SummaryShimmer() {
                 {/* Left Column - Main Summary */}
                 <div className="xl:col-span-2 space-y-6">
                     {/* One-Liner Section */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                        <div className="flex items-center gap-2 mb-4">
+                    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                        <div className="relative flex items-center gap-2 mb-4">
                             <Zap className="h-5 w-5 text-cyan-500" />
                             <Shimmer className="h-6 w-24 rounded" />
                         </div>
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                        <div className="relative bg-white/30 dark:bg-gray-800/30 rounded-lg p-4 backdrop-blur-sm">
                             <ShimmerText lines={2} width="w-full" />
                         </div>
                     </div>
 
                     {/* Key Contributions Section */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                        <div className="flex items-center gap-2 mb-4">
+                    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                        <div className="relative flex items-center gap-2 mb-4">
                             <Award className="h-5 w-5 text-orange-500" />
                             <Shimmer className="h-6 w-36 rounded" />
                         </div>
-                        <div className="space-y-3">
+                        <div className="relative space-y-3">
                             {Array.from({ length: 3 }).map((_, index) => (
-                                <div key={generateKey('contribution', index)} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                <div key={generateKey('contribution', index)} className="flex items-start gap-3 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
                                     <Shimmer className="h-6 w-6 rounded-full flex-shrink-0" />
                                     <ShimmerText lines={1} width="w-full" />
                                 </div>
@@ -66,25 +68,27 @@ export function SummaryShimmer() {
                     </div>
 
                     {/* Method Overview Section */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                        <div className="flex items-center gap-2 mb-4">
+                    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                        <div className="relative flex items-center gap-2 mb-4">
                             <Microscope className="h-5 w-5 text-lime-500" />
                             <Shimmer className="h-6 w-32 rounded" />
                         </div>
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                        <div className="relative bg-white/30 dark:bg-gray-800/30 rounded-lg p-4 backdrop-blur-sm">
                             <ShimmerText lines={3} width="w-full" />
                         </div>
                     </div>
 
                     {/* Applicability Section */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                        <div className="flex items-center gap-2 mb-4">
+                    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                        <div className="relative flex items-center gap-2 mb-4">
                             <Target className="h-5 w-5 text-yellow-500" />
                             <Shimmer className="h-6 w-28 rounded" />
                         </div>
-                        <div className="space-y-2">
+                        <div className="relative space-y-2">
                             {Array.from({ length: 2 }).map((_, index) => (
-                                <div key={generateKey('applicability', index)} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                <div key={generateKey('applicability', index)} className="flex items-start gap-3 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
                                     <Shimmer className="h-5 w-5 rounded-full flex-shrink-0" />
                                     <ShimmerText lines={1} width="w-full" />
                                 </div>
@@ -94,14 +98,15 @@ export function SummaryShimmer() {
 
                     {/* Limitations & Future Work */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                            <div className="flex items-center gap-2 mb-4">
+                        <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                            <div className="relative flex items-center gap-2 mb-4">
                                 <AlertTriangle className="h-5 w-5 text-red-500" />
                                 <Shimmer className="h-6 w-24 rounded" />
                             </div>
-                            <div className="space-y-3">
+                            <div className="relative space-y-3">
                                 {Array.from({ length: 2 }).map((_, index) => (
-                                    <div key={generateKey('limitation', index)} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <div key={generateKey('limitation', index)} className="flex items-start gap-3 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
                                         <Shimmer className="h-5 w-5 rounded-full flex-shrink-0" />
                                         <ShimmerText lines={1} width="w-full" />
                                     </div>
@@ -109,14 +114,15 @@ export function SummaryShimmer() {
                             </div>
                         </div>
 
-                        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                            <div className="flex items-center gap-2 mb-4">
+                        <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                            <div className="relative flex items-center gap-2 mb-4">
                                 <ListChecks className="h-5 w-5 text-cyan-500" />
                                 <Shimmer className="h-6 w-28 rounded" />
                             </div>
-                            <div className="space-y-3">
+                            <div className="relative space-y-3">
                                 {Array.from({ length: 2 }).map((_, index) => (
-                                    <div key={generateKey('future-work', index)} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <div key={generateKey('future-work', index)} className="flex items-start gap-3 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
                                         <Shimmer className="h-5 w-5 rounded-full flex-shrink-0" />
                                         <ShimmerText lines={1} width="w-full" />
                                     </div>
@@ -126,14 +132,15 @@ export function SummaryShimmer() {
                     </div>
 
                     {/* Related Works */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                        <div className="flex items-center gap-2 mb-4">
+                    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                        <div className="relative flex items-center gap-2 mb-4">
                             <BookOpen className="h-5 w-5 text-blue-600" />
                             <Shimmer className="h-6 w-32 rounded" />
                         </div>
-                        <div className="space-y-3">
+                        <div className="relative space-y-3">
                             {Array.from({ length: 2 }).map((_, index) => (
-                                <div key={generateKey('related-work', index)} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                                <div key={generateKey('related-work', index)} className="bg-white/30 dark:bg-gray-800/30 rounded-lg p-4 backdrop-blur-sm">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         <div>
                                             <Shimmer className="h-4 w-16 rounded mb-1" />
@@ -157,26 +164,28 @@ export function SummaryShimmer() {
                 {/* Right Column - Sidebar Info */}
                 <div className="space-y-6">
                     {/* Study Type */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                        <div className="flex items-center gap-2 mb-4">
+                    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                        <div className="relative flex items-center gap-2 mb-4">
                             <BarChart3 className="h-5 w-5 text-violet-500" />
                             <Shimmer className="h-5 w-32 rounded" />
                         </div>
-                        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="relative flex items-center justify-between p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
                             <Shimmer className="h-4 w-20 rounded" />
                             <ShimmerBadge />
                         </div>
                     </div>
 
                     {/* Main Findings */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                        <div className="flex items-center gap-2 mb-4">
+                    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                        <div className="relative flex items-center gap-2 mb-4">
                             <TrendingUp className="h-5 w-5 text-yellow-500" />
                             <Shimmer className="h-5 w-28 rounded" />
                         </div>
-                        <div className="space-y-3">
+                        <div className="relative space-y-3">
                             {Array.from({ length: 2 }).map((_, index) => (
-                                <div key={generateKey('finding', index)} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                <div key={generateKey('finding', index)} className="p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
                                     <div className="grid grid-cols-2 gap-2 text-sm">
                                         <div>
                                             <Shimmer className="h-3 w-12 rounded mb-1" />
@@ -197,14 +206,15 @@ export function SummaryShimmer() {
                     </div>
 
                     {/* Research Questions */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                        <div className="flex items-center gap-2 mb-4">
+                    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                        <div className="relative flex items-center gap-2 mb-4">
                             <Lightbulb className="h-5 w-5 text-indigo-500" />
                             <Shimmer className="h-5 w-36 rounded" />
                         </div>
-                        <div className="space-y-3">
+                        <div className="relative space-y-3">
                             {Array.from({ length: 2 }).map((_, index) => (
-                                <div key={generateKey('question', index)} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                <div key={generateKey('question', index)} className="p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
                                     <ShimmerText lines={1} width="w-full" />
                                 </div>
                             ))}
@@ -212,14 +222,15 @@ export function SummaryShimmer() {
                     </div>
 
                     {/* Datasets */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                        <div className="flex items-center gap-2 mb-4">
+                    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                        <div className="relative flex items-center gap-2 mb-4">
                             <Database className="h-5 w-5 text-emerald-500" />
                             <Shimmer className="h-5 w-20 rounded" />
                         </div>
-                        <div className="space-y-3">
+                        <div className="relative space-y-3">
                             {Array.from({ length: 2 }).map((_, index) => (
-                                <div key={generateKey('dataset', index)} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                <div key={generateKey('dataset', index)} className="p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
                                     <Shimmer className="h-4 w-24 rounded mb-1" />
                                     <Shimmer className="h-3 w-16 rounded mb-2" />
                                     <ShimmerText lines={1} width="w-full" />
@@ -229,12 +240,13 @@ export function SummaryShimmer() {
                     </div>
 
                     {/* Technical Details */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                        <div className="flex items-center gap-2 mb-4">
+                    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                        <div className="relative flex items-center gap-2 mb-4">
                             <Settings className="h-5 w-5 text-indigo-500" />
                             <Shimmer className="h-5 w-36 rounded" />
                         </div>
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                        <div className="relative bg-white/30 dark:bg-gray-800/30 rounded-lg p-3 backdrop-blur-sm">
                             <div className="flex items-center gap-2 mb-2">
                                 <Cpu className="h-4 w-4 text-indigo-500" />
                                 <Shimmer className="h-4 w-24 rounded" />
@@ -257,12 +269,13 @@ export function SummaryShimmer() {
                     </div>
 
                     {/* Reproducibility */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                        <div className="flex items-center gap-2 mb-4">
+                    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                        <div className="relative flex items-center gap-2 mb-4">
                             <RefreshCw className="h-5 w-5 text-lime-500" />
                             <Shimmer className="h-5 w-32 rounded" />
                         </div>
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                        <div className="relative bg-white/30 dark:bg-gray-800/30 rounded-lg p-3 backdrop-blur-sm">
                             <div className="flex items-center justify-between mb-2">
                                 <Shimmer className="h-4 w-12 rounded" />
                                 <Shimmer className="h-6 w-12 rounded" />
@@ -274,12 +287,13 @@ export function SummaryShimmer() {
                     </div>
 
                     {/* Ethics */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                        <div className="flex items-center gap-2 mb-4">
+                    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                        <div className="relative flex items-center gap-2 mb-4">
                             <Shield className="h-5 w-5 text-gray-500" />
                             <Shimmer className="h-5 w-40 rounded" />
                         </div>
-                        <div className="space-y-3">
+                        <div className="relative space-y-3">
                             {Array.from({ length: 3 }).map((_, index) => (
                                 <div key={generateKey('ethics', index)} className="flex items-center gap-2">
                                     <Shimmer className="h-4 w-4 rounded-full" />
@@ -292,16 +306,17 @@ export function SummaryShimmer() {
             </div>
 
             {/* Quality & Trust Section */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                <div className="flex items-center gap-2 mb-6">
+            <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                <div className="relative flex items-center gap-2 mb-6">
                     <CheckCircle className="h-6 w-6 text-cyan-500" />
                     <Shimmer className="h-6 w-36 rounded" />
                 </div>
-                <div className="space-y-6">
+                <div className="relative space-y-6">
                     {/* Overall Confidence & Validation */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {Array.from({ length: 4 }).map((_, index) => (
-                            <div key={generateKey('quality', index)} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                            <div key={generateKey('quality', index)} className="bg-white/30 dark:bg-gray-800/30 rounded-lg p-4 backdrop-blur-sm">
                                 <div className="flex items-center gap-2 mb-3">
                                     <Shimmer className="h-5 w-5 rounded" />
                                     <Shimmer className="h-5 w-24 rounded" />
@@ -322,7 +337,7 @@ export function SummaryShimmer() {
                             <Database className="h-5 w-5 text-cyan-500" />
                             <Shimmer className="h-5 w-40 rounded" />
                         </div>
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden">
+                        <div className="bg-white/30 dark:bg-gray-800/30 rounded-lg overflow-hidden backdrop-blur-sm">
                             <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead className="bg-gray-100 dark:bg-gray-700">

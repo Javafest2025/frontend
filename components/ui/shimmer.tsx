@@ -9,10 +9,12 @@ export function Shimmer({ className, children }: ShimmerProps) {
     return (
         <div
             className={cn(
-                "animate-pulse bg-gradient-to-r from-muted/50 via-muted/80 to-muted/50 bg-[length:200%_100%]",
+                "relative overflow-hidden animate-pulse bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 bg-[length:200%_100%] backdrop-blur-sm",
                 className
             )}
         >
+            {/* Glassy shimmer effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 animate-pulse" />
             {children}
         </div>
     )
@@ -45,8 +47,10 @@ export function ShimmerText({
 
 export function ShimmerCard({ className }: { className?: string }) {
     return (
-        <div className={cn("rounded-lg border p-6", className)}>
-            <div className="space-y-4">
+        <div className={cn("relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6", className)}>
+            {/* Glassy background effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+            <div className="relative space-y-4">
                 <Shimmer className="h-6 w-3/4 rounded" />
                 <ShimmerText lines={3} />
                 <div className="flex gap-2">

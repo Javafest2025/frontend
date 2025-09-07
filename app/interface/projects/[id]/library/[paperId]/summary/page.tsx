@@ -508,14 +508,39 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
                                 </div>
                             </div>
 
-                            {/* Subtle Loading Indicator */}
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Brain className="h-4 w-4 text-blue-500 animate-pulse" />
-                                <span>Generating...</span>
-                                <div className="flex items-center gap-1">
-                                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-                                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
-                                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                            {/* Progress Steps with Checkmarks */}
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Brain className="h-4 w-4 text-blue-500 animate-pulse" />
+                                    <span>Generating...</span>
+                                    <div className="flex items-center gap-1">
+                                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+                                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                                    </div>
+                                </div>
+
+                                {/* Progress Steps */}
+                                <div className="flex items-center gap-3 text-xs">
+                                    <div className="flex items-center gap-1 text-green-500">
+                                        <CheckCircle className="h-3 w-3" />
+                                        <span>Paper Loaded</span>
+                                    </div>
+                                    <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
+                                    <div className="flex items-center gap-1 text-green-500">
+                                        <CheckCircle className="h-3 w-3" />
+                                        <span>Content Extracted</span>
+                                    </div>
+                                    <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
+                                    <div className="flex items-center gap-1 text-blue-500">
+                                        <div className="w-3 h-3 border-2 border-blue-500 rounded-full animate-spin" />
+                                        <span>AI Analyzing</span>
+                                    </div>
+                                    <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
+                                    <div className="flex items-center gap-1 text-muted-foreground/50">
+                                        <div className="w-3 h-3 border border-muted-foreground/30 rounded-full" />
+                                        <span>Generating Summary</span>
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
@@ -537,6 +562,70 @@ export default function PaperSummaryPage({ params }: PaperSummaryPageProps) {
                                     </h1>
                                 </motion.div>
                             )}
+
+                            {/* AI Processing Progress */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.15 }}
+                                className="mb-8"
+                            >
+                                <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-background/80 to-primary/10 backdrop-blur-xl p-6">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                                    <div className="relative">
+                                        <div className="flex items-center justify-center gap-3 mb-4">
+                                            <Brain className="h-6 w-6 text-blue-500 animate-pulse" />
+                                            <h3 className="text-lg font-semibold text-foreground">AI Summary Generation in Progress</h3>
+                                        </div>
+
+                                        {/* Detailed Progress Steps */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                            <div className="flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
+                                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                                <div>
+                                                    <div className="text-sm font-medium text-foreground">Paper Loaded</div>
+                                                    <div className="text-xs text-muted-foreground">Content ready for analysis</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
+                                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                                <div>
+                                                    <div className="text-sm font-medium text-foreground">Content Extracted</div>
+                                                    <div className="text-xs text-muted-foreground">Text and metadata processed</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
+                                                <div className="w-4 h-4 border-2 border-blue-500 rounded-full animate-spin flex-shrink-0" />
+                                                <div>
+                                                    <div className="text-sm font-medium text-blue-500">AI Analyzing</div>
+                                                    <div className="text-xs text-muted-foreground">Understanding paper structure</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
+                                                <div className="w-4 h-4 border border-muted-foreground/30 rounded-full flex-shrink-0" />
+                                                <div>
+                                                    <div className="text-sm font-medium text-muted-foreground/70">Generating Summary</div>
+                                                    <div className="text-xs text-muted-foreground/50">Creating comprehensive analysis</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Progress Bar */}
+                                        <div className="mt-4">
+                                            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                                                <span>Processing Progress</span>
+                                                <span>~60% Complete</span>
+                                            </div>
+                                            <div className="w-full h-2 bg-muted/40 rounded-full overflow-hidden">
+                                                <div className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 rounded-full animate-pulse" style={{ width: '60%' }} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
 
                             {/* Shimmer Loading - Shows actual content structure */}
                             <motion.div
