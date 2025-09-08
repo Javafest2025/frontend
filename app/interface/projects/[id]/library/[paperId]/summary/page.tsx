@@ -34,7 +34,10 @@ import {
     TestTube,
     Server,
     ClipboardList,
-    Activity
+    Activity,
+    Sparkles,
+    ChevronDown,
+    ChevronUp
 } from "lucide-react"
 import { isValidUUID } from "@/lib/utils"
 import { downloadPdfWithAuth } from "@/lib/api/pdf"
@@ -68,6 +71,125 @@ type RouteParams = { id: string; paperId: string }
 
 type ProcessingState = 'idle' | 'checking_summary' | 'checking_extraction' | 'extracting' | 'generating_summary' | 'completed' | 'error'
 
+interface SubTask {
+    name: string
+    completed: boolean
+}
+
+interface ProgressCardProps {
+    title: string
+    description: string
+    icon: React.ReactNode
+    isActive: boolean
+    isCompleted: boolean
+    progress: number
+    timeAllocation: string
+    subtasks: SubTask[]
+}
+
+const ProgressCard: React.FC<ProgressCardProps> = ({
+    title,
+    description,
+    icon,
+    isActive,
+    isCompleted,
+    progress,
+    timeAllocation,
+    subtasks
+}) => {
+    const [isExpanded, setIsExpanded] = useState(false)
+
+    return (
+        <div className={`relative overflow-hidden rounded-xl border transition-all duration-300 ${isActive ? 'border-blue-500/50 bg-blue-500/10' :
+            isCompleted ? 'border-green-500/50 bg-green-500/10' :
+                'border-border/50 bg-background/50'
+            } backdrop-blur-sm`}>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 animate-pulse" />
+            <div className="relative p-4">
+                <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${isActive ? 'bg-blue-500/20 text-blue-500' :
+                            isCompleted ? 'bg-green-500/20 text-green-500' :
+                                'bg-muted/50 text-muted-foreground'
+                            }`}>
+                            {icon}
+                        </div>
+                        <div>
+                            <h4 className="font-semibold text-sm">{title}</h4>
+                            <p className="text-xs text-muted-foreground">{description}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{timeAllocation}</span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            className="h-6 w-6 p-0 hover:bg-muted/50"
+                        >
+                            {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full bg-muted/30 rounded-full h-2 mb-3">
+                    <div
+                        className={`h-2 rounded-full transition-all duration-1000 ${isActive ? 'bg-gradient-to-r from-blue-400 to-blue-600' :
+                            isCompleted ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                                'bg-muted'
+                            }`}
+                        style={{ width: `${progress}%` }}
+                    />
+                </div>
+
+                {/* Sub-tasks Dropdown */}
+                {isExpanded && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="space-y-2"
+                    >
+                        {subtasks.map((subtask, index) => (
+                            <div key={index} className="flex items-center gap-2 text-xs">
+                                <div className={`w-2 h-2 rounded-full ${subtask.completed ? 'bg-green-500' : 'bg-muted-foreground/30'
+                                    }`} />
+                                <span className={subtask.completed ? 'text-green-600' : 'text-muted-foreground'}>
+                                    {subtask.name}
+                                </span>
+                            </div>
+                        ))}
+                    </motion.div>
+                )}
+            </div>
+        </div>
+    )
+}
+
+// ---- section time helpers ----
+const TOTAL_TIME = 300;   // 5 min, already your truth
+const EXTRACT_DUR = 120;  // 2 min
+const ANALYZE_DUR = 60;   // 1 min
+const GENERATE_DUR = 120; // 2 min
+
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+
+/**
+ * Returns progress in [0,1] for a section based on the global 5-min timer.
+ * overallTimer counts DOWN from 300 -> 0 in your code.
+ */
+const sectionProgress = (overallTimer: number, sectionStart: number, sectionDuration: number) => {
+    const elapsed = TOTAL_TIME - overallTimer; // 0 .. 300
+    return clamp01((elapsed - sectionStart) / sectionDuration);
+};
+
+/** Evenly mark subtasks complete based on section progress. */
+const makeSubtasks = (names: string[], p: number): SubTask[] => {
+    const nDone = Math.floor(p * names.length + 1e-9);
+    return names.map((name, i) => ({ name, completed: i < nDone }));
+};
+
 export default function PaperSummaryPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -77,8 +199,9 @@ export default function PaperSummaryPage() {
     const [processingState, setProcessingState] = useState<ProcessingState>('idle')
     const [summaryData, setSummaryData] = useState<PaperSummaryResponse | null>(null)
     const [summaryError, setSummaryError] = useState<string | null>(null)
-    const [extractionTimer, setExtractionTimer] = useState<number>(60)
-    const [summaryTimer, setSummaryTimer] = useState<number>(90)
+    const [extractionTimer, setExtractionTimer] = useState<number>(120) // 2 minutes
+    const [summaryTimer, setSummaryTimer] = useState<number>(180) // 3 minutes total (1 min AI + 2 min generation)
+    const [overallTimer, setOverallTimer] = useState<number>(300) // 5 minutes total
     const [isDownloading, setIsDownloading] = useState(false)
     const [extractionStatus, setExtractionStatus] = useState<ExtractionResponse | null>(null)
     const [showAllAnchors, setShowAllAnchors] = useState(false)
@@ -229,8 +352,22 @@ export default function PaperSummaryPage() {
 
             setProcessingState('generating_summary')
 
-            // Start summary timer
-            setSummaryTimer(90)
+            // Start overall timer if not already started (5 minutes total)
+            if (overallTimer === 300) {
+                setOverallTimer(300)
+                const overallTimerInterval = setInterval(() => {
+                    setOverallTimer(prev => {
+                        if (prev <= 1) {
+                            clearInterval(overallTimerInterval)
+                            return 0
+                        }
+                        return prev - 1
+                    })
+                }, 1000)
+            }
+
+            // Start summary timer (3 minutes total: 1 min AI + 2 min generation)
+            setSummaryTimer(180)
             const summaryTimerInterval = setInterval(() => {
                 setSummaryTimer(prev => {
                     if (prev <= 1) {
@@ -274,8 +411,20 @@ export default function PaperSummaryPage() {
     const waitForExtractionCompletion = async (paperId: string) => {
         console.log('Waiting for extraction completion for paperId:', paperId)
 
-        // Start 5-minute timer
-        setExtractionTimer(300)
+        // Start overall 5-minute timer
+        setOverallTimer(300)
+        const overallTimerInterval = setInterval(() => {
+            setOverallTimer(prev => {
+                if (prev <= 1) {
+                    clearInterval(overallTimerInterval)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        // Start 2-minute extraction timer
+        setExtractionTimer(120)
         const timerInterval = setInterval(() => {
             setExtractionTimer(prev => {
                 if (prev <= 1) {
@@ -291,6 +440,7 @@ export default function PaperSummaryPage() {
             const timeout = setTimeout(() => {
                 clearInterval(pollInterval)
                 clearInterval(timerInterval)
+                clearInterval(overallTimerInterval)
                 reject(new Error('Extraction timeout - please try again'))
             }, 300_000)
 
@@ -303,12 +453,14 @@ export default function PaperSummaryPage() {
                         clearTimeout(timeout)
                         clearInterval(pollInterval)
                         clearInterval(timerInterval)
+                        clearInterval(overallTimerInterval)
                         setExtractionTimer(0)
                         resolve()
                     } else if (status.status === 'FAILED') {
                         clearTimeout(timeout)
                         clearInterval(pollInterval)
                         clearInterval(timerInterval)
+                        clearInterval(overallTimerInterval)
                         setExtractionTimer(0)
                         reject(new Error(status.message || 'Extraction failed'))
                     }
@@ -316,6 +468,7 @@ export default function PaperSummaryPage() {
                     clearTimeout(timeout)
                     clearInterval(pollInterval)
                     clearInterval(timerInterval)
+                    clearInterval(overallTimerInterval)
                     reject(err instanceof Error ? err : new Error(String(err)))
                 }
             }, 2000)
@@ -377,8 +530,20 @@ export default function PaperSummaryPage() {
         const extractionResponse = await triggerExtractionForPaper(paperId)
         setExtractionStatus(extractionResponse)
 
-        // Start 5-minute timer
-        setExtractionTimer(300)
+        // Start overall 5-minute timer
+        setOverallTimer(300)
+        const overallTimerInterval = setInterval(() => {
+            setOverallTimer(prev => {
+                if (prev <= 1) {
+                    clearInterval(overallTimerInterval)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        // Start 2-minute extraction timer
+        setExtractionTimer(120)
         const timerInterval = setInterval(() => {
             setExtractionTimer(prev => {
                 if (prev <= 1) {
@@ -394,6 +559,7 @@ export default function PaperSummaryPage() {
             const timeout = setTimeout(() => {
                 clearInterval(pollInterval)
                 clearInterval(timerInterval)
+                clearInterval(overallTimerInterval)
                 reject(new Error('Extraction timeout - please try again'))
             }, 300_000)
 
@@ -406,18 +572,21 @@ export default function PaperSummaryPage() {
                         clearTimeout(timeout)
                         clearInterval(pollInterval)
                         clearInterval(timerInterval)
+                        clearInterval(overallTimerInterval)
                         setExtractionTimer(0)
                         resolve()
                     } else if (status.status === 'FAILED') {
                         clearTimeout(timeout)
                         clearInterval(pollInterval)
                         clearInterval(timerInterval)
+                        clearInterval(overallTimerInterval)
                         reject(new Error(status.error || 'Extraction failed'))
                     }
                 } catch (err) {
                     clearTimeout(timeout)
                     clearInterval(pollInterval)
                     clearInterval(timerInterval)
+                    clearInterval(overallTimerInterval)
                     reject(err instanceof Error ? err : new Error(String(err)))
                 }
             }, 5_000)
@@ -430,8 +599,20 @@ export default function PaperSummaryPage() {
         setProcessingState('generating_summary')
         setSummaryError(null)
 
-        // Start summary timer
-        setSummaryTimer(90)
+        // Start overall 5-minute timer
+        setOverallTimer(300)
+        const overallTimerInterval = setInterval(() => {
+            setOverallTimer(prev => {
+                if (prev <= 1) {
+                    clearInterval(overallTimerInterval)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        // Start summary timer (3 minutes total: 1 min AI + 2 min generation)
+        setSummaryTimer(180)
         const summaryTimerInterval = setInterval(() => {
             setSummaryTimer(prev => {
                 if (prev <= 1) {
@@ -445,12 +626,16 @@ export default function PaperSummaryPage() {
         try {
             const summary = await generateSummary(paperId, 90000) // 90 second timeout
             clearInterval(summaryTimerInterval)
+            clearInterval(overallTimerInterval)
             setSummaryTimer(0)
+            setOverallTimer(0)
             setSummaryData(summary)
             setProcessingState('completed')
         } catch (error) {
             clearInterval(summaryTimerInterval)
+            clearInterval(overallTimerInterval)
             setSummaryTimer(0)
+            setOverallTimer(0)
             console.error('Error regenerating summary:', error)
             setSummaryError(error instanceof Error ? error.message : 'Failed to regenerate summary')
             setProcessingState('error')
@@ -516,6 +701,40 @@ export default function PaperSummaryPage() {
 
     // Loading states - consistent loading screen regardless of processing state
     const renderLoadingState = () => {
+        // Section progress (0..1)
+        const pExtract = sectionProgress(overallTimer, 0, EXTRACT_DUR);
+        const pAnalyze = sectionProgress(overallTimer, EXTRACT_DUR, ANALYZE_DUR);
+        const pGenerate = sectionProgress(overallTimer, EXTRACT_DUR + ANALYZE_DUR, GENERATE_DUR);
+
+        // Header state derived from section progress
+        const headerState = {
+            extractedDone: pExtract >= 1,
+            analyzingActive: pAnalyze > 0 && pAnalyze < 1,
+            analyzingDone: pAnalyze >= 1 || pGenerate > 0, // once generation starts, analysis is done
+            generatingActive: pGenerate > 0 && pGenerate < 1,
+            generatingDone: pGenerate >= 1,
+        };
+
+        // Subtask lists (names only)
+        const extractionNames = [
+            "PDF Processing", "Text Extraction", "Figure Processing", "Table Processing",
+            "Equation Processing", "Code Block Processing", "Reference Processing",
+            "Entity Processing", "Data Persistence"
+        ];
+        const analysisNames = [
+            "Context Building", "Quick Take Generation", "Methods & Data Analysis",
+            "Reproducibility Assessment", "Ethics & Compliance", "Context & Impact",
+            "Quality Metrics", "Summary Persistence"
+        ];
+        const generationNames = [
+            "Content Synthesis", "Quality Validation", "Final Review"
+        ];
+
+        // Subtasks with completion flags
+        const extractionSubtasks = makeSubtasks(extractionNames, pExtract);
+        const analysisSubtasks = makeSubtasks(analysisNames, pAnalyze);
+        const generationSubtasks = makeSubtasks(generationNames, pGenerate);
+
         // Show the same loading screen for all processing states
         return (
             <div className="min-h-screen bg-background overflow-y-auto">
@@ -555,31 +774,57 @@ export default function PaperSummaryPage() {
 
                             {/* Progress Steps */}
                             <div className="flex items-center gap-3 text-xs">
+                                {/* Paper Loaded - always checked */}
                                 <div className="flex items-center gap-1 text-green-500">
                                     <CheckCircle className="h-3 w-3" />
                                     <span>Paper Loaded</span>
                                 </div>
+
                                 <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
-                                <div className={`flex items-center gap-1 ${processingState === 'extracting' || processingState === 'generating_summary' ? 'text-green-500' : 'text-muted-foreground/50'}`}>
-                                    {processingState === 'extracting' || processingState === 'generating_summary' ? (
+
+                                {/* Content Extracted */}
+                                <div className={`flex items-center gap-1 ${headerState.extractedDone ? 'text-green-500' : 'text-muted-foreground/50'}`}>
+                                    {headerState.extractedDone ? (
                                         <CheckCircle className="h-3 w-3" />
                                     ) : (
                                         <div className="w-3 h-3 border border-muted-foreground/30 rounded-full" />
                                     )}
                                     <span>Content Extracted</span>
                                 </div>
+
                                 <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
-                                <div className={`flex items-center gap-1 ${processingState === 'generating_summary' ? 'text-blue-500' : 'text-muted-foreground/50'}`}>
-                                    {processingState === 'generating_summary' ? (
+
+                                {/* AI Analyzing */}
+                                <div className={`flex items-center gap-1 ${headerState.analyzingActive ? 'text-blue-500' :
+                                    headerState.analyzingDone ? 'text-green-500' :
+                                        'text-muted-foreground/50'
+                                    }`}
+                                >
+                                    {headerState.analyzingActive ? (
                                         <div className="w-3 h-3 border-2 border-blue-500 rounded-full animate-spin" />
+                                    ) : headerState.analyzingDone ? (
+                                        <CheckCircle className="h-3 w-3" />
                                     ) : (
                                         <div className="w-3 h-3 border border-muted-foreground/30 rounded-full" />
                                     )}
                                     <span>AI Analyzing</span>
                                 </div>
+
                                 <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
-                                <div className="flex items-center gap-1 text-muted-foreground/50">
-                                    <div className="w-3 h-3 border border-muted-foreground/30 rounded-full" />
+
+                                {/* Generating Summary */}
+                                <div className={`flex items-center gap-1 ${headerState.generatingActive ? 'text-blue-500' :
+                                    headerState.generatingDone ? 'text-green-500' :
+                                        'text-muted-foreground/50'
+                                    }`}
+                                >
+                                    {headerState.generatingActive ? (
+                                        <div className="w-3 h-3 border-2 border-blue-500 rounded-full animate-spin" />
+                                    ) : headerState.generatingDone ? (
+                                        <CheckCircle className="h-3 w-3" />
+                                    ) : (
+                                        <div className="w-3 h-3 border border-muted-foreground/30 rounded-full" />
+                                    )}
                                     <span>Generating Summary</span>
                                 </div>
                             </div>
@@ -619,70 +864,67 @@ export default function PaperSummaryPage() {
                                         <h3 className="text-lg font-semibold text-foreground">AI Summary Generation in Progress</h3>
                                     </div>
 
-                                    {/* Detailed Progress Steps */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                        <div className="flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
-                                            <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                            <div>
-                                                <div className="text-sm font-medium text-foreground">Paper Loaded</div>
-                                                <div className="text-xs text-muted-foreground">Content ready for analysis</div>
-                                            </div>
-                                        </div>
+                                    {/* Enhanced Progress Cards with Time Distribution */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                                        {/* Extraction Phase - 2 minutes */}
+                                        <ProgressCard
+                                            title="Content Extraction"
+                                            description="Processing PDF and extracting structured content"
+                                            icon={<FileText className="h-5 w-5" />}
+                                            isActive={pExtract > 0 && pExtract < 1}
+                                            isCompleted={pExtract >= 1 || processingState === 'completed'}
+                                            progress={pExtract * 100}
+                                            timeAllocation="2 min"
+                                            subtasks={extractionSubtasks}
+                                        />
 
-                                        <div className={`flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm ${processingState === 'extracting' || processingState === 'generating_summary' ? 'ring-2 ring-green-500/30' : ''}`}>
-                                            {processingState === 'extracting' || processingState === 'generating_summary' ? (
-                                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                            ) : (
-                                                <div className="w-4 h-4 border border-muted-foreground/30 rounded-full flex-shrink-0" />
-                                            )}
-                                            <div>
-                                                <div className="text-sm font-medium text-foreground">Content Extracted</div>
-                                                <div className="text-xs text-muted-foreground">Text and metadata processed</div>
-                                            </div>
-                                        </div>
+                                        {/* AI Analysis Phase - 1 minute */}
+                                        <ProgressCard
+                                            title="AI Analysis"
+                                            description="Understanding paper structure and content"
+                                            icon={<Brain className="h-5 w-5" />}
+                                            isActive={pAnalyze > 0 && pAnalyze < 1}
+                                            isCompleted={pAnalyze >= 1 || processingState === 'completed'}
+                                            progress={pAnalyze * 100}
+                                            timeAllocation="1 min"
+                                            subtasks={analysisSubtasks}
+                                        />
 
-                                        <div className={`flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm ${processingState === 'generating_summary' ? 'ring-2 ring-blue-500/30' : ''}`}>
-                                            {processingState === 'generating_summary' ? (
-                                                <div className="w-4 h-4 border-2 border-blue-500 rounded-full animate-spin flex-shrink-0" />
-                                            ) : (
-                                                <div className="w-4 h-4 border border-muted-foreground/30 rounded-full flex-shrink-0" />
-                                            )}
-                                            <div>
-                                                <div className="text-sm font-medium text-blue-500">AI Analyzing</div>
-                                                <div className="text-xs text-muted-foreground">Understanding paper structure</div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-2 p-3 bg-white/30 dark:bg-gray-800/30 rounded-lg backdrop-blur-sm">
-                                            <div className="w-4 h-4 border border-muted-foreground/30 rounded-full flex-shrink-0" />
-                                            <div>
-                                                <div className="text-sm font-medium text-muted-foreground/70">Generating Summary</div>
-                                                <div className="text-xs text-muted-foreground/50">Creating comprehensive analysis</div>
-                                            </div>
-                                        </div>
+                                        {/* Finalization Phase - 2 minutes */}
+                                        <ProgressCard
+                                            title="Summary Generation"
+                                            description="Creating comprehensive analysis and finalizing"
+                                            icon={<Sparkles className="h-5 w-5" />}
+                                            isActive={pGenerate > 0 && pGenerate < 1}
+                                            isCompleted={pGenerate >= 1 || processingState === 'completed'}
+                                            progress={pGenerate * 100}
+                                            timeAllocation="2 min"
+                                            subtasks={generationSubtasks}
+                                        />
                                     </div>
 
-                                    {/* Timer Display */}
-                                    {(processingState === 'extracting' || processingState === 'generating_summary') && (
-                                        <div className="mt-6 bg-muted/50 rounded-lg p-4">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <span className="text-sm font-medium">Time Remaining</span>
-                                                <span className="text-sm font-mono">
-                                                    {processingState === 'extracting' ? extractionTimer : summaryTimer}s
-                                                </span>
-                                            </div>
-                                            <div className="w-full bg-muted rounded-full h-2">
-                                                <div
-                                                    className="bg-gradient-to-r from-blue-400 to-purple-500 h-2 rounded-full transition-all duration-1000"
-                                                    style={{
-                                                        width: `${processingState === 'extracting'
-                                                            ? ((300 - extractionTimer) / 300) * 100
-                                                            : ((90 - summaryTimer) / 90) * 100}%`
-                                                    }}
-                                                />
-                                            </div>
+                                    {/* Overall Progress Bar */}
+                                    <div className="bg-muted/50 rounded-lg p-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm font-medium">Overall Progress</span>
+                                            <span className="text-sm font-mono">
+                                                {overallTimer}s remaining
+                                            </span>
                                         </div>
-                                    )}
+                                        <div className="w-full bg-muted rounded-full h-3">
+                                            <div
+                                                className="bg-gradient-to-r from-blue-400 via-purple-500 to-green-500 h-3 rounded-full transition-all duration-1000"
+                                                style={{
+                                                    width: `${((300 - overallTimer) / 300) * 100}%`
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                                            <span>Extraction</span>
+                                            <span>AI Analysis</span>
+                                            <span>Finalization</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
