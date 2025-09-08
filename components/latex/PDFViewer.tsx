@@ -4,8 +4,15 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw } from 'lucide-rea
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils/cn'
 
-// Set up the worker with local file to avoid CORS issues
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.js'
+// Set up the worker - use local worker for version 4.8.69 compatibility
+if (typeof window !== 'undefined') {
+  // Use the correct worker file extension for PDF.js v4+
+  if (pdfjs.version.startsWith('4.')) {
+    pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.mjs'
+  } else {
+    pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.js'
+  }
+}
 
 interface PDFViewerProps {
   fileUrl: string
@@ -95,10 +102,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, className }) => {
     setRotation(prev => (prev + 90) % 360)
   }
 
-  const resetRotation = () => {
-    setRotation(0)
-  }
-
   const retryLoad = () => {
     setLoading(true)
     setError(null)
@@ -178,15 +181,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, className }) => {
           >
             <RotateCw className="h-4 w-4" />
           </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={resetRotation}
-            className="h-8 px-2 text-xs"
-          >
-            Reset
-          </Button>
 
           {error && (
             <Button
@@ -202,9 +196,9 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, className }) => {
       </div>
 
       {/* PDF Content */}
-      <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 p-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-gray-900">
         {containerWidth > 0 && (
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center py-4 space-y-4">
             <Document 
               file={fileUrl} 
               onLoadStart={() => console.log('PDF loading started')}
@@ -236,26 +230,30 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, className }) => {
                 </div>
               }
             >
-              <Page 
-                pageNumber={pageNumber} 
-                width={containerWidth * 0.8 * scale}
-                rotate={rotation}
-                loading={
-                  <div className="flex items-center justify-center h-64">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
-                      <p className="text-sm text-muted-foreground">Rendering page...</p>
-                    </div>
-                  </div>
-                }
-                error={
-                  <div className="flex items-center justify-center h-64">
-                    <div className="text-center">
-                      <p className="text-sm text-destructive">Failed to render page</p>
-                    </div>
-                  </div>
-                }
-              />
+              {numPages && Array.from(new Array(numPages), (el, index) => (
+                <div key={`page_${index + 1}`} className="mb-4 shadow-lg">
+                  <Page 
+                    pageNumber={index + 1} 
+                    width={containerWidth * 0.8 * scale}
+                    rotate={rotation}
+                    loading={
+                      <div className="flex items-center justify-center h-64">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                          <p className="text-sm text-muted-foreground">Rendering page {index + 1}...</p>
+                        </div>
+                      </div>
+                    }
+                    error={
+                      <div className="flex items-center justify-center h-64">
+                        <div className="text-center">
+                          <p className="text-sm text-destructive">Failed to render page {index + 1}</p>
+                        </div>
+                      </div>
+                    }
+                  />
+                </div>
+              ))}
             </Document>
           </div>
         )}

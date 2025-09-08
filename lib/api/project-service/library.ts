@@ -541,6 +541,68 @@ export const libraryApi = {
                 ? error
                 : new Error("Failed to check favorite status")
         }
+    },
+
+    // LaTeX Context Management
+    // Get papers marked as LaTeX context for a project
+    async getLatexContextPapers(projectId: string): Promise<Paper[]> {
+        try {
+            console.log("🔍 Fetching LaTeX context papers for project:", projectId)
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/latex/projects/${projectId}/context-papers`),
+                {
+                    method: "GET"
+                }
+            )
+
+            console.log("📊 LaTeX context papers response status:", response.status, response.statusText)
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ Get LaTeX context papers failed:", response.status, errorText)
+                throw new Error(`Failed to get LaTeX context papers: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ LaTeX context papers retrieved successfully:", data)
+            return data.data || []
+        } catch (error) {
+            console.error("Get LaTeX context papers error:", error)
+            throw error instanceof Error
+                ? error
+                : new Error("Failed to get LaTeX context papers")
+        }
+    },
+
+    // Toggle LaTeX context status for a paper
+    async toggleLatexContext(paperId: string, isLatexContext: boolean): Promise<Paper> {
+        try {
+            console.log("🔄 Toggling LaTeX context for paper:", paperId, "to:", isLatexContext)
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/latex/papers/${paperId}/context`),
+                {
+                    method: "PUT",
+                    body: JSON.stringify({ isLatexContext }),
+                }
+            )
+
+            console.log("📊 Toggle LaTeX context response status:", response.status, response.statusText)
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ Toggle LaTeX context failed:", response.status, errorText)
+                throw new Error(`Failed to toggle LaTeX context: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ LaTeX context toggled successfully:", data)
+            return data.data
+        } catch (error) {
+            console.error("Toggle LaTeX context error:", error)
+            throw error instanceof Error
+                ? error
+                : new Error("Failed to toggle LaTeX context")
+        }
     }
 }
 

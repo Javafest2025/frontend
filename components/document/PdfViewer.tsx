@@ -20,7 +20,8 @@ import {
   X,
   MessageSquarePlus,
   Bot,
-  LayoutGrid
+  LayoutGrid,
+  CheckCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,6 +29,7 @@ import { cn } from "@/lib/utils/cn"
 import { downloadPdfWithAuth } from "@/lib/api/pdf"
 import { ChatContainer } from "@/components/chat/ChatContainer"
 import { postPaperChat } from "@/lib/api/qa"
+import { checkPaperChatReadiness, extractPaperForChat } from "@/lib/api/chat"
 
 // Import CSS for react-pdf-viewer
 import '@react-pdf-viewer/core/lib/styles/index.css'
@@ -130,6 +132,15 @@ export function PDFViewer({ documentUrl, documentName = "Document", paperId }: P
   // Floating add-to-chat button for selected text
   const [selectionText, setSelectionText] = useState('')
   const [selectionPos, setSelectionPos] = useState<{ x: number; y: number } | null>(null)
+  
+  // Selected text context for chat
+  const [selectedTextForChat, setSelectedTextForChat] = useState<{
+    text: string
+    from: number
+    to: number
+    pageNumber?: number
+    sectionTitle?: string
+  } | null>(null)
 
   // Chat metadata and resizing
   const [chatName, setChatName] = useState('New Chat')
@@ -146,6 +157,14 @@ export function PDFViewer({ documentUrl, documentName = "Document", paperId }: P
   const [qaError, setQaError] = useState<string | null>(null)
   const [qaUserMessage, setQaUserMessage] = useState<string | null>(null)
   const [qaAssistantMessage, setQaAssistantMessage] = useState<string | null>(null)
+
+  // Extraction state
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [extractionError, setExtractionError] = useState<string | null>(null)
+  const [isExtracted, setIsExtracted] = useState(false)
+  const [extractionStatus, setExtractionStatus] = useState<string | null>(null)
+  const [showExtractionSuccess, setShowExtractionSuccess] = useState(false)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const zoomPluginInstance = zoomPlugin()
   const { zoomTo } = zoomPluginInstance
@@ -256,6 +275,62 @@ export function PDFViewer({ documentUrl, documentName = "Document", paperId }: P
     )
   }
 
+  // Function to poll extraction status
+  const pollExtractionStatus = useCallback(async (paperId: string) => {
+    try {
+      const readiness = await checkPaperChatReadiness(paperId)
+      
+      if (readiness.isReady) {
+        // Extraction is complete
+        setIsExtracted(true)
+        setIsExtracting(false)
+        setExtractionStatus('Extraction completed successfully')
+        setShowExtractionSuccess(true)
+        
+        // Clear polling interval
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current)
+          pollingIntervalRef.current = null
+        }
+        
+        // Auto-open chat after successful extraction with a slight delay
+        setTimeout(() => {
+          setShowChat(true)
+        }, 1000)
+        
+        // Hide success message after 5 seconds
+        setTimeout(() => {
+          setShowExtractionSuccess(false)
+        }, 5000)
+        
+        return true
+      }
+      
+      return false
+    } catch (error) {
+      console.error('Error polling extraction status:', error)
+      return false
+    }
+  }, [])
+
+  // Start polling extraction status
+  const startPollingExtraction = useCallback((paperId: string) => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+    }
+    
+    // Poll every 3 seconds
+    pollingIntervalRef.current = setInterval(async () => {
+      const isComplete = await pollExtractionStatus(paperId)
+      if (isComplete) {
+        // Polling will be cleared by pollExtractionStatus
+      }
+    }, 3000)
+    
+    // Also check immediately
+    pollExtractionStatus(paperId)
+  }, [pollExtractionStatus])
+
   // Load and process PDF URL
   useEffect(() => {
     const loadPdf = async () => {
@@ -272,6 +347,44 @@ export function PDFViewer({ documentUrl, documentName = "Document", paperId }: P
         const url = await processPdfUrl(documentUrl)
         console.log('Processed PDF URL:', url)
         setProcessedUrl(url)
+        
+        // Trigger extraction check if paperId is available
+        if (paperId) {
+          console.log('🔍 Checking extraction status for paper:', paperId)
+          let extractionFailed = false
+          try {
+            const readiness = await checkPaperChatReadiness(paperId)
+            setIsExtracted(readiness.isReady)
+            
+            if (readiness.needsExtraction) {
+              console.log('🚀 Starting extraction for paper:', paperId)
+              setIsExtracting(true)
+              setExtractionError(null)
+              setExtractionStatus('Starting extraction...')
+              
+              await extractPaperForChat(paperId)
+              
+              setExtractionStatus('Extraction initiated, waiting for completion...')
+              console.log('✅ Extraction initiated for paper:', paperId)
+              
+              // Start polling for extraction completion
+              startPollingExtraction(paperId)
+            } else {
+              console.log('✅ Paper already extracted:', paperId)
+              setExtractionStatus('Already extracted')
+              // If already extracted, open chat immediately
+              setTimeout(() => {
+                setShowChat(true)
+              }, 500)
+            }
+          } catch (extractError) {
+            console.error('❌ Extraction error for paper:', paperId, extractError)
+            setExtractionError(extractError instanceof Error ? extractError.message : 'Extraction failed')
+            setExtractionStatus('Extraction failed')
+            extractionFailed = true
+            setIsExtracting(false)
+          }
+        }
       } catch (error) {
         console.error('Failed to load PDF:', error)
         let errorMessage = 'Failed to load PDF document.'
@@ -304,6 +417,11 @@ export function PDFViewer({ documentUrl, documentName = "Document", paperId }: P
     return () => {
       if (processedUrl && processedUrl.startsWith('blob:')) {
         URL.revokeObjectURL(processedUrl)
+      }
+      // Clean up polling interval
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
       }
     }
   }, [documentUrl])
@@ -979,7 +1097,20 @@ export function PDFViewer({ documentUrl, documentName = "Document", paperId }: P
           style={{ top: selectionPos.y + window.scrollY + 8, left: selectionPos.x + window.scrollX + 8 }}
           className="fixed z-50 flex items-center gap-1 px-2 py-1 rounded-md bg-primary text-primary-foreground text-xs shadow hover:bg-primary/90"
           onClick={() => {
-            setExternalContexts((ctx) => [...ctx, selectionText])
+            // Set selected text for chat context
+            const selection = window.getSelection()
+            if (selection && selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0)
+              setSelectedTextForChat({
+                text: selectionText,
+                from: range.startOffset,
+                to: range.endOffset,
+                pageNumber: currentPage + 1, // Convert 0-based to 1-based
+                sectionTitle: undefined // Could be enhanced to detect section
+              })
+            }
+            
+            // Clear selection and show chat
             window.getSelection()?.removeAllRanges()
             setSelectionPos(null)
             setShowChat(true)
@@ -991,12 +1122,19 @@ export function PDFViewer({ documentUrl, documentName = "Document", paperId }: P
 
       {/* Document Viewer */}
       <div
-        className={`flex-1 bg-background overflow-auto transition-all ease-in-out ${showSearch ? 'ml-72' : 'ml-0'}`}
+        className={`flex-1 bg-background overflow-auto transition-all ease-in-out ${showSearch ? 'ml-72' : 'ml-0'} relative`}
         style={{
           marginRight: showChat ? `${chatWidth}px` : '0px',
           transitionDuration: isResizing ? '0ms' : '300ms'
         }}
       >
+        {/* Extraction Success Message */}
+        {showExtractionSuccess && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-50 border border-green-200 text-green-800 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-top-2">
+            <CheckCircle className="h-4 w-4" />
+            <span className="text-sm font-medium">Paper successfully extracted and ready for chat!</span>
+          </div>
+        )}
         {isLoading ? (
           <div className="flex items-center justify-center h-full w-full">
             <div className="text-center">
@@ -1162,7 +1300,18 @@ export function PDFViewer({ documentUrl, documentName = "Document", paperId }: P
         />
 
         {/* Chat Interface */}
-        <ChatContainer onClose={() => setShowChat(false)} externalContexts={externalContexts} onExternalContextsCleared={() => setExternalContexts([])} paperId={paperId} />
+        <ChatContainer 
+          onClose={() => setShowChat(false)} 
+          externalContexts={externalContexts} 
+          onExternalContextsCleared={() => setExternalContexts([])} 
+          paperId={paperId}
+          isExtracted={isExtracted}
+          isExtracting={isExtracting}
+          extractionStatus={extractionStatus}
+          extractionError={extractionError}
+          selectedText={selectedTextForChat}
+          onClearSelectedText={() => setSelectedTextForChat(null)}
+        />
       </div>
 
       {/* Add thumbnail overlay */}

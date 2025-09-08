@@ -26,6 +26,7 @@ export function ProjectLayoutWrapper({ children, projectId }: ProjectLayoutWrapp
         <ProjectLayout
             projectId={projectId}
             autoCollapseSidebar={isLatexEditorPage}
+            hideHeader={isLatexEditorPage}
         >
             {children}
         </ProjectLayout>
