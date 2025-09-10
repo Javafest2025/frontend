@@ -15,8 +15,9 @@ import {
   Plus, 
   Save, 
   Eye, 
-  MessageSquare, 
-  Settings, 
+  MessageSquare,
+  Sun,
+  Moon,
   Play,
   Folder,
   Search,
@@ -34,6 +35,7 @@ import {
   Code
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
+import { useSettings } from "@/contexts/SettingsContext"
 import { projectsApi } from "@/lib/api/project-service"
 import { latexApi } from "@/lib/api/latex-service"
 import { AIChatPanel } from "@/components/latex/AIChatPanel"
@@ -72,6 +74,7 @@ interface ProjectOverviewPageProps {
 }
 
 export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
+  const { settings, updateSetting } = useSettings()
   const [projectId, setProjectId] = useState<string>("")
   const [project, setProject] = useState<Project | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
@@ -1409,9 +1412,18 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               <Download className="h-4 w-4 mr-2" />
               PDF
             </Button>
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => updateSetting('theme', settings.theme === 'dark' ? 'light' : 'dark')}
+              title="Toggle theme"
+            >
+              {settings.theme === "dark" ? (
+                <Sun className="h-4 w-4 mr-2" />
+              ) : (
+                <Moon className="h-4 w-4 mr-2" />
+              )}
+              {settings.theme === "dark" ? "Light" : "Dark"}
             </Button>
           </div>
         </div>
@@ -1642,22 +1654,6 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   onPDFSelectionToChat={handlePDFSelectionToChat}
                   onOpenPaperReady={(fn) => setHandleOpenPaper(() => fn)}
                 />
-              )}
-              
-              {/* Floating AI Assistant Button when sidebar is collapsed */}
-              {isRightSidebarCollapsed && currentDocument && (
-                <div className="absolute top-2 right-2 z-40">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setIsRightSidebarCollapsed(false)}
-                    className="shadow-lg"
-                    title="Open AI Assistant"
-                  >
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    AI Chat
-                  </Button>
-                </div>
               )}
             </div>
           </ResizablePanel>
