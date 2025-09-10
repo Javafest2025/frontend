@@ -3,6 +3,8 @@
 import React, { useCallback, useRef, useEffect, useState } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { tokyoNight } from '@uiw/codemirror-theme-tokyo-night'
+import { useSettings } from '@/contexts/SettingsContext'
+import { getCodeMirrorTheme, getCurrentThemeVariant } from '@/lib/codemirror-themes'
 import { EditorView, Decoration, DecorationSet, WidgetType } from '@codemirror/view'
 import { Extension, StateField, StateEffect, RangeSetBuilder, EditorSelection } from '@codemirror/state'
 import { syntaxHighlighting, HighlightStyle, LanguageSupport, StreamLanguage } from '@codemirror/language'
@@ -922,11 +924,36 @@ export function EnhancedLatexEditor({
   onRejectInlineDiff,
   onLastCursorChange,
 }: EnhancedLatexEditorProps) {
+  const { settings } = useSettings()
+  const [currentTheme, setCurrentTheme] = useState(tokyoNight)
   const editorRef = useRef<any>(null)
   
   const handleChange = useCallback((value: string) => {
     onChange(value)
   }, [onChange])
+
+  // Update CodeMirror theme when global theme changes
+  useEffect(() => {
+    const themeMode = settings.theme === 'dark' ? 'dark' : 'light'
+    const themeIndex = getCurrentThemeVariant(themeMode)
+    const newTheme = getCodeMirrorTheme(themeMode, themeIndex)
+    setCurrentTheme(newTheme)
+  }, [settings.theme])
+
+  // Listen for theme variant changes
+  useEffect(() => {
+    const handleThemeVariantChange = () => {
+      const themeMode = settings.theme === 'dark' ? 'dark' : 'light'
+      const themeIndex = getCurrentThemeVariant(themeMode)
+      const newTheme = getCodeMirrorTheme(themeMode, themeIndex)
+      setCurrentTheme(newTheme)
+    }
+
+    window.addEventListener('codemirror-theme-changed', handleThemeVariantChange)
+    return () => {
+      window.removeEventListener('codemirror-theme-changed', handleThemeVariantChange)
+    }
+  }, [settings.theme])
 
   // Update position markers when they change
   useEffect(() => {
@@ -1120,7 +1147,7 @@ export function EnhancedLatexEditor({
         value={value}
         height="100%"
         width="100%"
-        theme={tokyoNight}
+        theme={currentTheme}
         extensions={latexExtensions}
         onChange={handleChange}
         placeholder={placeholder}

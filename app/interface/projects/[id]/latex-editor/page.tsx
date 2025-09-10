@@ -1425,6 +1425,26 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               )}
               {settings.theme === "dark" ? "Light" : "Dark"}
             </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                // Dynamic import to avoid issues with require
+                import('@/lib/codemirror-themes').then(({ cycleThemeVariant, codeMirrorThemes, getCurrentThemeVariant }) => {
+                  const themeMode = settings.theme === 'dark' ? 'dark' : 'light'
+                  const newIndex = cycleThemeVariant(themeMode)
+                  const themeName = codeMirrorThemes[themeMode][newIndex].name
+                  // Force re-render by dispatching a custom event
+                  window.dispatchEvent(new CustomEvent('codemirror-theme-changed', { 
+                    detail: { mode: themeMode, index: newIndex, name: themeName } 
+                  }))
+                })
+              }}
+              title="Cycle editor theme variant"
+            >
+              <Code className="h-4 w-4 mr-2" />
+              Variant
+            </Button>
           </div>
         </div>
       </div>
