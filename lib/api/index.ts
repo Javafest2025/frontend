@@ -5,4 +5,4 @@ export * from "./library";
 export * from "./pdf";
 export * from "./project-service";
 export * from "./chat";
-export * from "./gap-analysis"; 
+export * from "./project-service/gap-analysis"; 

@@ -18,7 +18,10 @@ export function ProjectLayoutWrapper({ children, projectId }: ProjectLayoutWrapp
     // Check if we're on the summary page - render without project layout
     const isSummaryPage = pathname.includes('/summary')
 
-    if (isSummaryPage) {
+    // Check if we're on the gap analysis page - render without project layout
+    const isGapAnalysisPage = pathname.includes('/gap-analysis')
+
+    if (isSummaryPage || isGapAnalysisPage) {
         return <>{children}</>
     }
 

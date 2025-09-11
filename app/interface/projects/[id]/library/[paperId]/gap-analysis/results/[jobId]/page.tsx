@@ -57,7 +57,7 @@ import {
     Info as InfoIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { gapAnalysisApi, type GapAnalysisJob, type GapAnalysisResult } from "@/lib/api/gap-analysis"
+import { gapAnalysisApi, type GapAnalysisJob, type GapAnalysisResult } from "@/lib/api/project-service/gap-analysis"
 
 interface GapAnalysisResultsPageProps {
     params: Promise<{
