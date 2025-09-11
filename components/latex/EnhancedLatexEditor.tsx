@@ -622,9 +622,9 @@ class InlineDiffWidget extends WidgetType {
       padding: 2px 4px;
       font-size: 0.9em;
       line-height: 1.2;
-      ${this.preview.type === 'add' ? 'background-color: rgba(0, 255, 0, 0.2); color: #00aa00;' : ''}
-      ${this.preview.type === 'delete' ? 'background-color: rgba(255, 0, 0, 0.2); color: #aa0000; text-decoration: line-through;' : ''}
-      ${this.preview.type === 'replace' ? 'background-color: rgba(0, 255, 0, 0.2); color: #00aa00;' : ''}
+      ${this.preview.type === 'add' ? 'background-color: rgba(0, 255, 0, 0.3); color: #006600; border: 1px solid #00aa00;' : ''}
+      ${this.preview.type === 'delete' ? 'background-color: rgba(255, 0, 0, 0.3); color: #cc0000; text-decoration: line-through; border: 1px solid #ff6666;' : ''}
+      ${this.preview.type === 'replace' ? 'background-color: rgba(0, 255, 0, 0.3); color: #006600; border: 1px solid #00aa00;' : ''}
     `
 
     const content = document.createElement('span')
@@ -635,15 +635,17 @@ class InlineDiffWidget extends WidgetType {
     buttonContainer.className = 'inline-diff-buttons'
     buttonContainer.style.cssText = `
       position: absolute;
-      top: -25px;
-      left: 0;
-      display: block;
+      top: -30px;
+      left: -2px;
+      display: flex;
+      gap: 2px;
       background: white;
       border: 1px solid #ccc;
-      border-radius: 4px;
-      padding: 2px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: 6px;
+      padding: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
       z-index: 1000;
+      white-space: nowrap;
     `
 
     const acceptBtn = document.createElement('button')

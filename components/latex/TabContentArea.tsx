@@ -63,6 +63,9 @@ interface TabContentAreaProps {
   
   // PDF selection to chat
   onPDFSelectionToChat: (text: string) => void;
+  
+  // Document loading for tab switching
+  onTabDocumentLoad?: (documentId: string) => Promise<void>;
 }
 
 export function TabContentArea({
@@ -94,6 +97,7 @@ export function TabContentArea({
   onHandleEditorFocus,
   onHandleEditorFocusLost,
   onPDFSelectionToChat,
+  onTabDocumentLoad,
 }: TabContentAreaProps) {
   const {
     openItems,
@@ -111,6 +115,23 @@ export function TabContentArea({
   const hasTexTab = openItems.some(item => item.kind === 'tex');
   const hasPdfTab = openItems.some(item => item.kind === 'pdf');
 
+  // Custom tab change handler that loads document content when switching to tex tabs
+  const handleTabChange = async (tabId: string) => {
+    const targetTab = openItems.find(item => item.id === tabId);
+    
+    if (targetTab?.kind === 'tex' && targetTab.docId && onTabDocumentLoad) {
+      console.log('Tab switch detected for tex document:', targetTab.docId);
+      try {
+        await onTabDocumentLoad(targetTab.docId);
+      } catch (error) {
+        console.error('Failed to load document for tab switch:', error);
+      }
+    }
+    
+    // Always set the active tab regardless of document loading result
+    setActiveItem(tabId);
+  };
+
   // Handle keyboard shortcuts for tab switching
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -122,7 +143,7 @@ export function TabContentArea({
         const digit = parseInt(e.key);
         if (digit >= 1 && digit <= 9 && openItems[digit - 1]) {
           e.preventDefault();
-          setActiveItem(openItems[digit - 1].id);
+          handleTabChange(openItems[digit - 1].id);
           return;
         }
 
@@ -132,7 +153,7 @@ export function TabContentArea({
           const currentIndex = openItems.findIndex(item => item.id === activeItemId);
           const nextIndex = (currentIndex + 1) % openItems.length;
           if (openItems[nextIndex]) {
-            setActiveItem(openItems[nextIndex].id);
+            handleTabChange(openItems[nextIndex].id);
           }
           return;
         }
@@ -274,7 +295,7 @@ export function TabContentArea({
         items={openItems}
         activeId={activeItemId}
         isEditing={isEditing && activeItem?.kind === 'tex'}
-        onTabChange={setActiveItem}
+        onTabChange={handleTabChange}
         onTabClose={closeItem}
         onSwapToTex={hasTexTab && hasPdfTab ? swapToTex : undefined}
         onSwapToPdf={hasTexTab && hasPdfTab ? swapToPdf : undefined}

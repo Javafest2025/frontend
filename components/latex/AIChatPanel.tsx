@@ -22,21 +22,14 @@ import {
   Loader2,
   Zap,
   Code,
-  BookOpen
+  BookOpen,
+  History,
+  RotateCcw
 } from 'lucide-react'
 import { latexApi } from '@/lib/api/latex-service'
+import type { LatexAiChatSession, LatexAiChatMessage, CreateLatexChatMessageRequest } from '@/types/chat'
 
-interface ChatMessage {
-  id: string
-  text: string
-  sender: 'user' | 'ai'
-  timestamp: Date
-  latexSuggestion?: string
-  isAccepted?: boolean
-  position?: number
-  selectionRange?: { from: number; to: number }
-  actionType?: 'add' | 'replace' | 'delete' | 'modify'
-}
+// Using LatexAiChatMessage type from chat.ts instead of local interface
 
 interface AIChatPanelProps {
   content: string
@@ -60,6 +53,11 @@ interface AIChatPanelProps {
   onClearSelection?: () => void
   getInsertAnchor?: () => number
   onCollapse?: () => void
+  
+  // New props for file-specific chat
+  documentId?: string
+  projectId?: string
+  onContentChange?: (newContent: string) => void
 }
 
 export function AIChatPanel({ 
@@ -76,16 +74,14 @@ export function AIChatPanel({
   onPreviewInlineDiff,
   onClearSelection,
   getInsertAnchor,
-  onCollapse
+  onCollapse,
+  documentId,
+  projectId,
+  onContentChange
 }: AIChatPanelProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome-latex-ai',
-      text: "Welcome to **LaTeXAI**! 🚀 I'm your specialized LaTeX assistant.\n\n**I can help you with:**\n• Writing and formatting LaTeX documents\n• Fixing compilation errors and syntax issues\n• Suggesting mathematical notation and environments\n• Optimizing document structure and styling\n• Using packages and custom commands\n• Converting content to LaTeX format\n\n**Enhanced with Papers Context:**\n" + (Array.isArray(selectedPapers) && selectedPapers.length > 0 ? `✅ ${selectedPapers.length} research papers loaded for context` : "📖 Add papers to provide research context for better assistance") + "\n\nSelect text in your document and ask me anything about LaTeX!",
-      sender: 'ai',
-      timestamp: new Date()
-    }
-  ])
+  const [messages, setMessages] = useState<LatexAiChatMessage[]>([])
+  const [chatSession, setChatSession] = useState<LatexAiChatSession | null>(null)
+  const [isLoadingSession, setIsLoadingSession] = useState(true)
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [selectedTextDisplay, setSelectedTextDisplay] = useState<string>('')
@@ -95,47 +91,153 @@ export function AIChatPanel({
   const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  
+  // Store content checkpoints for restore functionality
+  const [contentCheckpoints, setContentCheckpoints] = useState<Array<{
+    id: string
+    content: string
+    timestamp: string
+    description: string
+  }>>([])
+
+  // Load chat session when documentId changes
+  useEffect(() => {
+    if (documentId && projectId) {
+      // Clear previous messages when switching documents
+      setMessages([])
+      loadChatSession()
+    }
+  }, [documentId, projectId])
+
+  // Listen for suggestion acceptance events from editor
+  useEffect(() => {
+    const handleSuggestionAccepted = async (event: CustomEvent) => {
+      const { originalContent, newContent, suggestionText } = event.detail
+      
+      // Create checkpoint
+      const checkpoint = {
+        id: `checkpoint-${Date.now()}`,
+        content: originalContent,
+        timestamp: new Date().toISOString(),
+        description: `Before applying: ${suggestionText.substring(0, 50)}...`
+      }
+      setContentCheckpoints(prev => [checkpoint, ...prev.slice(0, 9)])
+
+      // Add restore checkpoint message
+      const restoreMessage: LatexAiChatMessage = {
+        id: `restore-${checkpoint.id}`,
+        sessionId: chatSession?.id || '',
+        messageType: 'AI',
+        content: '✅ Suggestion applied successfully! You can restore the previous version if needed.',
+        isApplied: false,
+        sender: 'ai',
+        timestamp: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        hasLatexSuggestion: false,
+        hasSelectionRange: false
+      }
+      
+      // Add to local state
+      setMessages(prev => [...prev, restoreMessage])
+
+      // Save restore checkpoint message to database
+      if (documentId) {
+        try {
+          await latexApi.sendChatMessage(documentId, {
+            messageType: 'AI',
+            content: restoreMessage.content,
+            selectionRangeFrom: undefined,
+            selectionRangeTo: undefined,
+            cursorPosition: undefined
+          })
+          console.log('Restore checkpoint message saved to database')
+        } catch (dbError) {
+          console.log('Failed to save restore checkpoint message to database:', dbError)
+        }
+      }
+    }
+
+    window.addEventListener('suggestion-accepted', handleSuggestionAccepted as unknown as EventListener)
+    
+    return () => {
+      window.removeEventListener('suggestion-accepted', handleSuggestionAccepted as unknown as EventListener)
+    }
+  }, [chatSession?.id])
+
+  const loadChatSession = async () => {
+    if (!documentId || !projectId) return
+    
+    setIsLoadingSession(true)
+    try {
+      // Try to get existing session from database
+      const response = await latexApi.getChatSession(documentId, projectId)
+      setChatSession(response.data)
+      console.log('Loaded existing chat session:', response.data)
+      
+      // Load chat history for this session
+      await loadChatHistory()
+    } catch (error) {
+      console.log('No existing session found, creating new one')
+      // Create a simple session state as fallback
+      const simpleSession: LatexAiChatSession = {
+        id: `session-${documentId}`,
+        documentId: documentId,
+        projectId: projectId,
+        sessionTitle: 'LaTeX AI Chat',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isActive: true,
+        messageCount: 0,
+        lastMessageTime: new Date().toISOString(),
+        messages: [],
+        checkpoints: []
+      }
+      
+      setChatSession(simpleSession)
+      
+      // Initialize with welcome message
+      if (!messages.length) {
+        const welcomeMessage: LatexAiChatMessage = {
+          id: 'welcome',
+          sessionId: simpleSession.id,
+          messageType: 'AI',
+          content: "Welcome to **LaTeXAI**! 🚀 I'm your specialized LaTeX assistant for this document.\n\n" +
+                  "**I can help you with:**\n" +
+                  "• Writing and formatting LaTeX documents\n" +
+                  "• Fixing compilation errors and syntax issues\n" +
+                  "• Suggesting mathematical notation and environments\n" +
+                  "• Optimizing document structure and styling\n" +
+                  "• Using packages and custom commands\n" +
+                  "• Converting content to LaTeX format\n\n" +
+                  "**💡 How to use:**\n" +
+                  "• Select text in your document and ask me anything about LaTeX!\n" +
+                  "• I can add, modify, or improve your LaTeX content\n" +
+                  "• Ask me to explain LaTeX concepts or fix errors\n\n" +
+                  "Select text in your document and ask me anything about LaTeX!",
+          isApplied: false,
+          sender: 'ai',
+          timestamp: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          hasLatexSuggestion: false,
+          hasSelectionRange: false
+        }
+        setMessages([welcomeMessage])
+      }
+      
+      console.log('Initialized simple chat session for document:', documentId)
+    } finally {
+      setIsLoadingSession(false)
+    }
+  }
 
   // Update selected text display when prop changes
-  // Only show selection if it's explicitly provided (after Add to Chat click)
   useEffect(() => {
-    console.log('🎨🎨🎨 === AIChatPanel selectedText prop changed === 🎨🎨🎨')
-    console.log('selectedText prop received:', selectedText)
-    console.log('selectedText exists:', !!selectedText)
-    console.log('selectedText.text exists:', !!selectedText?.text)
-    console.log('selectedText.text value:', selectedText?.text)
-    console.log('selectedText.text.trim() exists:', !!selectedText?.text?.trim())
-    console.log('selectedText.text.trim() value:', selectedText?.text?.trim())
-    
     if (selectedText && selectedText.text && selectedText.text.trim()) {
-      console.log('✅ Valid selectedText received, setting display')
       setSelectedTextDisplay(selectedText.text.trim())
-      console.log('📝 Setting selectedTextDisplay to:', selectedText.text.trim())
     } else {
-      console.log('❌ No valid selectedText, clearing display')
       setSelectedTextDisplay('')
-      console.log('🧹 Clearing selectedTextDisplay')
     }
-    console.log('🏁 === AIChatPanel selectedText effect completed ===')
   }, [selectedText])
-
-  // Update welcome message when papers context changes
-  useEffect(() => {
-    if (Array.isArray(selectedPapers)) {
-      setMessages(prev => {
-        const welcomeIndex = prev.findIndex(msg => msg.id === 'welcome-latex-ai')
-        if (welcomeIndex !== -1) {
-          const updatedMessages = [...prev]
-          updatedMessages[welcomeIndex] = {
-            ...updatedMessages[welcomeIndex],
-            text: "Welcome to **LaTeXAI**! 🚀 I'm your specialized LaTeX assistant.\n\n**I can help you with:**\n• Writing and formatting LaTeX documents\n• Fixing compilation errors and syntax issues\n• Suggesting mathematical notation and environments\n• Optimizing document structure and styling\n• Using packages and custom commands\n• Converting content to LaTeX format\n\n**Enhanced with Papers Context:**\n" + (selectedPapers.length > 0 ? `✅ ${selectedPapers.length} research papers loaded for context` : "📖 Add papers to provide research context for better assistance") + "\n\nSelect text in your document and ask me anything about LaTeX!"
-          }
-          return updatedMessages
-        }
-        return prev
-      })
-    }
-  }, [selectedPapers])
 
   // Autosize function for textarea
   const autosize = () => {
@@ -181,6 +283,16 @@ export function AIChatPanel({
     }
   }, [messages])
 
+  // Load chat history when document changes
+  useEffect(() => {
+    if (documentId) {
+      loadChatHistory()
+    } else {
+      setMessages([])
+      setChatSession(null)
+    }
+  }, [documentId])
+
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
@@ -212,13 +324,23 @@ export function AIChatPanel({
     
     switch (actionType) {
       case 'replace':
+        // For replace: show original text as "delete" and new text as "add"
+        if (originalText && originalText.trim()) {
+          previews.push({
+            id: `${suggestionId}-delete`,
+            type: 'delete',
+            from,
+            to,
+            content: originalText,
+            originalContent: originalText
+          })
+        }
         previews.push({
-          id: suggestionId,
-          type: 'replace',
-          from,
-          to,
-          content: suggestion,
-          originalContent: originalText
+          id: `${suggestionId}-add`,
+          type: 'add',
+          from: to, // Insert the new content after the deleted part
+          to: to,
+          content: suggestion
         })
         break
         
@@ -254,69 +376,114 @@ export function AIChatPanel({
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return
 
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      text: inputValue,
-      sender: 'user',
-      timestamp: new Date(),
-      position: cursorPosition,
-      selectionRange: selectedText ? { from: selectedText.from, to: selectedText.to } : undefined
-    }
-
-    setMessages(prev => [...prev, userMessage])
     setInputValue('')
     setIsLoading(true)
     setPendingAiRequest?.(true)
 
+    const userMessage: LatexAiChatMessage = {
+      id: `user-${Date.now()}`,
+      sessionId: chatSession?.id || '',
+      messageType: 'USER',
+      content: inputValue,
+      isApplied: false,
+      sender: 'user',
+      timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      hasLatexSuggestion: false,
+      hasSelectionRange: false
+    }
+
+    // Add user message immediately
+    setMessages(prev => [...prev, userMessage])
+
     try {
-      // Prepare context information including papers
-      const safePapers = Array.isArray(selectedPapers) ? selectedPapers : []
-      const contextInfo = {
+      // Save user message to database (if endpoints are available)
+      if (documentId) {
+        try {
+          await latexApi.sendChatMessage(documentId, {
+            messageType: 'USER',
+            content: inputValue,
+            selectionRangeFrom: selectedText?.from,
+            selectionRangeTo: selectedText?.to,
+            cursorPosition: cursorPosition
+          })
+        } catch (dbError) {
+          console.log('Failed to save user message to database:', dbError)
+        }
+      }
+
+      // Use the original working AI assistance endpoint
+      const aiRequest = {
         selectedText: selectedText?.text || '',
         userRequest: inputValue,
-        fullDocument: content,
-        papersContext: safePapers.length > 0 ? {
-          count: safePapers.length,
-          papers: safePapers.map(paper => ({
-            title: String(paper.title ?? ''),
-            authors: Array.isArray(paper.authors) ? paper.authors.map((a: any) => String(a.name ?? '')).join(', ') : 'Unknown authors',
-            abstract: String(paper.abstract ?? ''),
-            year: paper.publicationDate ? new Date(paper.publicationDate).getFullYear() : null
-          }))
-        } : null
+        fullDocument: content || ''
       }
 
-      const response = await latexApi.processChatRequest(contextInfo)
+      const response = await latexApi.processChatRequest(aiRequest)
+      const aiResponseContent = response.data
 
-      // Parse AI response for Cursor-like integration
-      const { actionType, suggestion, position, explanation } = parseAIResponseForCursor(response.data, inputValue, selectedText)
+      // Parse AI response using existing sophisticated logic
+      const { actionType, suggestion, position } = parseAIResponse(
+        aiResponseContent, 
+        inputValue, 
+        cursorPosition, 
+        selectedText
+      )
 
-      // Create AI message with only explanation (no duplicate LaTeX code)
-      const explanationOnly = extractExplanation(response.data)
-      const aiMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        text: explanationOnly,
+      // Extract explanation (text before LaTeX code)
+      const explanation = extractExplanation(aiResponseContent)
+
+      // Create AI message
+      const aiMessage: LatexAiChatMessage = {
+        id: `ai-${Date.now()}`,
+        sessionId: chatSession?.id || '',
+        messageType: 'AI',
+        content: explanation || aiResponseContent,
+        latexSuggestion: suggestion,
+        actionType: actionType.toUpperCase() as 'ADD' | 'REPLACE' | 'DELETE' | 'MODIFY',
+        selectionRangeFrom: selectedText?.from,
+        selectionRangeTo: selectedText?.to,
+        cursorPosition: position,
+        isApplied: false,
         sender: 'ai',
-        timestamp: new Date()
+        timestamp: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        hasLatexSuggestion: Boolean(suggestion && suggestion.length > 0),
+        hasSelectionRange: selectedText?.from !== undefined && selectedText?.to !== undefined
       }
 
+      // Add AI message to state
       setMessages(prev => [...prev, aiMessage])
 
-      // Create inline diff preview directly in editor
-      if (suggestion && onPreviewInlineDiff) {
-        console.log('=== CREATING INLINE DIFF PREVIEW ===')
-        console.log('Action type:', actionType)
-        console.log('Position range:', { from: position.from, to: position.to })
-        console.log('Original text:', position.originalText)
-        console.log('Suggested text:', suggestion)
-        console.log('Explanation:', explanation)
+      // Save AI message to database (if endpoints are available)
+      if (documentId) {
+        try {
+          await latexApi.sendChatMessage(documentId, {
+            messageType: 'AI',
+            content: explanation || aiResponseContent,
+            latexSuggestion: suggestion,
+            actionType: actionType.toUpperCase(),
+            selectionRangeFrom: selectedText?.from,
+            selectionRangeTo: selectedText?.to,
+            cursorPosition: position,
+            hasLatexSuggestion: Boolean(suggestion && suggestion.length > 0),
+            hasSelectionRange: selectedText?.from !== undefined && selectedText?.to !== undefined
+          })
+        } catch (dbError) {
+          console.log('Failed to save AI message to database:', dbError)
+        }
+      }
 
-        // Create preview overlay without modifying content
+      // Create inline diff preview if AI provided LaTeX suggestion
+      if (suggestion && suggestion.length > 0 && onPreviewInlineDiff) {
+        const from = selectedText?.from || position || 0
+        const to = selectedText?.to || from
+        
         createInlineDiffPreviews(
-          actionType,
-          position.from,
-          position.to,
-          position.originalText,
+          actionType as 'add' | 'replace' | 'delete',
+          from,
+          to,
+          selectedText?.text || '',
           suggestion,
           aiMessage.id
         )
@@ -325,30 +492,66 @@ export function AIChatPanel({
     } catch (error) {
       console.error('AI chat request failed:', error)
       
-      // Provide more specific error information
-      let errorText = 'Sorry, I encountered an error processing your request. Please try again.'
-      
-      if (error instanceof Error) {
-        if (error.message.includes('Failed to fetch')) {
-          errorText = 'Unable to connect to AI service. Please check if the backend is running.'
-        } else if (error.message.includes('Failed to process chat request')) {
-          errorText = 'AI service is currently unavailable. Please try again later.'
-        } else {
-          errorText = `Error: ${error.message}`
-        }
-      }
-      
-      const errorMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        text: errorText,
+      // Add error message to local state
+      const errorMessage: LatexAiChatMessage = {
+        id: `error-${Date.now()}`,
+        sessionId: chatSession?.id || '',
+        messageType: 'AI',
+        content: 'Sorry, I encountered an error processing your request. Please try again.',
+        isApplied: false,
         sender: 'ai',
-        timestamp: new Date()
+        timestamp: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        hasLatexSuggestion: false,
+        hasSelectionRange: false
       }
+      
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
       setPendingAiRequest?.(false)
     }
+  }
+
+  const loadChatHistory = async () => {
+    if (!documentId) return
+    
+    try {
+      // Try to load chat history from database
+      const response = await latexApi.getChatHistory(documentId)
+      if (response.data && response.data.length > 0) {
+        setMessages(response.data)
+        console.log('Loaded chat history from database:', response.data.length, 'messages')
+      } else {
+        // No messages found, keep current state (welcome message)
+        console.log('No chat history found in database')
+      }
+    } catch (error) {
+      console.log('Failed to load chat history from database, using local state')
+    }
+  }
+
+  const createCheckpointBeforeApply = async (messageId: string, suggestion: string) => {
+    // For now, just apply the suggestion directly since checkpoint endpoints are not available yet
+    try {
+      if (onContentChange) {
+        const newContent = applySuggestionToContent(content, suggestion, selectedText)
+        onContentChange(newContent)
+        console.log('Applied suggestion to content:', messageId)
+      }
+    } catch (error) {
+      console.error('Failed to apply suggestion:', error)
+    }
+  }
+
+  const applySuggestionToContent = (currentContent: string, suggestion: string, selection?: { text: string; from: number; to: number }): string => {
+    if (!selection) {
+      // Add at end if no selection
+      return currentContent + '\n' + suggestion
+    }
+
+    // Replace selected text with suggestion
+    return currentContent.slice(0, selection.from) + suggestion + currentContent.slice(selection.to)
   }
 
   // Parse AI response to understand what action to take
@@ -569,27 +772,87 @@ export function AIChatPanel({
     return 'AI suggestion generated' // Fallback
   }
 
-  const handleAcceptSuggestion = (messageId: string, suggestion: string, actionType?: string, position?: number, selectionRange?: { from: number; to: number }) => {
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId ? { ...msg, isAccepted: true } : msg
-    ))
-    
-    // Apply the suggestion based on action type
-    onApplySuggestion(suggestion, position, actionType, selectionRange)
-    
-    // Clear blinking position markers after applying
-    setPositionMarkers(prev => prev.map(m => ({ ...m, blinking: false })))
+  const handleAcceptSuggestion = async (messageId: string, suggestion: string, actionType?: string, position?: number, selectionRange?: { from: number; to: number }) => {
+    try {
+      // Store current content as a checkpoint before applying suggestion
+      const checkpoint = {
+        id: `checkpoint-${Date.now()}`,
+        content: content,
+        timestamp: new Date().toISOString(),
+        description: `Before applying suggestion: ${suggestion.substring(0, 50)}...`
+      }
+      setContentCheckpoints(prev => [checkpoint, ...prev.slice(0, 9)]) // Keep last 10 checkpoints
+
+      // Apply the suggestion locally
+      if (onApplySuggestion) {
+        onApplySuggestion(suggestion, position, actionType, selectionRange)
+      }
+
+      // Mark suggestion as applied in backend
+      await latexApi.applySuggestion(messageId, content + suggestion)
+
+      // Update local state
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, isApplied: true } : msg
+      ))
+      
+      // Add a "Restore Checkpoint" message to chat
+      const restoreMessage: LatexAiChatMessage = {
+        id: `restore-${checkpoint.id}`, // Store checkpoint ID in message ID for reference
+        sessionId: chatSession?.id || '',
+        messageType: 'AI',
+        content: 'Suggestion applied successfully! You can restore the previous version if needed.',
+        isApplied: false,
+        sender: 'ai',
+        timestamp: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        hasLatexSuggestion: false,
+        hasSelectionRange: false
+      }
+      
+      setMessages(prev => [...prev, restoreMessage])
+      
+      // Clear blinking position markers after applying
+      setPositionMarkers(prev => prev.map(m => ({ ...m, blinking: false })))
+    } catch (error) {
+      console.error('Failed to accept suggestion:', error)
+    }
   }
 
-  const handleRejectSuggestion = (messageId: string) => {
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId ? { ...msg, isAccepted: false } : msg
-    ))
+  const handleRejectSuggestion = async (messageId: string) => {
+    try {
+      // The backend doesn't need to track rejections specifically
+      // Just update local state to show as rejected
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, isApplied: false } : msg
+      ))
+    } catch (error) {
+      console.error('Failed to reject suggestion:', error)
+    }
   }
 
-  // Clear active suggestion state when preview is accepted/rejected
-  const clearActiveSuggestion = () => {
-    setActiveSuggestionId(null)
+  // Handle restoring content from checkpoint
+  const handleRestoreCheckpoint = (checkpointId: string) => {
+    const checkpoint = contentCheckpoints.find(cp => cp.id === checkpointId)
+    if (checkpoint && onContentChange) {
+      onContentChange(checkpoint.content)
+      
+      // Add confirmation message
+      const confirmMessage: LatexAiChatMessage = {
+        id: `restored-${Date.now()}`,
+        sessionId: chatSession?.id || '',
+        messageType: 'AI',
+        content: `✅ Content restored to checkpoint: "${checkpoint.description}"`,
+        isApplied: false,
+        sender: 'ai',
+        timestamp: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        hasLatexSuggestion: false,
+        hasSelectionRange: false
+      }
+      
+      setMessages(prev => [...prev, confirmMessage])
+    }
   }
 
   const handleCopySuggestion = async (suggestion: string) => {
@@ -618,10 +881,10 @@ export function AIChatPanel({
     setActiveSuggestionId(null)
   }
 
-  const renderMessage = (message: ChatMessage) => {
-    const isAI = message.sender === 'ai'
-    const hasSuggestion = message.latexSuggestion && message.latexSuggestion.trim()
-    const safeText = String(message.text ?? '')
+  const renderMessage = (message: LatexAiChatMessage) => {
+    const isAI = message.messageType === 'AI'
+    const hasSuggestion = message.hasLatexSuggestion && message.latexSuggestion && message.latexSuggestion.trim()
+    const safeText = String(message.content ?? '')
 
     return (
       <div key={message.id} className={`flex gap-3 mb-6 ${isAI ? 'flex-row' : 'flex-row-reverse'}`}>
@@ -700,57 +963,27 @@ export function AIChatPanel({
                     {message.actionType.toUpperCase()}
                   </Badge>
                 )}
-                {message.position !== undefined && (
+                {message.selectionRangeFrom !== undefined && (
                   <Badge variant="outline" className="text-xs">
                     <MapPin className="h-3 w-3 mr-1" />
-                    Pos: {message.position}
+                    Pos: {message.selectionRangeFrom}
                   </Badge>
                 )}
                 
-                {/* Action buttons */}
+                {/* Action buttons - Only copy button, Accept/Reject moved to editor */}
                 <div className="flex items-center gap-1 ml-auto">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleCopySuggestion(message.latexSuggestion!)}
                     className="h-6 w-6 p-0 hover:bg-orange-100"
+                    title="Copy LaTeX code"
                   >
                     <Copy className="h-3 w-3" />
                   </Button>
-                  {message.isAccepted === undefined && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleAcceptSuggestion(
-                          message.id, 
-                          message.latexSuggestion!, 
-                          message.actionType,
-                          message.position,
-                          message.selectionRange
-                        )}
-                        className="h-6 w-6 p-0 text-green-600 hover:bg-green-100"
-                      >
-                        <Check className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRejectSuggestion(message.id)}
-                        className="h-6 w-6 p-0 text-red-600 hover:bg-red-100"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </>
-                  )}
-                  {message.isAccepted === true && (
+                  {message.isApplied && (
                     <Badge variant="default" className="text-xs bg-green-600">
                       Applied
-                    </Badge>
-                  )}
-                  {message.isAccepted === false && (
-                    <Badge variant="destructive" className="text-xs">
-                      Rejected
                     </Badge>
                   )}
                 </div>
@@ -769,11 +1002,29 @@ export function AIChatPanel({
             </div>
           )}
           
+          {/* Restore Checkpoint Button for restore messages */}
+          {message.id.startsWith('restore-') && (
+            <div className="mt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const checkpointId = message.id.replace('restore-', '')
+                  handleRestoreCheckpoint(checkpointId)
+                }}
+                className="bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Restore Checkpoint
+              </Button>
+            </div>
+          )}
+          
           {/* Timestamp */}
           <div className={`text-xs mt-2 ${
             isAI ? 'text-slate-500' : 'text-blue-300'
           } ${isAI ? 'text-left' : 'text-right'}`}>
-            {message.timestamp.toLocaleTimeString()}
+            {new Date(message.timestamp).toLocaleTimeString()}
           </div>
         </div>
       </div>
@@ -833,8 +1084,8 @@ export function AIChatPanel({
                 <Edit3 className="h-3 w-3 mr-1" />
                 Selected Text
               </Badge>
-              <div className="text-sm bg-blue-50 border border-blue-200 p-3 rounded-lg max-h-20 overflow-y-auto">
-                <span className="text-blue-800 font-mono text-xs">"{selectedTextDisplay}"</span>
+              <div className="text-sm bg-blue-50 border border-blue-200 p-2 rounded-lg">
+                <span className="text-blue-800 font-mono text-xs truncate block">"{selectedTextDisplay}"</span>
               </div>
               {/* Hover cancel button */}
               <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -850,23 +1101,7 @@ export function AIChatPanel({
             </div>
           )}
           
-          {cursorPosition !== undefined && (
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                <MapPin className="h-3 w-3 mr-1" />
-                Cursor: {cursorPosition}
-              </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onSetPositionMarker?.(cursorPosition, 'Cursor Position')}
-                className="h-6 text-xs"
-              >
-                <MapPin className="h-3 w-3 mr-1" />
-                Mark
-              </Button>
-            </div>
-          )}
+          {/* Removed cursor position display to save space */}
 
           {positionMarkers.length > 0 && (
             <div className="mt-2">
@@ -959,30 +1194,6 @@ export function AIChatPanel({
           </Button>
         )}
       </div>
-      
-      {/* Inline Diff Preview Controls */}
-      {activeSuggestionId && (
-        <div className="flex-shrink-0 border-t bg-blue-50 p-3">
-          <div className="text-center mb-2">
-            <span className="text-sm font-medium text-blue-800">
-              🎯 AI Suggestion Preview Active
-            </span>
-            <p className="text-xs text-blue-600 mt-1">
-              Hover over highlighted text in the editor to accept/reject changes
-            </p>
-          </div>
-          <div className="flex space-x-2 justify-center">
-            <Button 
-              onClick={clearActiveSuggestion}
-              size="sm"
-              variant="outline"
-              className="text-blue-600 border-blue-600 hover:bg-blue-50"
-            >
-              Clear Preview
-            </Button>
-          </div>
-        </div>
-      )}
       
       {/* Input Area - Always visible at bottom */}
       <div className="sticky bottom-0 p-3 border-t bg-background">
