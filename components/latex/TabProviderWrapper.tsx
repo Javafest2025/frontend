@@ -80,6 +80,9 @@ interface TabProviderWrapperProps {
   
   // Tab opening callback
   onOpenPaperReady?: (openPaperFn: (paper: Paper) => void) => void;
+  
+  // Document loading for tab switching
+  onTabDocumentLoad?: (documentId: string) => Promise<void>;
 }
 
 function TabProviderContent({
@@ -115,6 +118,7 @@ function TabProviderContent({
   isCompiling,
   onPDFSelectionToChat,
   onOpenPaperReady,
+  onTabDocumentLoad,
 }: TabProviderWrapperProps) {
   const { openItem, openItems } = useTabContext();
 
@@ -204,6 +208,7 @@ function TabProviderContent({
       onHandleEditorFocus={onHandleEditorFocus}
       onHandleEditorFocusLost={onHandleEditorFocusLost}
       onPDFSelectionToChat={onPDFSelectionToChat}
+      onTabDocumentLoad={onTabDocumentLoad}
     />
     </>
   );

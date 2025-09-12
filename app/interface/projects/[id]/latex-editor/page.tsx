@@ -15,8 +15,9 @@ import {
   Plus, 
   Save, 
   Eye, 
-  MessageSquare, 
-  Settings, 
+  MessageSquare,
+  Sun,
+  Moon,
   Play,
   Folder,
   Search,
@@ -34,6 +35,7 @@ import {
   Code
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
+import { useSettings } from "@/contexts/SettingsContext"
 import { projectsApi } from "@/lib/api/project-service"
 import { latexApi } from "@/lib/api/latex-service"
 import { AIChatPanel } from "@/components/latex/AIChatPanel"
@@ -72,6 +74,7 @@ interface ProjectOverviewPageProps {
 }
 
 export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
+  const { settings, updateSetting } = useSettings()
   const [projectId, setProjectId] = useState<string>("")
   const [project, setProject] = useState<Project | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
@@ -683,6 +686,9 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       return
     }
 
+    // Store current content as checkpoint before applying
+    const currentContentCheckpoint = editorContent
+
     let newContent = editorContent
     switch (preview.type) {
       case 'add':
@@ -710,10 +716,26 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     setEditorContent(newContent)
     setIsEditing(true)
     
-    // Remove the accepted preview
-    setInlineDiffPreviews(prev => prev.filter(p => p.id !== id))
+    // Remove all related previews (both delete and add for replace operations)
+    setInlineDiffPreviews(prev => prev.filter(p => 
+      !p.id.startsWith(id.replace('-delete', '').replace('-add', ''))
+    ))
+
+    // Trigger restore checkpoint functionality in the AI chat
+    // This simulates accepting a suggestion to create the checkpoint message
+    const suggestionText = preview.content
+    if (window.dispatchEvent) {
+      const event = new CustomEvent('suggestion-accepted', {
+        detail: {
+          originalContent: currentContentCheckpoint,
+          newContent: newContent,
+          suggestionText: suggestionText
+        }
+      })
+      window.dispatchEvent(event)
+    }
     
-    console.log('Diff accepted and applied')
+    console.log('Diff accepted and applied with checkpoint created')
   }
 
   const handleRejectInlineDiff = (id: string) => {
@@ -1144,6 +1166,53 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     }
   }
 
+  const loadDocumentById = async (documentId: string) => {
+    console.log('Loading fresh content for document from tab switch:', documentId)
+    
+    try {
+      // Load fresh content from database
+      const freshDocumentResponse = await latexApi.getDocumentById(documentId)
+      const freshDocument = freshDocumentResponse.data
+      
+      console.log('Fresh document content loaded via tab switch:', freshDocument.content)
+      console.log('Fresh document content length:', freshDocument.content?.length || 0)
+      
+      // Update current document with fresh data
+      setCurrentDocument(freshDocument)
+      setEditorContent(freshDocument.content || '')
+      // Note: API response doesn't include version field, will be loaded from version history
+      setIsViewingVersion(false)
+      
+      // Load version history for the selected document
+      loadVersionHistory(freshDocument.id)
+      
+      // Clear any previous selections and AI state
+      setSelectedText({ text: '', from: 0, to: 0 })
+      setTempSelectedText('')
+      setShowAddToChat(false)
+      setSelectionAddedToChat(false)
+      
+      console.log('Document switched successfully via tab, chat will load for documentId:', freshDocument.id)
+    } catch (error) {
+      console.error('Failed to load fresh document content via tab switch:', error)
+      throw error // Re-throw so tab handler can handle fallback
+    }
+  }
+
+  // Handle document switching events
+  const handleDocumentSwitchById = async (documentId: string) => {
+    console.log('Document switch event received for documentId:', documentId)
+    
+    // Skip if already viewing this document
+    if (currentDocument?.id === documentId) {
+      console.log('Already viewing document, skipping switch')
+      return
+    }
+    
+    await loadDocumentById(documentId)
+  }
+
+  // Create version
   const createVersion = async () => {
     if (!currentDocument?.id || !commitMessage.trim()) {
       alert('Please enter a commit message')
@@ -1409,9 +1478,38 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
               <Download className="h-4 w-4 mr-2" />
               PDF
             </Button>
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => updateSetting('theme', settings.theme === 'dark' ? 'light' : 'dark')}
+              title="Toggle theme"
+            >
+              {settings.theme === "dark" ? (
+                <Sun className="h-4 w-4 mr-2" />
+              ) : (
+                <Moon className="h-4 w-4 mr-2" />
+              )}
+              {settings.theme === "dark" ? "Light" : "Dark"}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                // Dynamic import to avoid issues with require
+                import('@/lib/codemirror-themes').then(({ cycleThemeVariant, codeMirrorThemes, getCurrentThemeVariant }) => {
+                  const themeMode = settings.theme === 'dark' ? 'dark' : 'light'
+                  const newIndex = cycleThemeVariant(themeMode)
+                  const themeName = codeMirrorThemes[themeMode][newIndex].name
+                  // Force re-render by dispatching a custom event
+                  window.dispatchEvent(new CustomEvent('codemirror-theme-changed', { 
+                    detail: { mode: themeMode, index: newIndex, name: themeName } 
+                  }))
+                })
+              }}
+              title="Cycle editor theme variant"
+            >
+              <Code className="h-4 w-4 mr-2" />
+              Variant
             </Button>
           </div>
         </div>
@@ -1466,16 +1564,45 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                           "p-1.5 rounded-md cursor-pointer text-sm hover:bg-accent group",
                           currentDocument?.id === doc.id && "bg-accent"
                         )}
-                        onClick={() => {
+                        onClick={async () => {
                           if (!isEditing) {
                             console.log('Document clicked:', doc.title)
-                            console.log('Document content to load:', doc.content)
-                            setCurrentDocument(doc)
-                            setEditorContent(doc.content)
-                            setCurrentVersion(doc.version || 1)
-                            setIsViewingVersion(false)
-                            loadVersionHistory(doc.id)
-                            console.log('Document selected and content set')
+                            console.log('Loading fresh content from database for document:', doc.id)
+                            
+                            try {
+                              // Load fresh content from database
+                              const freshDocumentResponse = await latexApi.getDocumentById(doc.id)
+                              const freshDocument = freshDocumentResponse.data
+                              
+                              console.log('Fresh document content loaded:', freshDocument.content)
+                              console.log('Fresh document content length:', freshDocument.content?.length || 0)
+                              
+                              // Update current document with fresh data
+                              setCurrentDocument(freshDocument)
+                              setEditorContent(freshDocument.content || '')
+                              // Note: API response doesn't include version field, will be loaded from version history
+                              setIsViewingVersion(false)
+                              
+                              // Load version history for the selected document
+                              loadVersionHistory(freshDocument.id)
+                              
+                              // Clear any previous selections and AI state
+                              setSelectedText({ text: '', from: 0, to: 0 })
+                              setTempSelectedText('')
+                              setShowAddToChat(false)
+                              setSelectionAddedToChat(false)
+                              
+                              console.log('Document switched successfully, chat will load for documentId:', freshDocument.id)
+                            } catch (error) {
+                              console.error('Failed to load fresh document content:', error)
+                              // Fallback to cached content
+                              console.log('Using cached content as fallback')
+                              setCurrentDocument(doc)
+                              setEditorContent(doc.content)
+                              setCurrentVersion(doc.version || 1)
+                              setIsViewingVersion(false)
+                              loadVersionHistory(doc.id)
+                            }
                           }
                         }}
                       >
@@ -1641,23 +1768,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   isCompiling={isCompiling}
                   onPDFSelectionToChat={handlePDFSelectionToChat}
                   onOpenPaperReady={(fn) => setHandleOpenPaper(() => fn)}
+                  onTabDocumentLoad={handleDocumentSwitchById}
                 />
-              )}
-              
-              {/* Floating AI Assistant Button when sidebar is collapsed */}
-              {isRightSidebarCollapsed && currentDocument && (
-                <div className="absolute top-2 right-2 z-40">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setIsRightSidebarCollapsed(false)}
-                    className="shadow-lg"
-                    title="Open AI Assistant"
-                  >
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    AI Chat
-                  </Button>
-                </div>
               )}
             </div>
           </ResizablePanel>
@@ -1714,6 +1826,9 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                       }}
                       getInsertAnchor={getInsertAnchor}
                       onCollapse={() => setIsRightSidebarCollapsed(true)}
+                      documentId={currentDocument?.id}
+                      projectId={projectId}
+                      onContentChange={setEditorContent}
                     />
                   </TabsContent>
                   

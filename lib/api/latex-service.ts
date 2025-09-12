@@ -218,6 +218,115 @@ export const latexApi = {
     return response.json()
   },
 
+  // LaTeX AI Chat - File-specific chat sessions
+  async getChatSession(documentId: string, projectId: string): Promise<APIResponse<any>> {
+    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/session/${documentId}?projectId=${projectId}`), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get chat session: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  async sendChatMessage(documentId: string, request: any): Promise<APIResponse<any>> {
+    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/session/${documentId}/message`), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to send chat message: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  async getChatHistory(documentId: string): Promise<APIResponse<any[]>> {
+    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/session/${documentId}/messages`), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get chat history: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  async applySuggestion(messageId: string, contentAfter: string): Promise<APIResponse<string>> {
+    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/message/${messageId}/apply`), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(contentAfter),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to apply suggestion: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  async createCheckpoint(documentId: string, sessionId: string, request: any): Promise<APIResponse<any>> {
+    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/document/${documentId}/checkpoint?sessionId=${sessionId}`), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to create checkpoint: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  async restoreToCheckpoint(checkpointId: string): Promise<APIResponse<string>> {
+    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/checkpoint/${checkpointId}/restore`), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to restore checkpoint: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  async getCheckpoints(documentId: string): Promise<APIResponse<any[]>> {
+    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/document/${documentId}/checkpoints`), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get checkpoints: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
   async reviewDocument(content: string): Promise<APIResponse<any>> {
     const response = await fetch(getProjectServiceUrl('/api/ai-assistance/review'), {
       method: 'POST',
