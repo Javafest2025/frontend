@@ -6,6 +6,7 @@ export interface GapAnalysisRequest {
     paperId: string;
     maxPapers?: number;
     validationThreshold?: number;
+    config?: GapAnalysisConfigDto;
 }
 
 export interface GapAnalysisConfigDto {
@@ -33,6 +34,11 @@ export interface GapAnalysisRequestData {
     errorMessage?: string;
     createdAt: string;
     updatedAt: string;
+    // Gap count statistics
+    totalGapsIdentified?: number;
+    validGapsCount?: number;
+    invalidGapsCount?: number;
+    modifiedGapsCount?: number;
 }
 
 export interface GapAnalysisResponse {
@@ -51,6 +57,7 @@ export interface GapAnalysisResponse {
 export interface ResearchGapResponse {
     id: string;
     gapId: string;
+    gapAnalysisId: string;
     orderIndex?: number;
     name?: string;
     description?: string;
@@ -69,12 +76,37 @@ export interface ResearchGapResponse {
     requiredResources?: string;
     estimatedDifficulty?: string;
     estimatedTimeline?: string;
-    evidenceAnchors?: string;
-    supportingPapers?: string;
-    conflictingPapers?: string;
-    suggestedTopics?: string;
+    evidenceAnchors?: EvidenceAnchor[];
+    supportingPapers?: PaperReference[];
+    conflictingPapers?: PaperReference[];
+    suggestedTopics?: ResearchTopic[];
     createdAt: string;
     validatedAt?: string;
+}
+
+export interface EvidenceAnchor {
+    title: string;
+    url: string;
+    type: string; // supporting, conflicting, neutral
+    relevanceScore?: number;
+}
+
+export interface PaperReference {
+    title: string;
+    doi?: string;
+    url?: string;
+    publicationDate?: string;
+    relevanceScore?: number;
+    keyFindings?: string;
+}
+
+export interface ResearchTopic {
+    title: string;
+    description: string;
+    researchQuestions?: string[];
+    methodologySuggestions?: string;
+    expectedOutcomes?: string;
+    relevanceScore?: number;
 }
 
 export interface GapAnalysisStats {
@@ -89,7 +121,7 @@ export interface GapAnalysisStats {
 
 export enum GapStatus {
     PENDING = "PENDING",
-    RUNNING = "RUNNING",
+    PROCESSING = "PROCESSING",
     COMPLETED = "COMPLETED",
     FAILED = "FAILED"
 }
