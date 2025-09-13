@@ -30,7 +30,7 @@ export interface LatexAiChatSession {
 }
 
 export interface LatexAiChatMessage {
-  id: string
+  id: string | number  // Can be string (client-generated) or number (server-generated)
   sessionId: string
   messageType: 'USER' | 'AI'
   content: string

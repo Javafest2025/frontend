@@ -718,7 +718,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     
     // Remove all related previews (both delete and add for replace operations)
     setInlineDiffPreviews(prev => prev.filter(p => 
-      !p.id.startsWith(id.replace('-delete', '').replace('-add', ''))
+      !String(p.id).startsWith(String(id).replace('-delete', '').replace('-add', ''))
     ))
 
     // Trigger restore checkpoint functionality in the AI chat
@@ -1758,6 +1758,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   onRejectInlineDiff={handleRejectInlineDiff}
                   showAddToChat={showAddToChat}
                   tempSelectedText={tempSelectedText}
+                  tempSelectionPositions={tempSelectionPositions}
                   onHandleAddToChat={handleAddToChat}
                   onHandleCancelSelection={handleCancelSelection}
                   onHandleEditorClick={handleEditorClick}

@@ -66,6 +66,7 @@ interface TabProviderWrapperProps {
   // UI state
   showAddToChat: boolean;
   tempSelectedText: string;
+  tempSelectionPositions?: { from: number; to: number };
   onHandleAddToChat: () => void;
   onHandleCancelSelection: () => void;
   onHandleEditorClick: () => void;
@@ -108,6 +109,7 @@ function TabProviderContent({
   onRejectInlineDiff,
   showAddToChat,
   tempSelectedText,
+  tempSelectionPositions,
   onHandleAddToChat,
   onHandleCancelSelection,
   onHandleEditorClick,
@@ -201,6 +203,7 @@ function TabProviderContent({
       onRejectInlineDiff={onRejectInlineDiff}
       showAddToChat={showAddToChat}
       tempSelectedText={tempSelectedText}
+  tempSelectionPositions={tempSelectionPositions}
       onHandleAddToChat={onHandleAddToChat}
       onHandleCancelSelection={onHandleCancelSelection}
       onHandleEditorClick={onHandleEditorClick}

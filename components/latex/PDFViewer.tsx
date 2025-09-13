@@ -17,14 +17,21 @@ if (typeof window !== 'undefined') {
 interface PDFViewerProps {
   fileUrl: string
   className?: string
+  // Optional hooks used by callers; currently no text selection extraction implemented
+  onSelectionToChat?: (text: string) => void
+  initialPage?: number
+  initialZoom?: number
+  initialRotation?: number
+  // Search state callback passthrough
+  onSearchStateChange?: (searchState: any) => void
 }
 
-const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, className }) => {
+const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, className, initialPage, initialZoom, initialRotation, onSelectionToChat, onSearchStateChange }) => {
   const [numPages, setNumPages] = useState<number | null>(null)
-  const [pageNumber, setPageNumber] = useState(1)
+  const [pageNumber, setPageNumber] = useState(initialPage ?? 1)
   const [containerWidth, setContainerWidth] = useState(0)
-  const [scale, setScale] = useState(1.0)
-  const [rotation, setRotation] = useState(0)
+  const [scale, setScale] = useState(initialZoom ?? 1.0)
+  const [rotation, setRotation] = useState(initialRotation ?? 0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -61,7 +68,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, className }) => {
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     console.log('PDF loaded successfully with', numPages, 'pages')
     setNumPages(numPages)
-    setPageNumber(1)
+    setPageNumber(initialPage ?? 1)
     setLoading(false)
     setError(null)
   }

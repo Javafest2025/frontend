@@ -520,21 +520,23 @@ const latexTheme = EditorView.theme({
     transform: 'translate(-50%, -50%)',
     pointerEvents: 'none',
   },
-  // AI Suggestion Styling - Simple and reliable
+  // AI Suggestion Styling - Simple and reliable with better transparency
   '.cm-add-line': {
-    backgroundColor: 'rgba(34, 197, 94, 0.2)', // Green background
-    borderLeft: '4px solid #22c55e',
+    backgroundColor: 'rgba(34, 197, 94, 0.1)', // Much more transparent green background
+    borderLeft: '3px solid #22c55e',
     paddingLeft: '8px',
-    fontWeight: '600',
-    color: '#16a34a !important', // Green text
+    fontWeight: '500', // Reduced font weight for better readability
+    color: 'inherit', // Use inherited text color instead of forcing green
+    boxShadow: 'inset 0 0 0 1px rgba(34, 197, 94, 0.3)', // Subtle border
   },
   '.cm-delete-line': {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)', // Red background
-    borderLeft: '4px solid #ef4444',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)', // Much more transparent red background
+    borderLeft: '3px solid #ef4444',
     paddingLeft: '8px',
-    fontWeight: '600',
+    fontWeight: '500', // Reduced font weight for better readability
     textDecoration: 'line-through',
-    color: '#dc2626 !important', // Red text
+    color: 'inherit', // Use inherited text color instead of forcing red
+    boxShadow: 'inset 0 0 0 1px rgba(239, 68, 68, 0.3)', // Subtle border
   },
   '@keyframes blink': {
     '0%': { opacity: 1 },
@@ -622,9 +624,9 @@ class InlineDiffWidget extends WidgetType {
       padding: 2px 4px;
       font-size: 0.9em;
       line-height: 1.2;
-      ${this.preview.type === 'add' ? 'background-color: rgba(0, 255, 0, 0.3); color: #006600; border: 1px solid #00aa00;' : ''}
-      ${this.preview.type === 'delete' ? 'background-color: rgba(255, 0, 0, 0.3); color: #cc0000; text-decoration: line-through; border: 1px solid #ff6666;' : ''}
-      ${this.preview.type === 'replace' ? 'background-color: rgba(0, 255, 0, 0.3); color: #006600; border: 1px solid #00aa00;' : ''}
+      ${this.preview.type === 'add' ? 'background-color: rgba(34, 197, 94, 0.1); color: inherit; border: 1px solid rgba(34, 197, 94, 0.4);' : ''}
+      ${this.preview.type === 'delete' ? 'background-color: rgba(239, 68, 68, 0.1); color: inherit; text-decoration: line-through; border: 1px solid rgba(239, 68, 68, 0.4);' : ''}
+      ${this.preview.type === 'replace' ? 'background-color: rgba(34, 197, 94, 0.1); color: inherit; border: 1px solid rgba(34, 197, 94, 0.4);' : ''}
     `
 
     const content = document.createElement('span')
@@ -635,15 +637,15 @@ class InlineDiffWidget extends WidgetType {
     buttonContainer.className = 'inline-diff-buttons'
     buttonContainer.style.cssText = `
       position: absolute;
-      top: -30px;
-      left: -2px;
+      top: -32px;
+      right: -4px;
       display: flex;
-      gap: 2px;
+      gap: 4px;
       background: white;
-      border: 1px solid #ccc;
+      border: 1px solid #e5e7eb;
       border-radius: 6px;
       padding: 4px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       z-index: 1000;
       white-space: nowrap;
     `
@@ -651,15 +653,19 @@ class InlineDiffWidget extends WidgetType {
     const acceptBtn = document.createElement('button')
     acceptBtn.textContent = 'Accept'
     acceptBtn.style.cssText = `
-      background: #28a745;
+      background: #22c55e;
       color: white;
       border: none;
-      border-radius: 2px;
-      padding: 2px 6px;
-      margin-right: 2px;
+      border-radius: 4px;
+      padding: 4px 8px;
+      margin-right: 4px;
       cursor: pointer;
-      font-size: 10px;
+      font-size: 11px;
+      font-weight: 500;
+      transition: background-color 0.2s;
     `
+    acceptBtn.onmouseover = () => acceptBtn.style.background = '#16a34a'
+    acceptBtn.onmouseout = () => acceptBtn.style.background = '#22c55e'
     acceptBtn.onclick = (e) => {
       e.preventDefault()
       e.stopPropagation()
@@ -669,14 +675,18 @@ class InlineDiffWidget extends WidgetType {
     const rejectBtn = document.createElement('button')
     rejectBtn.textContent = 'Reject'
     rejectBtn.style.cssText = `
-      background: #dc3545;
+      background: #ef4444;
       color: white;
       border: none;
-      border-radius: 2px;
-      padding: 2px 6px;
+      border-radius: 4px;
+      padding: 4px 8px;
       cursor: pointer;
-      font-size: 10px;
+      font-size: 11px;
+      font-weight: 500;
+      transition: background-color 0.2s;
     `
+    rejectBtn.onmouseover = () => rejectBtn.style.background = '#dc2626'
+    rejectBtn.onmouseout = () => rejectBtn.style.background = '#ef4444'
     rejectBtn.onclick = (e) => {
       e.preventDefault()
       e.stopPropagation()
@@ -736,7 +746,7 @@ const inlineDiffPlugin = ViewPlugin.fromClass(class {
             preview.to,
             Decoration.mark({
               attributes: {
-                style: 'background-color: rgba(255, 0, 0, 0.2); text-decoration: line-through; color: #aa0000;'
+                style: 'background-color: rgba(239, 68, 68, 0.1); text-decoration: line-through; opacity: 0.8;'
               }
             })
           )
@@ -759,7 +769,7 @@ const inlineDiffPlugin = ViewPlugin.fromClass(class {
             preview.to,
             Decoration.mark({
               attributes: {
-                style: 'background-color: rgba(255, 0, 0, 0.15); text-decoration: line-through; opacity: 0.7;'
+                style: 'background-color: rgba(239, 68, 68, 0.1); text-decoration: line-through; opacity: 0.7;'
               }
             })
           )

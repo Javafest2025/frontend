@@ -123,6 +123,17 @@ export function AIChatPanel({
       }
       setContentCheckpoints(prev => [checkpoint, ...prev.slice(0, 9)])
 
+      // Persist checkpoint in backend if possible
+      if (documentId && chatSession?.id) {
+        latexApi.createCheckpoint(documentId, chatSession.id, {
+          checkpointName: checkpoint.description,
+          contentBefore: originalContent,
+          contentAfter: newContent,
+          messageId: undefined,
+          setCurrent: true
+        }).catch(err => console.warn('Failed to persist checkpoint:', err))
+      }
+
       // Add restore checkpoint message
       const restoreMessage: LatexAiChatMessage = {
         id: `restore-${checkpoint.id}`,
@@ -147,6 +158,52 @@ export function AIChatPanel({
     }
   }, [chatSession?.id])
 
+  // Helper: load checkpoints from backend and hydrate UI with restore buttons
+  const loadAndHydrateCheckpoints = async () => {
+    if (!documentId) return
+    try {
+      const resp = await latexApi.getCheckpoints(documentId)
+      const cps = Array.isArray(resp.data) ? resp.data : []
+
+      // Map to local checkpoint cache
+      const mapped = cps.map((cp: any) => ({
+        id: String(cp.id),
+        content: String(cp.contentBefore ?? ''),
+        timestamp: String(cp.createdAt ?? new Date().toISOString()),
+        description: String(cp.displayName ?? cp.checkpointName ?? 'Checkpoint')
+      }))
+      setContentCheckpoints(mapped)
+
+      if (mapped.length > 0) {
+        // For each checkpoint, ensure a restore message exists
+        const existingIds = new Set(messages.map(m => String(m.id)))
+        const restoreMsgs: LatexAiChatMessage[] = mapped
+          .filter(cp => !existingIds.has(`restore-${cp.id}`))
+          .map(cp => ({
+            id: `restore-${cp.id}`,
+            sessionId: chatSession?.id || '',
+            messageType: 'AI',
+            content: '✅ Suggestion applied successfully! You can restore the previous version if needed.',
+            isApplied: false,
+            sender: 'ai',
+            timestamp: cp.timestamp,
+            createdAt: cp.timestamp,
+            hasLatexSuggestion: false,
+            hasSelectionRange: false
+          }))
+
+        if (restoreMsgs.length > 0) {
+          const merged = [...messages, ...restoreMsgs]
+          // Sort by timestamp ascending if available
+          merged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+          setMessages(merged)
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load checkpoints:', err)
+    }
+  }
+
   const loadChatSession = async () => {
     if (!documentId || !projectId) return
     
@@ -156,61 +213,81 @@ export function AIChatPanel({
       const response = await latexApi.getChatSession(documentId, projectId)
       setChatSession(response.data)
       console.log('Loaded existing chat session:', response.data)
-      
-      // Load chat history for this session
-      await loadChatHistory()
-    } catch (error) {
-      console.log('No existing session found, creating new one')
-      // Create a simple session state as fallback
-      const simpleSession: LatexAiChatSession = {
-        id: `session-${documentId}`,
-        documentId: documentId,
-        projectId: projectId,
-        sessionTitle: 'LaTeX AI Chat',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isActive: true,
-        messageCount: 0,
-        lastMessageTime: new Date().toISOString(),
-        messages: [],
-        checkpoints: []
-      }
-      
-      setChatSession(simpleSession)
-      
-      // Initialize with welcome message
-      if (!messages.length) {
-        const welcomeMessage: LatexAiChatMessage = {
-          id: 'welcome',
-          sessionId: simpleSession.id,
-          messageType: 'AI',
-          content: "Welcome to **LaTeXAI**! 🚀 I'm your specialized LaTeX assistant for this document.\n\n" +
-                  "**I can help you with:**\n" +
-                  "• Writing and formatting LaTeX documents\n" +
-                  "• Fixing compilation errors and syntax issues\n" +
-                  "• Suggesting mathematical notation and environments\n" +
-                  "• Optimizing document structure and styling\n" +
-                  "• Using packages and custom commands\n" +
-                  "• Converting content to LaTeX format\n\n" +
-                  "**💡 How to use:**\n" +
-                  "• Select text in your document and ask me anything about LaTeX!\n" +
-                  "• I can add, modify, or improve your LaTeX content\n" +
-                  "• Ask me to explain LaTeX concepts or fix errors\n\n" +
-                  "Select text in your document and ask me anything about LaTeX!",
-          isApplied: false,
-          sender: 'ai',
-          timestamp: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          hasLatexSuggestion: false,
-          hasSelectionRange: false
+
+      // Prefer messages returned with the session (already ordered by createdAt)
+      const sessionMessages = Array.isArray(response.data?.messages) ? response.data.messages : []
+      if (sessionMessages.length > 0) {
+        setMessages(sessionMessages)
+        console.log('Initialized chat with session messages:', sessionMessages.length)
+      } else {
+        // Fallback: try loading history endpoint
+        const historyLoaded = await loadChatHistory()
+        // Only show welcome message if no history was loaded
+        if (!historyLoaded) {
+          await initializeWithWelcomeMessage(response.data)
         }
-        setMessages([welcomeMessage])
       }
+      // Regardless, hydrate checkpoints for restore buttons
+      await loadAndHydrateCheckpoints()
+    } catch (error) {
+      console.log('No existing session found, will try to load history anyway')
       
-      console.log('Initialized simple chat session for document:', documentId)
+      // Even if session creation fails, try to load chat history
+      // In case there are existing messages in the database
+      const historyLoaded = await loadChatHistory()
+      
+      // Create a simple session state as fallback only if no messages were loaded
+      if (!historyLoaded) {
+        const simpleSession: LatexAiChatSession = {
+          id: `session-${documentId}`,
+          documentId: documentId,
+          projectId: projectId,
+          sessionTitle: 'LaTeX AI Chat',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isActive: true,
+          messageCount: 0,
+          lastMessageTime: new Date().toISOString(),
+          messages: [],
+          checkpoints: []
+        }
+        
+        setChatSession(simpleSession)
+        await initializeWithWelcomeMessage(simpleSession)
+      }
     } finally {
       setIsLoadingSession(false)
     }
+  }
+
+  const initializeWithWelcomeMessage = async (session: LatexAiChatSession) => {
+    // Initialize with welcome message only if no existing messages
+    const welcomeMessage: LatexAiChatMessage = {
+      id: 'welcome',
+      sessionId: session.id,
+      messageType: 'AI',
+      content: "Welcome to **LaTeXAI**! 🚀 I'm your specialized LaTeX assistant for this document.\n\n" +
+              "**I can help you with:**\n" +
+              "• Writing and formatting LaTeX documents\n" +
+              "• Fixing compilation errors and syntax issues\n" +
+              "• Suggesting mathematical notation and environments\n" +
+              "• Optimizing document structure and styling\n" +
+              "• Using packages and custom commands\n" +
+              "• Converting content to LaTeX format\n\n" +
+              "**💡 How to use:**\n" +
+              "• Select text in your document and ask me anything about LaTeX!\n" +
+              "• I can add, modify, or improve your LaTeX content\n" +
+              "• Ask me to explain LaTeX concepts or fix errors\n\n" +
+              "Select text in your document and ask me anything about LaTeX!",
+      isApplied: false,
+      sender: 'ai',
+      timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      hasLatexSuggestion: false,
+      hasSelectionRange: false
+    }
+    setMessages([welcomeMessage])
+    console.log('Initialized simple chat session with welcome message for document:', documentId)
   }
 
   // Update selected text display when prop changes
@@ -269,7 +346,7 @@ export function AIChatPanel({
   // Load chat history when document changes
   useEffect(() => {
     if (documentId) {
-      loadChatHistory()
+      loadChatHistory().then(() => loadAndHydrateCheckpoints())
     } else {
       setMessages([])
       setChatSession(null)
@@ -380,96 +457,38 @@ export function AIChatPanel({
     setMessages(prev => [...prev, userMessage])
 
     try {
-      // Save user message to database (if endpoints are available)
+      // Use backend to persist the user message and generate the AI response in one call
       if (documentId) {
-        try {
-          await latexApi.sendChatMessage(documentId, {
-            messageType: 'USER',
-            content: inputValue,
-            selectionRangeFrom: selectedText?.from,
-            selectionRangeTo: selectedText?.to,
-            cursorPosition: cursorPosition
-          })
-        } catch (dbError) {
-          console.log('Failed to save user message to database:', dbError)
+        const response = await latexApi.sendChatMessage(documentId, {
+          messageType: 'USER',
+          content: inputValue,
+          selectionRangeFrom: selectedText?.from,
+          selectionRangeTo: selectedText?.to,
+          cursorPosition: cursorPosition,
+          // Provide full context so backend can produce better suggestions
+          selectedText: selectedText?.text || '',
+          fullDocument: content || '',
+          userRequest: inputValue
+        })
+
+        // The backend returns the AI message DTO
+        const serverAiMessage = response.data as unknown as LatexAiChatMessage
+        setMessages(prev => [...prev, serverAiMessage])
+
+        // Create inline diff preview if AI provided LaTeX suggestion
+        if (serverAiMessage?.latexSuggestion && serverAiMessage.latexSuggestion.trim().length > 0 && onPreviewInlineDiff) {
+          const act = (serverAiMessage.actionType?.toLowerCase?.() as 'add' | 'replace' | 'delete') || 'add'
+          const from = serverAiMessage.selectionRangeFrom ?? selectedText?.from ?? cursorPosition ?? 0
+          const to = serverAiMessage.selectionRangeTo ?? from
+          createInlineDiffPreviews(
+            act,
+            from,
+            to,
+            selectedText?.text || '',
+            serverAiMessage.latexSuggestion,
+            String(serverAiMessage.id)
+          )
         }
-      }
-
-      // Use the original working AI assistance endpoint
-      const aiRequest = {
-        selectedText: selectedText?.text || '',
-        userRequest: inputValue,
-        fullDocument: content || ''
-      }
-
-      const response = await latexApi.processChatRequest(aiRequest)
-      const aiResponseContent = response.data
-
-      // Parse AI response using existing sophisticated logic
-      const { actionType, suggestion, position } = parseAIResponse(
-        aiResponseContent, 
-        inputValue, 
-        cursorPosition, 
-        selectedText
-      )
-
-      // Extract explanation (text before LaTeX code)
-      const explanation = extractExplanation(aiResponseContent)
-
-      // Create AI message
-      const aiMessage: LatexAiChatMessage = {
-        id: `ai-${Date.now()}`,
-        sessionId: chatSession?.id || '',
-        messageType: 'AI',
-        content: explanation || aiResponseContent,
-        latexSuggestion: suggestion,
-        actionType: actionType.toUpperCase() as 'ADD' | 'REPLACE' | 'DELETE' | 'MODIFY',
-        selectionRangeFrom: selectedText?.from,
-        selectionRangeTo: selectedText?.to,
-        cursorPosition: position,
-        isApplied: false,
-        sender: 'ai',
-        timestamp: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        hasLatexSuggestion: Boolean(suggestion && suggestion.length > 0),
-        hasSelectionRange: selectedText?.from !== undefined && selectedText?.to !== undefined
-      }
-
-      // Add AI message to state
-      setMessages(prev => [...prev, aiMessage])
-
-      // Save AI message to database (if endpoints are available)
-      if (documentId) {
-        try {
-          await latexApi.sendChatMessage(documentId, {
-            messageType: 'AI',
-            content: explanation || aiResponseContent,
-            latexSuggestion: suggestion,
-            actionType: actionType.toUpperCase(),
-            selectionRangeFrom: selectedText?.from,
-            selectionRangeTo: selectedText?.to,
-            cursorPosition: position,
-            hasLatexSuggestion: Boolean(suggestion && suggestion.length > 0),
-            hasSelectionRange: selectedText?.from !== undefined && selectedText?.to !== undefined
-          })
-        } catch (dbError) {
-          console.log('Failed to save AI message to database:', dbError)
-        }
-      }
-
-      // Create inline diff preview if AI provided LaTeX suggestion
-      if (suggestion && suggestion.length > 0 && onPreviewInlineDiff) {
-        const from = selectedText?.from || position || 0
-        const to = selectedText?.to || from
-        
-        createInlineDiffPreviews(
-          actionType as 'add' | 'replace' | 'delete',
-          from,
-          to,
-          selectedText?.text || '',
-          suggestion,
-          aiMessage.id
-        )
       }
 
     } catch (error) {
@@ -496,31 +515,48 @@ export function AIChatPanel({
     }
   }
 
-  const loadChatHistory = async () => {
-    if (!documentId) return
+  const loadChatHistory = async (): Promise<boolean> => {
+    if (!documentId) {
+      console.log('❌ loadChatHistory: No documentId provided')
+      return false
+    }
+    
+    console.log('🔍 loadChatHistory: Loading chat history for documentId:', documentId)
     
     try {
       // Try to load chat history from database
       const response = await latexApi.getChatHistory(documentId)
+      console.log('📡 loadChatHistory: API response:', response)
+      
       if (response.data && response.data.length > 0) {
         setMessages(response.data)
-        console.log('Loaded chat history from database:', response.data.length, 'messages')
+        console.log('✅ loadChatHistory: Loaded chat history from database:', response.data.length, 'messages')
+        response.data.forEach((msg, index) => {
+          console.log(`  Message ${index + 1}:`, {
+            id: msg.id,
+            type: msg.messageType,
+            content: msg.content.substring(0, 50) + '...'
+          })
+        })
+        return true
       } else {
         // No messages found, keep current state (welcome message)
-        console.log('No chat history found in database')
+        console.log('🔍 loadChatHistory: No chat history found in database')
+        return false
       }
     } catch (error) {
-      console.log('Failed to load chat history from database, using local state')
+      console.error('❌ loadChatHistory: Failed to load chat history from database:', error)
+      return false
     }
   }
 
-  const createCheckpointBeforeApply = async (messageId: string, suggestion: string) => {
+  const createCheckpointBeforeApply = async (messageId: string | number, suggestion: string) => {
     // For now, just apply the suggestion directly since checkpoint endpoints are not available yet
     try {
       if (onContentChange) {
         const newContent = applySuggestionToContent(content, suggestion, selectedText)
         onContentChange(newContent)
-        console.log('Applied suggestion to content:', messageId)
+        console.log('Applied suggestion to content:', String(messageId))
       }
     } catch (error) {
       console.error('Failed to apply suggestion:', error)
@@ -755,7 +791,7 @@ export function AIChatPanel({
     return 'AI suggestion generated' // Fallback
   }
 
-  const handleAcceptSuggestion = async (messageId: string, suggestion: string, actionType?: string, position?: number, selectionRange?: { from: number; to: number }) => {
+  const handleAcceptSuggestion = async (messageId: string | number, suggestion: string, actionType?: string, position?: number, selectionRange?: { from: number; to: number }) => {
     try {
       // Store current content as a checkpoint before applying suggestion
       const checkpoint = {
@@ -772,7 +808,7 @@ export function AIChatPanel({
       }
 
       // Mark suggestion as applied in backend
-      await latexApi.applySuggestion(messageId, content + suggestion)
+      await latexApi.applySuggestion(String(messageId), content + suggestion)
 
       // Update local state
       setMessages(prev => prev.map(msg => 
@@ -802,7 +838,7 @@ export function AIChatPanel({
     }
   }
 
-  const handleRejectSuggestion = async (messageId: string) => {
+  const handleRejectSuggestion = async (messageId: string | number) => {
     try {
       // The backend doesn't need to track rejections specifically
       // Just update local state to show as rejected
@@ -815,17 +851,26 @@ export function AIChatPanel({
   }
 
   // Handle restoring content from checkpoint
-  const handleRestoreCheckpoint = (checkpointId: string) => {
-    const checkpoint = contentCheckpoints.find(cp => cp.id === checkpointId)
-    if (checkpoint && onContentChange) {
-      onContentChange(checkpoint.content)
-      
-      // Add confirmation message
+  const handleRestoreCheckpoint = async (checkpointId: string) => {
+    try {
+      // Try backend restore first
+      const resp = await latexApi.restoreToCheckpoint(checkpointId)
+      const restoredContent = String(resp.data ?? '')
+      if (restoredContent && onContentChange) {
+        onContentChange(restoredContent)
+      } else {
+        // Fallback to local cache
+        const checkpoint = contentCheckpoints.find(cp => cp.id === checkpointId)
+        if (checkpoint && onContentChange) {
+          onContentChange(checkpoint.content)
+        }
+      }
+
       const confirmMessage: LatexAiChatMessage = {
         id: `restored-${Date.now()}`,
         sessionId: chatSession?.id || '',
         messageType: 'AI',
-        content: `✅ Content restored to checkpoint: "${checkpoint.description}"`,
+        content: `✅ Content restored from checkpoint.`,
         isApplied: false,
         sender: 'ai',
         timestamp: new Date().toISOString(),
@@ -833,8 +878,9 @@ export function AIChatPanel({
         hasLatexSuggestion: false,
         hasSelectionRange: false
       }
-      
       setMessages(prev => [...prev, confirmMessage])
+    } catch (err) {
+      console.error('Failed to restore checkpoint:', err)
     }
   }
 
@@ -991,13 +1037,13 @@ export function AIChatPanel({
           )}
           
           {/* Restore Checkpoint Button for restore messages */}
-          {message.id.startsWith('restore-') && (
+          {String(message.id).startsWith('restore-') && (
             <div className="mt-3">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const checkpointId = message.id.replace('restore-', '')
+                  const checkpointId = String(message.id).replace('restore-', '')
                   handleRestoreCheckpoint(checkpointId)
                 }}
                 className="bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"

@@ -54,6 +54,8 @@ interface TabContentAreaProps {
   // UI state
   showAddToChat: boolean;
   tempSelectedText: string;
+  // Temporary selection positions from the editor (used to compute line range label)
+  tempSelectionPositions?: { from: number; to: number };
   onHandleAddToChat: () => void;
   onHandleCancelSelection: () => void;
   onHandleEditorClick: () => void;
@@ -90,6 +92,7 @@ export function TabContentArea({
   onRejectInlineDiff,
   showAddToChat,
   tempSelectedText,
+  tempSelectionPositions,
   onHandleAddToChat,
   onHandleCancelSelection,
   onHandleEditorClick,
@@ -214,41 +217,39 @@ export function TabContentArea({
             onRejectInlineDiff={onRejectInlineDiff}
             onLastCursorChange={onLastCursorPosChange}
           />
-          
-          {/* Add to Chat overlay */}
-          {showAddToChat && (
-            <div 
-              className="absolute top-2 right-2 flex space-x-2 z-50"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
+
+          {/* Floating Add-to-Chat overlay when text is selected */}
+          {showAddToChat && tempSelectedText && (
+            <div
+              className="absolute top-2 right-2 z-20 flex items-center gap-2 bg-card/95 backdrop-blur border border-border shadow-md rounded-md px-2 py-1"
             >
+              <div className="text-xs text-muted-foreground mr-1">
+                {(() => {
+                  // Compute line numbers from selection positions
+                  const from = tempSelectionPositions?.from ?? 0;
+                  const to = tempSelectionPositions?.to ?? from;
+                  const clamp = (n: number) => (isFinite(n) && n >= 0 ? n : 0);
+                  const safeFrom = clamp(from);
+                  const safeTo = clamp(to);
+                  const prefixFrom = editorContent?.slice(0, safeFrom) ?? '';
+                  const prefixTo = editorContent?.slice(0, safeTo) ?? prefixFrom;
+                  const lineFrom = (prefixFrom.match(/\n/g)?.length ?? 0) + 1;
+                  const lineTo = (prefixTo.match(/\n/g)?.length ?? 0) + 1;
+                  const range = lineFrom === lineTo ? `L${lineFrom}` : `L${lineFrom}–L${lineTo}`;
+                  return range;
+                })()}
+              </div>
               <button
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onHandleAddToChat();
-                }}
-                className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                onClick={onHandleAddToChat}
+                className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground hover:opacity-90"
+                title="Add the selected text and its range to the AI chat"
               >
                 Add to Chat
               </button>
               <button
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onHandleCancelSelection();
-                }}
-                className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90"
+                onClick={onHandleCancelSelection}
+                className="text-xs px-2 py-1 rounded border border-border hover:bg-muted"
+                title="Cancel selection"
               >
                 Cancel
               </button>
