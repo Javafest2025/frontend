@@ -111,7 +111,7 @@ export function AIChatPanel({
 
   // Listen for suggestion acceptance events from editor
   useEffect(() => {
-    const handleSuggestionAccepted = async (event: CustomEvent) => {
+    const handleSuggestionAccepted = (event: CustomEvent) => {
       const { originalContent, newContent, suggestionText } = event.detail
       
       // Create checkpoint
@@ -137,30 +137,13 @@ export function AIChatPanel({
         hasSelectionRange: false
       }
       
-      // Add to local state
       setMessages(prev => [...prev, restoreMessage])
-
-      // Save restore checkpoint message to database
-      if (documentId) {
-        try {
-          await latexApi.sendChatMessage(documentId, {
-            messageType: 'AI',
-            content: restoreMessage.content,
-            selectionRangeFrom: undefined,
-            selectionRangeTo: undefined,
-            cursorPosition: undefined
-          })
-          console.log('Restore checkpoint message saved to database')
-        } catch (dbError) {
-          console.log('Failed to save restore checkpoint message to database:', dbError)
-        }
-      }
     }
 
-    window.addEventListener('suggestion-accepted', handleSuggestionAccepted as unknown as EventListener)
+    window.addEventListener('suggestion-accepted', handleSuggestionAccepted as EventListener)
     
     return () => {
-      window.removeEventListener('suggestion-accepted', handleSuggestionAccepted as unknown as EventListener)
+      window.removeEventListener('suggestion-accepted', handleSuggestionAccepted as EventListener)
     }
   }, [chatSession?.id])
 
@@ -855,6 +838,11 @@ export function AIChatPanel({
     }
   }
 
+  // Clear active suggestion state when preview is accepted/rejected
+  const clearActiveSuggestion = () => {
+    setActiveSuggestionId(null)
+  }
+
   const handleCopySuggestion = async (suggestion: string) => {
     try {
       await navigator.clipboard.writeText(suggestion)
@@ -1194,6 +1182,30 @@ export function AIChatPanel({
           </Button>
         )}
       </div>
+      
+      {/* Inline Diff Preview Controls */}
+      {activeSuggestionId && (
+        <div className="flex-shrink-0 border-t bg-blue-50 p-3">
+          <div className="text-center mb-2">
+            <span className="text-sm font-medium text-blue-800">
+              🎯 AI Suggestion Preview Active
+            </span>
+            <p className="text-xs text-blue-600 mt-1">
+              Hover over highlighted text in the editor to accept/reject changes
+            </p>
+          </div>
+          <div className="flex space-x-2 justify-center">
+            <Button 
+              onClick={clearActiveSuggestion}
+              size="sm"
+              variant="outline"
+              className="text-blue-600 border-blue-600 hover:bg-blue-50"
+            >
+              Clear Preview
+            </Button>
+          </div>
+        </div>
+      )}
       
       {/* Input Area - Always visible at bottom */}
       <div className="sticky bottom-0 p-3 border-t bg-background">
