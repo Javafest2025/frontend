@@ -75,6 +75,30 @@ const inlineDiffField = StateField.define<InlineDiffPreview[]>({
   }
 })
 
+// --- NEW: preview-hidden ranges for inline diffs ---
+const setHiddenPreviewRanges = StateEffect.define<InlineDiffPreview[]>()
+
+const hiddenPreviewRangesField = StateField.define<DecorationSet>({
+  create() { return Decoration.none },
+  update(value, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setHiddenPreviewRanges)) {
+        const builder = new RangeSetBuilder<Decoration>()
+        for (const p of e.value) {
+          // Hide original selection for replace & delete previews
+          if ((p.type === 'replace' || p.type === 'delete') && p.from < p.to) {
+            builder.add(p.from, p.to, Decoration.mark({ class: 'cm-preview-hide' }))
+          }
+        }
+        return builder.finish()
+      }
+    }
+    if (tr.docChanged) return value.map(tr.changes)
+    return value
+  },
+  provide: f => EditorView.decorations.from(f)
+})
+
 // Last cursor beacon system
 export const setLastCursorBeacon = StateEffect.define<LastCursorBeacon>()
 
@@ -487,12 +511,17 @@ const latexTheme = EditorView.theme({
     padding: '12px',
     minHeight: '100%',
     overflowY: 'visible',
+    // Add bottom space so final lines clear the bottom panel (Save Version bar)
+    paddingBottom: '140px',
   },
   '.cm-line': {
     padding: '0 4px',
   },
   '.cm-cursor': {
     borderLeft: '2px solid #f8f8f2',
+  },
+  '.cm-preview-hide': {
+    display: 'none'
   },
   '.cm-selectionBackground': {
     backgroundColor: '#44475a',
@@ -613,91 +642,112 @@ class InlineDiffWidget extends WidgetType {
     super()
   }
 
+  private buildBlock(title: string, contentText: string, kind: 'add' | 'delete') {
+    const block = document.createElement('div')
+    block.style.cssText = `
+      border: 1px solid ${kind === 'add' ? 'rgba(34, 197, 94, 0.45)' : 'rgba(239, 68, 68, 0.45)'};
+      background: ${kind === 'add' ? 'rgba(34, 197, 94, 0.10)' : 'rgba(239, 68, 68, 0.10)'};
+      color: inherit;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin: 6px 0;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.92em;
+    `
+    const header = document.createElement('div')
+    header.textContent = title
+    header.style.cssText = `
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      margin-bottom: 6px;
+      color: ${kind === 'add' ? '#166534' : '#7f1d1d'};
+      text-transform: uppercase;
+    `
+    const content = document.createElement('div')
+    content.textContent = contentText
+    content.style.cssText = `${kind === 'delete' ? 'text-decoration: line-through;' : ''}`
+    block.appendChild(header)
+    block.appendChild(content)
+    return block
+  }
+
   toDOM() {
     const wrapper = document.createElement('div')
     wrapper.className = 'inline-diff-preview'
     wrapper.style.cssText = `
-      display: inline-block;
+      display: block;
       position: relative;
-      margin: 0 2px;
-      border-radius: 4px;
-      padding: 2px 4px;
-      font-size: 0.9em;
-      line-height: 1.2;
-      ${this.preview.type === 'add' ? 'background-color: rgba(34, 197, 94, 0.1); color: inherit; border: 1px solid rgba(34, 197, 94, 0.4);' : ''}
-      ${this.preview.type === 'delete' ? 'background-color: rgba(239, 68, 68, 0.1); color: inherit; text-decoration: line-through; border: 1px solid rgba(239, 68, 68, 0.4);' : ''}
-      ${this.preview.type === 'replace' ? 'background-color: rgba(34, 197, 94, 0.1); color: inherit; border: 1px solid rgba(34, 197, 94, 0.4);' : ''}
+      margin: 6px 2px;
+      border-radius: 8px;
+      padding: 6px;
+      background: rgba(2,6,23,0.03);
+      border: 1px dashed rgba(148,163,184,0.35);
+      max-width: 100%;
+      overflow: hidden;
     `
 
-    const content = document.createElement('span')
-    content.textContent = this.preview.content
-    wrapper.appendChild(content)
+    // Build pretty stacked preview depending on type
+    if (this.preview.type === 'replace') {
+      const removed = this.buildBlock('Removed', this.preview.originalContent || '', 'delete')
+      const added = this.buildBlock('Added', this.preview.content, 'add')
+      wrapper.appendChild(removed)
+      wrapper.appendChild(added)
+    } else if (this.preview.type === 'delete') {
+      const removed = this.buildBlock('Removed', this.preview.originalContent || this.preview.content, 'delete')
+      wrapper.appendChild(removed)
+    } else {
+      const added = this.buildBlock('Added', this.preview.content, 'add')
+      wrapper.appendChild(added)
+    }
 
-    const buttonContainer = document.createElement('div')
-    buttonContainer.className = 'inline-diff-buttons'
-    buttonContainer.style.cssText = `
-      position: absolute;
-      top: -32px;
-      right: -4px;
-      display: flex;
-      gap: 4px;
-      background: white;
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
+    // Single action bar (not floating too high)
+    const toolbar = document.createElement('div')
+    toolbar.style.cssText = `
+      margin-top: 8px;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
       padding: 4px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      z-index: 1000;
-      white-space: nowrap;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.85);
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
     `
-
     const acceptBtn = document.createElement('button')
     acceptBtn.textContent = 'Accept'
     acceptBtn.style.cssText = `
       background: #22c55e;
-      color: white;
+      color: #fff;
       border: none;
-      border-radius: 4px;
-      padding: 4px 8px;
-      margin-right: 4px;
+      border-radius: 5px;
+      padding: 6px 10px;
       cursor: pointer;
-      font-size: 11px;
-      font-weight: 500;
-      transition: background-color 0.2s;
+      font-size: 12px;
+      font-weight: 600;
     `
-    acceptBtn.onmouseover = () => acceptBtn.style.background = '#16a34a'
-    acceptBtn.onmouseout = () => acceptBtn.style.background = '#22c55e'
     acceptBtn.onclick = (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      this.onAccept(this.preview.id)
+      e.preventDefault(); e.stopPropagation(); this.onAccept(this.preview.id)
     }
-
     const rejectBtn = document.createElement('button')
     rejectBtn.textContent = 'Reject'
     rejectBtn.style.cssText = `
       background: #ef4444;
-      color: white;
+      color: #fff;
       border: none;
-      border-radius: 4px;
-      padding: 4px 8px;
+      border-radius: 5px;
+      padding: 6px 10px;
       cursor: pointer;
-      font-size: 11px;
-      font-weight: 500;
-      transition: background-color 0.2s;
+      font-size: 12px;
+      font-weight: 600;
     `
-    rejectBtn.onmouseover = () => rejectBtn.style.background = '#dc2626'
-    rejectBtn.onmouseout = () => rejectBtn.style.background = '#ef4444'
     rejectBtn.onclick = (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      this.onReject(this.preview.id)
+      e.preventDefault(); e.stopPropagation(); this.onReject(this.preview.id)
     }
-
-    buttonContainer.appendChild(acceptBtn)
-    buttonContainer.appendChild(rejectBtn)
-    wrapper.appendChild(buttonContainer)
-
-    // Buttons are always visible now, no hover needed
+    toolbar.appendChild(acceptBtn)
+    toolbar.appendChild(rejectBtn)
+    wrapper.appendChild(toolbar)
 
     return wrapper
   }
@@ -706,15 +756,32 @@ class InlineDiffWidget extends WidgetType {
 // Plugin for inline diff previews
 const inlineDiffPlugin = ViewPlugin.fromClass(class {
   decorations: DecorationSet
+  // Track live ranges for each preview ID so we can send accurate positions on accept/reject
+  private previewRanges: Map<string, { from: number, to: number }>
 
   constructor(view: EditorView) {
+    this.previewRanges = new Map()
     this.decorations = this.buildDecorations(view)
   }
 
   update(update: ViewUpdate) {
-    if (update.docChanged || update.viewportChanged || 
-        update.transactions.some(tr => tr.effects.some(e => e.is(setInlineDiffEffect)))) {
+    const hasPreviewEffect = update.transactions.some(tr => tr.effects.some(e => e.is(setInlineDiffEffect)))
+    if (hasPreviewEffect) {
+      // Previews changed: rebuild everything from current state
+      this.previewRanges.clear()
       this.decorations = this.buildDecorations(update.view)
+      return
+    }
+    if (update.docChanged) {
+      // Map decorations and stored ranges forward across document changes
+      this.decorations = this.decorations.map(update.changes)
+      const mapped = new Map<string, { from: number, to: number }>()
+      this.previewRanges.forEach((range, id) => {
+        const from = update.changes.mapPos(range.from, 1)
+        const to = update.changes.mapPos(range.to, -1)
+        mapped.set(id, { from, to })
+      })
+      this.previewRanges = mapped
     }
   }
 
@@ -726,65 +793,25 @@ const inlineDiffPlugin = ViewPlugin.fromClass(class {
 
     for (const preview of previews) {
       try {
-        if (preview.type === 'add') {
-          // For additions, place widget at the insertion point
-          builder.add(
-            preview.from,
-            preview.from,
-            Decoration.widget({
-              widget: new InlineDiffWidget(preview, 
-                (id) => this.handleAccept(view, id),
-                (id) => this.handleReject(view, id)
-              ),
-              side: 1
-            })
-          )
-        } else if (preview.type === 'delete') {
-          // For deletions, overlay the text to be deleted
-          builder.add(
-            preview.from,
-            preview.to,
-            Decoration.mark({
-              attributes: {
-                style: 'background-color: rgba(239, 68, 68, 0.1); text-decoration: line-through; opacity: 0.8;'
-              }
-            })
-          )
-          // Add widget for accept/reject buttons
-          builder.add(
-            preview.to,
-            preview.to,
-            Decoration.widget({
-              widget: new InlineDiffWidget(preview,
-                (id) => this.handleAccept(view, id),
-                (id) => this.handleReject(view, id)
-              ),
-              side: 1
-            })
-          )
-        } else if (preview.type === 'replace') {
-          // For replacements, mark the original text and add widget for new text
-          builder.add(
-            preview.from,
-            preview.to,
-            Decoration.mark({
-              attributes: {
-                style: 'background-color: rgba(239, 68, 68, 0.1); text-decoration: line-through; opacity: 0.7;'
-              }
-            })
-          )
-          builder.add(
-            preview.to,
-            preview.to,
-            Decoration.widget({
-              widget: new InlineDiffWidget(preview,
-                (id) => this.handleAccept(view, id),
-                (id) => this.handleReject(view, id)
-              ),
-              side: 1
-            })
-          )
-        }
+        // Sanitize and track current ranges
+        const docLen = view.state.doc.length
+        const rangeFrom = Math.max(0, Math.min(preview.from, docLen))
+        const rangeTo = Math.max(rangeFrom, Math.min(preview.to, docLen))
+        this.previewRanges.set(preview.id, { from: rangeFrom, to: rangeTo })
+
+        // Render a single, pretty widget for all types at the start position
+        builder.add(
+          rangeFrom,
+          rangeFrom,
+          Decoration.widget({
+            widget: new InlineDiffWidget(
+              preview,
+              (id) => this.handleAccept(view, id),
+              (id) => this.handleReject(view, id)
+            ),
+            side: 1
+          })
+        )
       } catch (error) {
         console.warn('Error building decoration for preview:', preview, error)
       }
@@ -795,13 +822,15 @@ const inlineDiffPlugin = ViewPlugin.fromClass(class {
 
   private handleAccept(view: EditorView, id: string) {
     // Dispatch to parent component
-    const event = new CustomEvent('acceptInlineDiff', { detail: { id } })
+    const range = this.previewRanges.get(id)
+    const event = new CustomEvent('acceptInlineDiff', { detail: { id, from: range?.from, to: range?.to }, bubbles: true })
     view.dom.dispatchEvent(event)
   }
 
   private handleReject(view: EditorView, id: string) {
     // Dispatch to parent component
-    const event = new CustomEvent('rejectInlineDiff', { detail: { id } })
+    const range = this.previewRanges.get(id)
+    const event = new CustomEvent('rejectInlineDiff', { detail: { id, from: range?.from, to: range?.to }, bubbles: true })
     view.dom.dispatchEvent(event)
   }
 }, {
@@ -822,90 +851,14 @@ const latexExtensions: Extension[] = [
   focusPlugin,
   addDeleteHighlighting,
   inlineDiffField,
+  hiddenPreviewRangesField,
   inlineDiffPlugin,
   lastCursorBeaconField,
   lastCursorBeaconHandlers,
 ]
 
 // Simplified React component for inline AI suggestions
-function InlineAISuggestion({ 
-  suggestion, 
-  editorContent, 
-  onAccept, 
-  onReject 
-}: {
-  suggestion: AISuggestion;
-  editorContent: string;
-  onAccept: () => void;
-  onReject: () => void;
-}) {
-  const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
-
-  useEffect(() => {
-    const calculatePosition = () => {
-      const editorElement = document.querySelector('.cm-content')
-      if (!editorElement) return
-
-      // Calculate position based on text content
-      const textBeforeSuggestion = editorContent.substring(0, suggestion.from)
-      const lines = textBeforeSuggestion.split('\n')
-      const lineNumber = lines.length - 1
-      const charInLine = lines[lines.length - 1].length
-
-      // Estimate position (CodeMirror uses monospace font)
-      const lineHeight = 24 // Typical CodeMirror line height
-      const charWidth = 9.6 // Approximate character width in monospace
-
-      const top = lineNumber * lineHeight + 10
-      const left = charInLine * charWidth + 60 // Add offset for line numbers
-
-      setPosition({ top, left })
-    }
-
-    calculatePosition()
-    
-    // Recalculate on window resize
-    window.addEventListener('resize', calculatePosition)
-    return () => window.removeEventListener('resize', calculatePosition)
-  }, [suggestion, editorContent])
-
-  if (!position) return null
-
-  return (
-    <div
-      className="absolute pointer-events-auto z-50"
-      style={{
-        top: position.top,
-        left: position.left,
-      }}
-    >
-      <div className="inline-flex items-center bg-green-100 border border-green-300 rounded-md px-2 py-1 shadow-sm">
-        <span 
-          className="text-green-800 font-mono text-sm animate-pulse mr-2"
-          style={{ 
-            backgroundColor: 'rgba(34, 197, 94, 0.2)',
-            padding: '2px 4px',
-            borderRadius: '3px'
-          }}
-        >
-          {suggestion.suggestedText}
-        </span>
-        <button
-          onClick={onAccept}
-          className="w-5 h-5 bg-green-500 hover:bg-green-600 text-white rounded text-xs flex items-center justify-center mr-1"
-        >
-          ✓
-        </button>
-        <button
-          onClick={onReject}
-          className="w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded text-xs flex items-center justify-center"
-        >
-          ✗
-        </button>
-      </div>
-    </div>
-  )
-}
+// NOTE: Removed deprecated InlineAISuggestion component to simplify UI and satisfy lint rules against inline styles.
 
 // Simplified approach - we'll use React state and manual DOM updates instead of complex CodeMirror state
 // This avoids the 'ev' variable initialization error
@@ -1045,20 +998,27 @@ export function EnhancedLatexEditor({
     editorView.dispatch({
       effects: [setInlineDiffEffect.of(inlineDiffPreviews)]
     })
+    // Also update hidden-range marks so original text is visually suppressed during preview
+    editorView.dispatch({
+      effects: [setHiddenPreviewRanges.of(inlineDiffPreviews)]
+    })
   }, [inlineDiffPreviews])
 
   // Handle inline diff events
   useEffect(() => {
     const handleAcceptInlineDiff = (event: Event) => {
       const customEvent = event as CustomEvent
-      const { id } = customEvent.detail
-      onAcceptInlineDiff?.(id)
+      const { id, from, to } = customEvent.detail as { id: string; from?: number; to?: number }
+      // Pass through accurate, mapped positions when available
+      // @ts-ignore - broadened signature handled by parent
+      onAcceptInlineDiff?.(id, from, to)
     }
 
     const handleRejectInlineDiff = (event: Event) => {
       const customEvent = event as CustomEvent
-      const { id } = customEvent.detail
-      onRejectInlineDiff?.(id)
+      const { id, from, to } = customEvent.detail as { id: string; from?: number; to?: number }
+      // @ts-ignore - broadened signature handled by parent
+      onRejectInlineDiff?.(id, from, to)
     }
 
     const editorElement = editorRef.current?.view?.dom
@@ -1153,7 +1113,7 @@ export function EnhancedLatexEditor({
         }
       `}</style>
       
-      <div className={`w-full h-full ${className}`} style={{ height: '100%', overflow: 'hidden', position: 'relative' }}>
+      <div className={`w-full h-full ${className} relative overflow-hidden`}>
         <CodeMirror
         ref={editorRef}
         value={value}
@@ -1190,11 +1150,7 @@ export function EnhancedLatexEditor({
           completionKeymap: true,
           lintKeymap: true,
         }}
-        style={{
-          fontSize: '16px',
-          height: '100%',
-          overflow: 'auto'
-        }}
+        className="h-full text-[16px]"
       />
       </div>
     </>

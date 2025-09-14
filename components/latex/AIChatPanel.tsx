@@ -149,6 +149,9 @@ export function AIChatPanel({
       }
       
       setMessages(prev => [...prev, restoreMessage])
+
+      // Clear active preview banner if any
+      setActiveSuggestionId(null)
     }
 
     window.addEventListener('suggestion-accepted', handleSuggestionAccepted as EventListener)
@@ -157,6 +160,19 @@ export function AIChatPanel({
       window.removeEventListener('suggestion-accepted', handleSuggestionAccepted as EventListener)
     }
   }, [chatSession?.id])
+
+  // Also clear active suggestion when inline diff is accepted/rejected directly in editor
+  useEffect(() => {
+    const clearActive = () => setActiveSuggestionId(null)
+    const onAccept = () => clearActive()
+    const onReject = () => clearActive()
+    document.addEventListener('acceptInlineDiff', onAccept as EventListener)
+    document.addEventListener('rejectInlineDiff', onReject as EventListener)
+    return () => {
+      document.removeEventListener('acceptInlineDiff', onAccept as EventListener)
+      document.removeEventListener('rejectInlineDiff', onReject as EventListener)
+    }
+  }, [])
 
   // Helper: load checkpoints from backend and hydrate UI with restore buttons
   const loadAndHydrateCheckpoints = async () => {
@@ -384,23 +400,14 @@ export function AIChatPanel({
     
     switch (actionType) {
       case 'replace':
-        // For replace: show original text as "delete" and new text as "add"
-        if (originalText && originalText.trim()) {
-          previews.push({
-            id: `${suggestionId}-delete`,
-            type: 'delete',
-            from,
-            to,
-            content: originalText,
-            originalContent: originalText
-          })
-        }
+        // Emit a single replace preview with both original and suggested content
         previews.push({
-          id: `${suggestionId}-add`,
-          type: 'add',
-          from: to, // Insert the new content after the deleted part
-          to: to,
-          content: suggestion
+          id: suggestionId,
+          type: 'replace',
+          from,
+          to,
+          content: suggestion,
+          originalContent: originalText
         })
         break
         
@@ -477,9 +484,29 @@ export function AIChatPanel({
 
         // Create inline diff preview if AI provided LaTeX suggestion
         if (serverAiMessage?.latexSuggestion && serverAiMessage.latexSuggestion.trim().length > 0 && onPreviewInlineDiff) {
-          const act = (serverAiMessage.actionType?.toLowerCase?.() as 'add' | 'replace' | 'delete') || 'add'
-          const from = serverAiMessage.selectionRangeFrom ?? selectedText?.from ?? cursorPosition ?? 0
-          const to = serverAiMessage.selectionRangeTo ?? from
+          // Prefer server actionType; otherwise, if there is a real selection, default to REPLACE.
+          const hasSelection =
+            !!(selectedText?.text && selectedText.text.trim().length > 0) &&
+            selectedText?.from !== undefined &&
+            selectedText?.to !== undefined &&
+            selectedText.from !== selectedText.to;
+
+          const defaultAct: 'add' | 'replace' | 'delete' = hasSelection ? 'replace' : 'add';
+          const act =
+            (serverAiMessage.actionType?.toLowerCase?.() as 'add' | 'replace' | 'delete') ||
+            defaultAct;
+
+          // Compute the correct range:
+          const from =
+            serverAiMessage.selectionRangeFrom ??
+            (hasSelection ? selectedText!.from : (cursorPosition ?? 0));
+
+          const to =
+            serverAiMessage.selectionRangeTo ??
+            (act === 'add'
+              ? from // add is an insertion point
+              : (hasSelection ? selectedText!.to : from)); // replace/delete need the real end
+
           createInlineDiffPreviews(
             act,
             from,
@@ -487,7 +514,7 @@ export function AIChatPanel({
             selectedText?.text || '',
             serverAiMessage.latexSuggestion,
             String(serverAiMessage.id)
-          )
+          );
         }
       }
 
@@ -578,42 +605,37 @@ export function AIChatPanel({
     const lowerRequest = userRequest.toLowerCase()
     const lowerResponse = response.toLowerCase()
     
-    let actionType: 'add' | 'replace' | 'delete' | 'modify' = 'add'
+    // Determine if there is a real selection
+    const hasSelection =
+      !!(selectedText?.text && selectedText.text.trim().length > 0) &&
+      selectedText?.from !== undefined &&
+      selectedText?.to !== undefined &&
+      selectedText.from !== selectedText.to;
+    
+    // Default action type based on selection
+    let actionType: 'add' | 'replace' | 'delete' | 'modify' = hasSelection ? 'replace' : 'add'
     let suggestion = response
     let position = cursorPos
     let label = 'AI Edit'
 
-    // Determine action type based on user request and context
-    if (selectedText && selectedText.text) {
-      // If there's selected text, default to replace mode
-      if (lowerRequest.includes('replace') || lowerRequest.includes('change') || lowerRequest.includes('modify') || 
-          lowerRequest.includes('make') || lowerRequest.includes('convert') || lowerRequest.includes('table')) {
-        actionType = 'replace'
-        label = 'Replace Selection'
-        // Use cursor position from selection
-        position = selectedText.from
-      } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
-        actionType = 'delete'
-        label = 'Delete Selection'
-      } else {
-        // Default to replace when there's selection
-        actionType = 'replace'
-        label = 'Replace Selection'
-        position = selectedText.from
-      }
-    } else {
-      // No selection, determine action type from request
-      if (lowerRequest.includes('replace') || lowerRequest.includes('change') || lowerRequest.includes('modify')) {
-        actionType = 'replace'
-      } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
-        actionType = 'delete'
-      } else if (lowerRequest.includes('add') || lowerRequest.includes('insert')) {
-        actionType = 'add'
-        label = 'Add Content'
-      } else if (lowerRequest.includes('make') || lowerRequest.includes('convert')) {
-        actionType = 'modify'
-        label = 'Modify Content'
-      }
+    // Override based on explicit request keywords
+    if (lowerRequest.includes('replace') || lowerRequest.includes('change') || lowerRequest.includes('modify') || 
+        lowerRequest.includes('make') || lowerRequest.includes('convert') || lowerRequest.includes('table')) {
+      actionType = 'replace'
+      label = 'Replace Selection'
+      // Use cursor position from selection
+      position = hasSelection ? selectedText!.from : cursorPos
+    } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
+      actionType = 'delete'
+      label = 'Delete Selection'
+    } else if (lowerRequest.includes('add') || lowerRequest.includes('insert')) {
+      actionType = 'add'
+      label = 'Add Content'
+    } else if (hasSelection) {
+      // Default to replace when there's selection
+      actionType = 'replace'
+      label = 'Replace Selection'
+      position = selectedText!.from
     }
 
     // Extract LaTeX code from response if present
@@ -637,36 +659,28 @@ export function AIChatPanel({
     const lowerRequest = userRequest.toLowerCase()
     const lowerResponse = response.toLowerCase()
     
-    // Determine action type based on context - prioritize selection over cursor
-    let actionType: 'replace' | 'add' | 'delete' = 'add'
+    // Determine if there is a real selection
+    const hasSelection =
+      !!(selectedText?.text && selectedText.text.trim().length > 0) &&
+      selectedText?.from !== undefined &&
+      selectedText?.to !== undefined &&
+      selectedText.from !== selectedText.to;
     
-    if (selectedText && selectedText.text && selectedText.text.trim()) {
-      // If there's selected text, analyze the request more carefully
-      if (lowerRequest.includes('replace') || lowerRequest.includes('make') || lowerRequest.includes('table') || 
-          lowerRequest.includes('change') || lowerRequest.includes('modify') || lowerRequest.includes('convert') ||
-          lowerRequest.includes('instead') || lowerRequest.includes('rather than')) {
-        actionType = 'replace'
-      } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
-        actionType = 'delete'
-      } else if (lowerRequest.includes('add') || lowerRequest.includes('insert')) {
-        actionType = 'add'
-      } else {
-        // Default to replace when there's selection and the request seems to want modification
-        if (lowerRequest.includes('this') || lowerRequest.includes('that') || lowerRequest.includes('here')) {
-          actionType = 'replace'
-        }
-      }
-    } else {
-      // No selection, determine action type from request
-      if (lowerRequest.includes('replace') || lowerRequest.includes('change') || lowerRequest.includes('modify')) {
-        actionType = 'replace'
-      } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
-        actionType = 'delete'
-      } else if (lowerRequest.includes('add') || lowerRequest.includes('insert')) {
-        actionType = 'add'
-      } else if (lowerRequest.includes('make') || lowerRequest.includes('convert')) {
-        actionType = 'add' // Default to add for creation requests
-      }
+    // Default action type based on selection
+    let actionType: 'replace' | 'add' | 'delete' = hasSelection ? 'replace' : 'add'
+    
+    // Override based on explicit request keywords
+    if (lowerRequest.includes('replace') || lowerRequest.includes('make') || lowerRequest.includes('table') || 
+        lowerRequest.includes('change') || lowerRequest.includes('modify') || lowerRequest.includes('convert') ||
+        lowerRequest.includes('instead') || lowerRequest.includes('rather than')) {
+      actionType = 'replace'
+    } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
+      actionType = 'delete'
+    } else if (lowerRequest.includes('add') || lowerRequest.includes('insert')) {
+      actionType = 'add'
+    } else if (hasSelection && (lowerRequest.includes('this') || lowerRequest.includes('that') || lowerRequest.includes('here'))) {
+      // Default to replace when there's selection and the request seems to want modification
+      actionType = 'replace'
     }
 
     // Extract LaTeX code from response
@@ -674,9 +688,9 @@ export function AIChatPanel({
     
     // Determine position based on selection or cursor - ALWAYS prioritize selection
     const position = {
-      from: selectedText && selectedText.text ? selectedText.from : (getInsertAnchor?.() ?? cursorPosition ?? 0),
-      to: selectedText && selectedText.text ? selectedText.to : (getInsertAnchor?.() ?? cursorPosition ?? 0),
-      originalText: selectedText && selectedText.text ? selectedText.text : ''
+      from: hasSelection ? selectedText!.from : (getInsertAnchor?.() ?? cursorPosition ?? 0),
+      to: hasSelection ? selectedText!.to : (getInsertAnchor?.() ?? cursorPosition ?? 0),
+      originalText: hasSelection ? selectedText!.text : ''
     }
 
     // Extract explanation (text before LaTeX code)
@@ -1229,29 +1243,7 @@ export function AIChatPanel({
         )}
       </div>
       
-      {/* Inline Diff Preview Controls */}
-      {activeSuggestionId && (
-        <div className="flex-shrink-0 border-t bg-blue-50 p-3">
-          <div className="text-center mb-2">
-            <span className="text-sm font-medium text-blue-800">
-              🎯 AI Suggestion Preview Active
-            </span>
-            <p className="text-xs text-blue-600 mt-1">
-              Hover over highlighted text in the editor to accept/reject changes
-            </p>
-          </div>
-          <div className="flex space-x-2 justify-center">
-            <Button 
-              onClick={clearActiveSuggestion}
-              size="sm"
-              variant="outline"
-              className="text-blue-600 border-blue-600 hover:bg-blue-50"
-            >
-              Clear Preview
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Inline Diff Preview Controls removed per UX; accept/reject lives in-editor */}
       
       {/* Input Area - Always visible at bottom */}
       <div className="sticky bottom-0 p-3 border-t bg-background">

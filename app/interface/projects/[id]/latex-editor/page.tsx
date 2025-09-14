@@ -553,24 +553,38 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     console.log('Current selectedText:', selectedText)
     console.log('Editor content length:', editorContent.length)
     
+    // Determine if there is a real selection
+    const hasSelection =
+      !!(selectedText.text && selectedText.text.trim().length > 0) &&
+      selectedText.from !== undefined &&
+      selectedText.to !== undefined &&
+      selectedText.from !== selectedText.to;
+
+    // Normalize action: server wins; otherwise selection ⇒ replace, no selection ⇒ add
+    const normalized: 'add' | 'replace' | 'delete' | 'modify' =
+      (actionType as any) ?? (hasSelection ? 'replace' : 'add');
+    
     let newContent = editorContent
 
-    switch (actionType) {
+    switch (normalized) {
       case 'replace':
       case 'modify':
-        if (selectedText.text && selectedText.from !== selectedText.to) {
+        if (hasSelection) {
           // Use the actual selected text positions
           console.log('Replacing selection from', selectedText.from, 'to', selectedText.to)
           const before = editorContent.substring(0, selectedText.from)
           const after = editorContent.substring(selectedText.to)
           newContent = before + suggestion + after
           console.log('New content created with replace')
+          // Set cursor to end of inserted content
+          setCursorPosition((before + suggestion).length)
         } else if (selectionRange && selectionRange.from !== selectionRange.to) {
           // Fallback to selectionRange if available
           console.log('Using fallback selectionRange:', selectionRange)
           const before = editorContent.substring(0, selectionRange.from)
           const after = editorContent.substring(selectionRange.to)
           newContent = before + suggestion + after
+          setCursorPosition((before + suggestion).length)
         } else if (position !== undefined) {
           // Insert at specific position
           console.log('Inserting at position:', position)
@@ -581,29 +595,30 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         break
 
       case 'delete':
-        if (selectedText.text && selectedText.from !== selectedText.to) {
+        if (hasSelection) {
           // Delete selected text
           const before = editorContent.substring(0, selectedText.from)
           const after = editorContent.substring(selectedText.to)
           newContent = before + after
-        } else if (selectionRange) {
+          setCursorPosition(before.length)
+        } else if (selectionRange && selectionRange.from !== selectionRange.to) {
           const before = editorContent.substring(0, selectionRange.from)
           const after = editorContent.substring(selectionRange.to)
           newContent = before + after
+          setCursorPosition(before.length)
         }
         break
 
       case 'add':
-      default:
-    if (position !== undefined) {
-      // Insert at specific cursor position
-      const before = editorContent.substring(0, position)
-      const after = editorContent.substring(position)
-          newContent = before + suggestion + after
-    } else {
-      // Append to end
-          newContent = editorContent + '\n\n' + suggestion
-        }
+      default: {
+        // insertion at cursor or provided position
+        const insertAt = position ?? (hasSelection ? selectedText.from : (cursorPosition ?? editorContent.length))
+        const before = editorContent.substring(0, insertAt)
+        const after = editorContent.substring(insertAt)
+        newContent = before + suggestion + after
+        setCursorPosition((before + suggestion).length)
+        break
+      }
         break
     }
 
@@ -676,7 +691,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     setInlineDiffPreviews(previews)
   }
 
-  const handleAcceptInlineDiff = (id: string) => {
+  const handleAcceptInlineDiff = (id: string, mappedFrom?: number, mappedTo?: number) => {
     console.log('=== ACCEPT INLINE DIFF ===')
     console.log('Accepting diff with ID:', id)
     
@@ -689,37 +704,66 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     // Store current content as checkpoint before applying
     const currentContentCheckpoint = editorContent
 
+    // Prefer mapped positions from the editor (already adjusted across edits)
+    const docLen = editorContent.length
+    const safeFrom = mappedFrom !== undefined ? Math.max(0, Math.min(mappedFrom, docLen)) : preview.from
+    const safeTo = mappedTo !== undefined ? Math.max(0, Math.min(mappedTo, docLen)) : preview.to
+
     let newContent = editorContent
     switch (preview.type) {
       case 'add':
         // Insert new content at the specified position
-        const beforeAdd = editorContent.substring(0, preview.from)
-        const afterAdd = editorContent.substring(preview.from)
+        const beforeAdd = editorContent.substring(0, safeFrom)
+        const afterAdd = editorContent.substring(safeFrom)
         newContent = beforeAdd + preview.content + afterAdd
         break
         
       case 'delete':
         // Remove content from the specified range
-        const beforeDel = editorContent.substring(0, preview.from)
-        const afterDel = editorContent.substring(preview.to)
+        const beforeDel = editorContent.substring(0, safeFrom)
+        const afterDel = editorContent.substring(safeTo)
         newContent = beforeDel + afterDel
         break
         
       case 'replace':
         // Replace content in the specified range
-        const beforeReplace = editorContent.substring(0, preview.from)
-        const afterReplace = editorContent.substring(preview.to)
-        newContent = beforeReplace + preview.content + afterReplace
+        const beforeReplace = editorContent.substring(0, safeFrom)
+        const afterReplace = editorContent.substring(safeTo)
+        let next = beforeReplace + preview.content + afterReplace
+
+        // --- De-dupe: remove any remaining copies of the original block elsewhere ---
+        const orig = String(preview.originalContent ?? '').trim()
+        if (orig.length > 0) {
+          // Escape regex special chars, then make whitespace tolerant
+          const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const pattern = new RegExp(esc(orig).replace(/\s+/g, '\\s+'), 'g')
+
+          // Where the accepted content now sits
+          const applied = preview.content
+          const appliedPos = beforeReplace.length
+          const appliedEnd = appliedPos + applied.length
+
+          // 1) Strip all other occurrences of the original block
+          let stripped = next.replace(pattern, '')
+
+          // 2) Ensure the applied replacement stays (reinsert if the regex swept it)
+          const left = stripped.slice(0, appliedPos)
+          const right = stripped.slice(appliedPos)
+          stripped = left + applied + right
+
+          next = stripped
+        }
+        // ---------------------------------------------------------------------------
+
+        newContent = next
         break
     }
 
     setEditorContent(newContent)
     setIsEditing(true)
     
-    // Remove all related previews (both delete and add for replace operations)
-    setInlineDiffPreviews(prev => prev.filter(p => 
-      !String(p.id).startsWith(String(id).replace('-delete', '').replace('-add', ''))
-    ))
+    // Remove only the accepted preview (single-widget model)
+    setInlineDiffPreviews(prev => prev.filter(p => p.id !== id))
 
     // Trigger restore checkpoint functionality in the AI chat
     // This simulates accepting a suggestion to create the checkpoint message
@@ -738,12 +782,12 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     console.log('Diff accepted and applied with checkpoint created')
   }
 
-  const handleRejectInlineDiff = (id: string) => {
+  const handleRejectInlineDiff = (id: string, _mappedFrom?: number, _mappedTo?: number) => {
     console.log('=== REJECT INLINE DIFF ===')
     console.log('Rejecting diff with ID:', id)
     
-    // Simply remove the preview without applying changes
-    setInlineDiffPreviews(prev => prev.filter(p => p.id !== id))
+  // Simply remove the preview without applying changes (single-widget model)
+  setInlineDiffPreviews(prev => prev.filter(p => p.id !== id))
     
     console.log('Diff rejected and removed')
   }
@@ -1735,7 +1779,9 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   </div>
                 </div>
               ) : (
-                <TabProviderWrapper
+                <>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <TabProviderWrapper
                   currentDocument={currentDocument}
                   editorContent={editorContent}
                   onEditorContentChange={setEditorContent}
@@ -1770,7 +1816,37 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   onPDFSelectionToChat={handlePDFSelectionToChat}
                   onOpenPaperReady={(fn) => setHandleOpenPaper(() => fn)}
                   onTabDocumentLoad={handleDocumentSwitchById}
-                />
+                  />
+                </div>
+                {/* Bottom version/footer bar that keeps editor above it */}
+                <div className="flex-shrink-0 border-t border-border bg-card px-3 py-1 text-xs text-muted-foreground flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span>Lines: {editorContent ? editorContent.split('\n').length : 0}</span>
+                    {currentDocument?.version && (
+                      <span>v{currentDocument.version}{isViewingVersion ? ' (viewing version)' : ''}</span>
+                    )}
+                    <span>Updated: {currentDocument?.updatedAt ? new Date(currentDocument.updatedAt).toLocaleTimeString() : '-'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setShowVersionDialog(true)}
+                      className="h-7 px-2"
+                    >
+                      Save Version
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={navigateToPreviousVersion}
+                      className="h-7 px-2"
+                    >
+                      Current
+                    </Button>
+                  </div>
+                </div>
+                </>
               )}
             </div>
           </ResizablePanel>
