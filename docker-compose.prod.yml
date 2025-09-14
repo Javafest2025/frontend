@@ -4,6 +4,13 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: scholar-frontend
+
+    # 🏷️ Add metadata labels for cleanup & observability
+    labels:
+      service: "frontend"
+      maintainer: "ScholarAI <dev@scholarai.local>"
+      version: "0.0.1-SNAPSHOT"
+      description: "Next.js Frontend for ScholarAI"
     env_file:
       - /opt/scholarai/envs/frontend.env
     ports:

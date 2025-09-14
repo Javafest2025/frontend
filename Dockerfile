@@ -35,6 +35,12 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
+# ---- Metadata labels for cleanup & observability ----
+LABEL service="frontend" \
+      maintainer="ScholarAI <dev@scholarai.local>" \
+      version="0.0.1-SNAPSHOT" \
+      description="Next.js Frontend for ScholarAI"
+
 # Install curl for health checks
 RUN apk add --no-cache curl
 
