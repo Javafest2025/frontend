@@ -17,6 +17,7 @@ services:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_ENV=prod
+      - NEXT_PUBLIC_API_BASE_URL=http://70.153.18.56:8989
     networks:
       - scholarai-network
     restart: unless-stopped
