@@ -23,6 +23,15 @@ const isValidJWT = (token: string): boolean => {
     }
 };
 
+// Helper function to get refresh token from cookie
+export const getRefreshTokenFromCookie = (): string | null => {
+    if (typeof window !== "undefined") {
+        const match = document.cookie.match(/(^| )refreshToken=([^;]+)/);
+        return match ? match[2] : null;
+    }
+    return null;
+};
+
 // Authentication utility functions
 export const getAuthToken = (): string | null => {
     if (typeof window !== "undefined") {
@@ -53,7 +62,11 @@ export const clearAuthData = () => {
         localStorage.removeItem("scholarai_user")
         // Remove refresh token from localStorage if it exists (for backward compatibility)
         localStorage.removeItem("scholarai_refresh_token")
-        console.log("🧹 Auth data cleared from localStorage")
+
+        // Clear refresh token cookie from frontend domain
+        document.cookie = "refreshToken=; Path=/; Max-Age=0; SameSite=Lax";
+
+        console.log("🧹 Auth data cleared from localStorage and cookies")
     }
 }
 
@@ -65,14 +78,21 @@ export const refreshAccessToken = async (): Promise<string | null> => {
     try {
         console.log("🔄 Attempting to refresh token...");
 
-        // Backend stores refresh token in HttpOnly cookie, so we don't need to send it in body
-        // The cookie will be automatically included with credentials: 'include'
+        // Get refresh token from frontend cookie (not backend cookie)
+        const refreshToken = getRefreshTokenFromCookie();
+        if (!refreshToken) {
+            console.error("❌ No refresh token found in frontend cookie");
+            return null;
+        }
+
+        console.log("📋 Sending refresh token in request body");
         const response = await fetch(getMicroserviceUrl("user-service", "/api/v1/auth/refresh"), {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            credentials: 'include', // Include cookies for refresh token
+            body: JSON.stringify({ refreshToken }),
+            credentials: 'include', // Still include cookies for any other purposes
         });
 
         console.log("📊 Refresh response status:", response.status, response.statusText);
@@ -99,6 +119,7 @@ export const refreshAccessToken = async (): Promise<string | null> => {
 
         if (response.ok && data.data?.accessToken) {
             const newToken = data.data.accessToken;
+            const newRefreshToken = data.data?.refreshToken;
 
             // Validate the new token format
             if (!isValidJWT(newToken)) {
@@ -108,6 +129,12 @@ export const refreshAccessToken = async (): Promise<string | null> => {
             }
 
             localStorage.setItem("scholarai_token", newToken);
+
+            // Update refresh token cookie if a new one is provided
+            if (newRefreshToken) {
+                document.cookie = `refreshToken=${newRefreshToken}; Path=/; Max-Age=604800; SameSite=Lax`;
+                console.log("✅ New refresh token cookie set on frontend domain");
+            }
 
             // Store user data if it's included in the response
             if (data.data?.email || data.data?.userId || data.data?.role) {
@@ -312,7 +339,13 @@ export const login = async (formData: {
         }
 
         const token = data.data?.accessToken;
-        const refreshToken = data.data?.refreshToken; // Check if refresh token is in response
+        const refreshToken = data.data?.refreshToken;
+
+        // Manually set refresh token cookie on frontend domain to bypass cross-origin issues
+        if (refreshToken) {
+            document.cookie = `refreshToken=${refreshToken}; Path=/; Max-Age=604800; SameSite=Lax`;
+            console.log("✅ Refresh token cookie set on frontend domain");
+        }
         const user = {
             id: data.data?.userId,
             email: data.data?.email,
@@ -698,6 +731,12 @@ export const handleGoogleSocialLogin = async (
         // Store access token
         localStorage.setItem("scholarai_token", accessToken);
 
+        // Manually set refresh token cookie on frontend domain to bypass cross-origin issues
+        if (refreshToken) {
+            document.cookie = `refreshToken=${refreshToken}; Path=/; Max-Age=604800; SameSite=Lax`;
+            console.log("✅ Refresh token cookie set on frontend domain (Google login)");
+        }
+
         // Store user data
         if (user && user.id) {
             localStorage.setItem("scholarai_user", JSON.stringify(user));
@@ -809,6 +848,12 @@ export const handleGitHubAuthCallback = async (
 
         // Store access token
         localStorage.setItem("scholarai_token", accessToken);
+
+        // Manually set refresh token cookie on frontend domain to bypass cross-origin issues
+        if (refreshToken) {
+            document.cookie = `refreshToken=${refreshToken}; Path=/; Max-Age=604800; SameSite=Lax`;
+            console.log("✅ Refresh token cookie set on frontend domain (GitHub login)");
+        }
 
         // Store user data
         if (user && user.id) {
