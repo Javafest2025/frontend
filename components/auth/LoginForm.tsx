@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { InputField } from "@/components/form/InputField"
@@ -76,7 +76,6 @@ export function LoginForm() {
         const { name, value, type, checked } = e.target
         setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }))
         if (errors[name as keyof typeof errors]) setErrors((prev) => ({ ...prev, [name]: "" }))
-        if (sessionExpired) setSessionExpired(false)
     }
 
     const toggleShowPassword = () => setShowPassword((prev) => !prev)
@@ -227,7 +226,7 @@ export function LoginForm() {
 
             <div className="flex-1 flex items-center justify-center">
                 <div className="max-w-[450px] w-full">
-                    <h1 className="text-3xl font-extrabold text-center mb-8 text-foreground drop-shadow-lg">
+                    <h1 className="text-3xl font-extrabold text-center mb-8 text-foreground drop-shadow-lg bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
                         {AUTH_CONSTANTS.loginTitle}
                     </h1>
 
@@ -235,99 +234,100 @@ export function LoginForm() {
 
 
 
-                    {/* ----------  THEMED GLASS CARD ---------- */}
+                    {/* ----------  ENHANCED GLASS CARD ---------- */}
                     <div
-                        className="rounded-2xl p-10 w-[450px] min-h-[500px] flex flex-col shadow-2xl backdrop-blur-2xl border border-primary/30 bg-gradient-to-br from-background/20 via-background/10 to-primary/5 hover:shadow-primary/30 transition-shadow duration-300"
+                        className="rounded-2xl p-10 w-[450px] min-h-[500px] flex flex-col shadow-2xl backdrop-blur-2xl border-2 border-primary/50 bg-gradient-to-br from-background/80 via-background/70 to-background/60 hover:shadow-primary/40 transition-all duration-300 relative overflow-hidden"
                     >
-                        <form onSubmit={handleSubmit} className="flex flex-col flex-grow">
-                            <div className="space-y-5">
-                                <InputField
-                                    id="email"
-                                    name="email"
-                                    label="Email"
-                                    type="email"
-                                    placeholder="youremail@example.com"
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                    error={errors.email}
-                                    required
-                                />
+                        {/* Enhanced background overlay for better contrast */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-background/40 via-background/30 to-background/20 rounded-2xl"></div>
 
-                                <PasswordField
-                                    id="password"
-                                    name="password"
-                                    label="Password"
-                                    placeholder="••••••••••••••••"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    error={errors.password}
-                                    required
-                                    showPassword={showPassword}
-                                    toggleShowPassword={toggleShowPassword}
-                                />
+                        {/* Subtle inner glow */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-purple-500/10 rounded-2xl"></div>
 
-                                <div className="flex items-center justify-between text-base text-foreground mb-8">
-                                    <Checkbox
-                                        id="rememberMe"
-                                        name="rememberMe"
-                                        label={AUTH_CONSTANTS.rememberMe}
-                                        checked={formData.rememberMe}
+                        {/* Content with higher z-index */}
+                        <div className="relative z-10">
+                            <form onSubmit={handleSubmit} className="flex flex-col flex-grow">
+                                <div className="space-y-5">
+                                    <InputField
+                                        id="email"
+                                        name="email"
+                                        label="Email"
+                                        type="email"
+                                        placeholder="youremail@example.com"
+                                        value={formData.email}
                                         onChange={handleChange}
+                                        error={errors.email}
+                                        required
                                     />
 
-                                    <div className="flex flex-col gap-1">
+                                    <PasswordField
+                                        id="password"
+                                        name="password"
+                                        label="Password"
+                                        placeholder="••••••••••••••••"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        error={errors.password}
+                                        required
+                                        showPassword={showPassword}
+                                        toggleShowPassword={toggleShowPassword}
+                                    />
+
+                                    <div className="flex items-center justify-between text-base text-foreground mb-8">
+                                        <Checkbox
+                                            id="rememberMe"
+                                            name="rememberMe"
+                                            label={AUTH_CONSTANTS.rememberMe}
+                                            checked={formData.rememberMe}
+                                            onChange={handleChange}
+                                        />
+
                                         <Link
                                             href="/forgot-password"
                                             className="text-foreground hover:text-primary/80 transition-colors font-['Segoe_UI'] underline underline-offset-2 text-sm"
                                         >
                                             {AUTH_CONSTANTS.forgotPassword}
                                         </Link>
-                                        <Link
-                                            href={`/verify-email?email=${encodeURIComponent(formData.email)}`}
-                                            className="text-foreground hover:text-primary/80 transition-colors font-['Segoe_UI'] underline underline-offset-2 text-sm"
-                                        >
-                                            Resend verification email
-                                        </Link>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="flex-grow"></div>
+                                <div className="flex-grow"></div>
 
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="w-full h-[70px] px-4 rounded-2xl font-['Segoe_UI'] font-semibold text-lg text-white shadow-lg shadow-primary/25 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 border border-primary/40 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center mt-8"
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <svg
-                                            className="animate-spin -ml-1 mr-2 h-6 w-6 text-white"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <circle
-                                                className="opacity-25"
-                                                cx="12"
-                                                cy="12"
-                                                r="10"
-                                                stroke="currentColor"
-                                                strokeWidth="4"
-                                            ></circle>
-                                            <path
-                                                className="opacity-75"
-                                                fill="currentColor"
-                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                            ></path>
-                                        </svg>
-                                        <span className="font-['Segoe_UI']">Logging in...</span>
-                                    </>
-                                ) : (
-                                    <span className="font-['Segoe_UI']">{AUTH_CONSTANTS.loginButton}</span>
-                                )}
-                            </button>
-                        </form>
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="w-full h-[70px] px-4 rounded-2xl font-['Segoe_UI'] font-semibold text-lg text-white shadow-lg shadow-primary/25 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 border border-primary/40 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center mt-8"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <svg
+                                                className="animate-spin -ml-1 mr-2 h-6 w-6 text-white"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <circle
+                                                    className="opacity-25"
+                                                    cx="12"
+                                                    cy="12"
+                                                    r="10"
+                                                    stroke="currentColor"
+                                                    strokeWidth="4"
+                                                ></circle>
+                                                <path
+                                                    className="opacity-75"
+                                                    fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                ></path>
+                                            </svg>
+                                            <span className="font-['Segoe_UI']">Logging in...</span>
+                                        </>
+                                    ) : (
+                                        <span className="font-['Segoe_UI']">{AUTH_CONSTANTS.loginButton}</span>
+                                    )}
+                                </button>
+                            </form>
+                        </div>
                     </div>
 
                     <div className="mt-12 text-center">

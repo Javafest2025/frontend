@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
-import { motion } from "framer-motion"
-import { useInView } from "framer-motion"
+import { motion, useInView } from "framer-motion"
 import { useRef, useState } from "react"
 import {
     Brain,
@@ -96,10 +95,11 @@ export function Footer() {
     const handleNewsletterSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         if (email) {
-            // Simulate subscription
+            // Visual-only subscription - no backend call
             setIsSubscribed(true)
             setEmail("")
-            setTimeout(() => setIsSubscribed(false), 3000)
+            // Keep subscribed state for longer to show the feedback
+            setTimeout(() => setIsSubscribed(false), 5000)
         }
     }
 
@@ -133,12 +133,11 @@ export function Footer() {
                                 </motion.div>
 
                                 <h3 className="text-2xl lg:text-3xl font-bold text-foreground mb-4">
-                                    Stay Updated with Research Insights
+                                    Stay Updated on Our Upcoming Products
                                 </h3>
 
                                 <p className="text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-                                    Get the latest updates on AI research tools, new integrations, and exclusive
-                                    insights from the academic community delivered to your inbox.
+                                    Be the first to know about our latest research tools, AI-powered features, and innovative solutions designed specifically for researchers. Get early access and exclusive updates delivered to your inbox.
                                 </p>
 
                                 <form onSubmit={handleNewsletterSubmit} className="max-w-md mx-auto">
@@ -154,11 +153,14 @@ export function Footer() {
                                         <Button
                                             type="submit"
                                             disabled={isSubscribed}
-                                            className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 whitespace-nowrap"
+                                            className={`whitespace-nowrap transition-all duration-300 ${isSubscribed
+                                                ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                                                : "bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700"
+                                                }`}
                                         >
                                             {isSubscribed ? (
                                                 <>
-                                                    <Sparkles className="mr-2 h-4 w-4" />
+                                                    <Sparkles className="mr-2 h-4 w-4 animate-pulse" />
                                                     Subscribed!
                                                 </>
                                             ) : (
@@ -170,7 +172,7 @@ export function Footer() {
                                         </Button>
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-3">
-                                        No spam, unsubscribe at any time. We respect your privacy.
+                                        Get exclusive early access to new features. No spam, unsubscribe anytime.
                                     </p>
                                 </form>
                             </div>
@@ -296,7 +298,7 @@ export function Footer() {
                 >
                     <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
                         <div className="flex items-center space-x-6 text-sm text-muted-foreground">
-                            <span>© 2024 ScholarAI. All rights reserved.</span>
+                            <span>© 2025 ScholarAI. All rights reserved.</span>
                             <span className="hidden md:block">•</span>
                             <span className="hidden md:block">Accelerating research with AI</span>
                         </div>

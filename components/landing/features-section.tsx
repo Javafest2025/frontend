@@ -1,8 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { motion } from "framer-motion"
-import { useInView } from "framer-motion"
+import { motion, useInView } from "framer-motion"
 import { useRef } from "react"
 import {
     Search,
@@ -12,9 +11,11 @@ import {
     MessageSquare,
     Clock,
     CheckCircle,
-    Zap,
     Brain,
-    Sparkles
+    Sparkles,
+    FileCode,
+    BookOpen,
+    Layers
 } from "lucide-react"
 
 const features = [
@@ -95,6 +96,45 @@ const features = [
         ],
         gradient: "from-pink-500/20 to-rose-500/20",
         iconColor: "text-pink-500"
+    },
+    {
+        icon: FileCode,
+        title: "AI Integrated LaTeX Editor",
+        description: "Advanced LaTeX editor with AI-powered assistance for academic writing and formatting",
+        highlights: [
+            "Real-time LaTeX compilation",
+            "AI writing suggestions",
+            "Template library",
+            "Collaborative editing"
+        ],
+        gradient: "from-teal-500/20 to-cyan-500/20",
+        iconColor: "text-teal-500"
+    },
+    {
+        icon: BookOpen,
+        title: "Smart Citation Manager",
+        description: "Intelligent citation management with automatic formatting and reference tracking",
+        highlights: [
+            "Auto-citation detection",
+            "Multiple format support",
+            "Reference validation",
+            "Bibliography generation"
+        ],
+        gradient: "from-amber-500/20 to-yellow-500/20",
+        iconColor: "text-amber-500"
+    },
+    {
+        icon: Layers,
+        title: "Integrated Research Environment",
+        description: "Unified workspace combining all research tools in one seamless platform",
+        highlights: [
+            "Multi-tool integration",
+            "Workflow automation",
+            "Data synchronization",
+            "Cross-platform access"
+        ],
+        gradient: "from-slate-500/20 to-gray-500/20",
+        iconColor: "text-slate-500"
     }
 ]
 
@@ -185,11 +225,6 @@ export function FeaturesSection() {
                                             </div>
                                         </motion.div>
 
-                                        {/* Always visible highlights count */}
-                                        <div className="mt-4 flex items-center text-sm text-muted-foreground group-hover:hidden">
-                                            <Zap className="mr-2 h-4 w-4 text-primary" />
-                                            <span>{feature.highlights.length} key capabilities</span>
-                                        </div>
                                     </CardContent>
 
                                     {/* Shine effect */}

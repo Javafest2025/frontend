@@ -1,19 +1,25 @@
-import VideoBackground from '@/components/background/VideoBackground';
+import { HeroBackground } from '@/components/landing/hero-background';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function AuthLayout({
     children,
 }: {
-    children: React.ReactNode;
+    readonly children: React.ReactNode;
 }) {
     return (
-        <VideoBackground>
-            <div className="absolute top-6 right-6 z-50">
-                <ThemeToggle />
+        <div className="relative min-h-screen w-full bg-background">
+            {/* Neural network background from landing page */}
+            <HeroBackground />
+
+            {/* Content with backdrop blur */}
+            <div className="relative z-10">
+                <div className="absolute top-6 right-6 z-50">
+                    <ThemeToggle />
+                </div>
+                {children}
+                <Toaster />
             </div>
-            {children}
-            <Toaster />
-        </VideoBackground>
+        </div>
     );
 }

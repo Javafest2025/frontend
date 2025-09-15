@@ -9,9 +9,7 @@ const nextConfig = {
   },
 
   // Add polyfills for server-side compatibility
-  experimental: {
-    serverExternalPackages: [],
-  },
+  serverExternalPackages: [],
   images: {
     unoptimized: true,
     domains: ['scholarai-papers.s3.ams5.backblazeb2.com', 'res.cloudinary.com'],

@@ -71,8 +71,12 @@ export function HeroSection() {
                         className="mx-auto mt-4 sm:mt-6 max-w-2xl sm:max-w-3xl lg:max-w-4xl"
                     >
                         <div className="relative">
-                            <div className="absolute inset-0 rounded-2xl bg-background/40 backdrop-blur-md border border-primary/10 shadow-lg shadow-primary/5 -z-10" />
-                            <p className="font-sans font-medium text-base sm:text-lg md:text-xl lg:text-2xl leading-relaxed text-foreground drop-shadow-lg tracking-wide px-4 sm:px-6 md:px-10 py-3 sm:py-4 md:py-6">
+                            {/* Enhanced background with multiple layers for better contrast */}
+                            <div className="absolute inset-0 rounded-2xl bg-background/80 backdrop-blur-xl border-2 border-primary/30 shadow-2xl shadow-primary/20 -z-10" />
+                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-background/60 via-background/40 to-background/60 -z-10" />
+                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/5 via-transparent to-purple-500/5 -z-10" />
+
+                            <p className="relative z-10 font-sans font-medium text-base sm:text-lg md:text-xl lg:text-2xl leading-relaxed text-foreground drop-shadow-lg tracking-wide px-4 sm:px-6 md:px-10 py-3 sm:py-4 md:py-6">
                                 Transform how you <span className="font-semibold text-primary/90">discover</span>, <span className="font-semibold text-purple-400/90">analyze</span>, and <span className="font-semibold text-blue-400/90">synthesize</span> academic papers with our intelligent AI agents. From automated paper retrieval to gap analysis and contextual Q&amp;A.
                             </p>
                         </div>
@@ -125,11 +129,15 @@ export function HeroSection() {
                                 key={index}
                                 whileHover={{
                                     scale: 1.07,
-                                    boxShadow: "0 4px 32px 0 rgba(99,102,241,0.18)",
+                                    boxShadow: "0 8px 40px 0 rgba(99,102,241,0.25)",
                                     borderColor: "#6366f1"
                                 }}
-                                className="relative text-center p-4 sm:p-6 rounded-2xl bg-background/30 backdrop-blur-xl border border-primary/15 shadow-lg transition-all duration-300 group overflow-hidden"
+                                className="relative text-center p-4 sm:p-6 rounded-2xl transition-all duration-300 group overflow-hidden"
                             >
+                                {/* Enhanced background with multiple layers for better contrast */}
+                                <div className="absolute inset-0 rounded-2xl bg-background/80 backdrop-blur-xl border-2 border-primary/30 shadow-2xl shadow-primary/20 -z-10" />
+                                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-background/60 via-background/40 to-background/60 -z-10" />
+                                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/5 via-transparent to-purple-500/5 -z-10" />
 
                                 <span className="relative z-10 flex justify-center mb-2 opacity-80 group-hover:opacity-100 transition-opacity duration-300">
                                     {metric.icon}
@@ -140,7 +148,6 @@ export function HeroSection() {
                                 <div className="relative z-10 text-sm sm:text-base lg:text-lg font-medium text-muted-foreground tracking-wide">
                                     {metric.label}
                                 </div>
-                                <span className="absolute inset-0 rounded-2xl bg-primary/10 blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-300 -z-10" />
                             </motion.div>
                         ))}
                     </motion.div>

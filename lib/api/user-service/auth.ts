@@ -255,7 +255,7 @@ export const authenticatedFetch = async (
 export const login = async (formData: {
     email: string;
     password: string;
-    rememberMe: boolean;
+    rememberMe?: boolean; // Optional - kept for form compatibility but not sent to backend
 }): Promise<{ success: boolean; message: string; token?: string; user?: any; requiresEmailVerification?: boolean; email?: string }> => {
     try {
         if (!formData.email || !formData.password) {
