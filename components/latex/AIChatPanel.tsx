@@ -24,7 +24,11 @@ import {
   Code,
   BookOpen,
   History,
-  RotateCcw
+  RotateCcw,
+  RefreshCw,
+  Sparkles,
+  CheckCircle,
+  Search
 } from 'lucide-react'
 import { latexApi } from '@/lib/api/latex-service'
 import type { LatexAiChatSession, LatexAiChatMessage, CreateLatexChatMessageRequest } from '@/types/chat'
@@ -87,6 +91,7 @@ export function AIChatPanel({
   const [selectedTextDisplay, setSelectedTextDisplay] = useState<string>('')
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [positionMarkers, setPositionMarkers] = useState<Array<{ position: number; label: string; blinking: boolean }>>([])
+  const [showAdvancedTools, setShowAdvancedTools] = useState(false)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -929,6 +934,35 @@ export function AIChatPanel({
     setActiveSuggestionId(null)
   }
 
+  const handleQuickAction = async (prompt: string) => {
+    if (isLoading) return
+    
+    // Add context about selection if there's any
+    let finalPrompt = prompt
+    if (selectedTextDisplay) {
+      finalPrompt = `${prompt}\n\nSelected text: "${selectedTextDisplay}"`
+    }
+    
+    // Set the prompt as input value
+    setInputValue(finalPrompt)
+    
+    // Send the message directly with the final prompt
+    setTimeout(async () => {
+      // Call the existing send message logic
+      await handleSendMessage()
+    }, 100)
+  }
+
+  const handleCitationCheck = () => {
+    // TODO: Implement citation check functionality
+    console.log('Citation check clicked - to be implemented')
+  }
+
+  const handleFinalReview = () => {
+    // TODO: Implement final review functionality
+    console.log('Final review clicked - to be implemented')
+  }
+
   const renderMessage = (message: LatexAiChatMessage) => {
     const isAI = message.messageType === 'AI'
     const hasSuggestion = message.hasLatexSuggestion && message.latexSuggestion && message.latexSuggestion.trim()
@@ -1245,11 +1279,103 @@ export function AIChatPanel({
       
       {/* Inline Diff Preview Controls removed per UX; accept/reject lives in-editor */}
       
-      {/* Input Area - Always visible at bottom */}
-      <div className="sticky bottom-0 p-3 border-t bg-background">
+      {/* AI Tools Bar - Always visible above input */}
+      <div className="sticky bottom-0 bg-background border-t border-border">
+        {/* Advanced Tools Simple Button */}
+        <div className="p-3 pb-2 border-b border-border">
+          <Button
+            onClick={() => setShowAdvancedTools(!showAdvancedTools)}
+            className={`w-full h-10 font-medium text-blue-700 dark:text-blue-200 blue-shimmer-button
+                       transition-all duration-200 ease-out border border-blue-400/50 hover:border-blue-500/70
+                       hover:text-blue-800 dark:hover:text-blue-100 shadow-lg hover:shadow-blue-500/25
+                       ${showAdvancedTools 
+                         ? 'border-blue-500/70 text-blue-800 dark:text-blue-100' 
+                         : 'hover:border-blue-500/70'
+                       }`}
+          >
+            <div className="flex items-center justify-center">
+              <span className="text-sm font-semibold">Advanced AI Tools</span>
+              <ChevronDown className={`h-4 w-4 ml-2 transition-transform duration-200 text-blue-600 dark:text-blue-300
+                          ${showAdvancedTools ? 'rotate-180' : ''}`} />
+            </div>
+          </Button>
+          
+          {/* Advanced Tools Panel */}
+          {showAdvancedTools && (
+            <div className="mt-3 p-4 bg-gradient-to-br from-slate-50 to-blue-50 border border-slate-200 rounded-xl shadow-sm space-y-3">
+              <Button
+                onClick={handleCitationCheck}
+                disabled={isLoading}
+                className="w-full justify-start h-11 blue-shimmer-button text-blue-800 hover:text-blue-900 border border-blue-400/50 hover:border-blue-500/70 rounded-lg shadow-sm hover:shadow-blue-500/25 transition-all duration-200 font-medium"
+              >
+                <Search className="h-4 w-4 mr-3 text-blue-600" />
+                <span className="text-sm font-semibold">Citation Check</span>
+              </Button>
+              
+              <Button
+                onClick={handleFinalReview}
+                disabled={isLoading}
+                className="w-full justify-start h-11 blue-shimmer-button text-blue-800 hover:text-blue-900 border border-blue-400/50 hover:border-blue-500/70 rounded-lg shadow-sm hover:shadow-blue-500/25 transition-all duration-200 font-medium"
+              >
+                <CheckCircle className="h-4 w-4 mr-3 text-blue-600" />
+                <span className="text-sm font-semibold">Final Review</span>
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Quick AI Actions */}
+        <div className="p-3 pb-2">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickAction("Improve this LaTeX code for better formatting and readability")}
+              disabled={isLoading}
+              className="h-7 text-xs bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-blue-200 text-blue-700"
+            >
+              <Lightbulb className="h-3 w-3 mr-1" />
+              Improve
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickAction("Fix any LaTeX syntax errors or compilation issues in this code")}
+              disabled={isLoading}
+              className="h-7 text-xs bg-gradient-to-r from-red-50 to-pink-50 hover:from-red-100 hover:to-pink-100 border-red-200 text-red-700"
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Fix
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickAction("Explain this LaTeX code and what it does")}
+              disabled={isLoading}
+              className="h-7 text-xs bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border-green-200 text-green-700"
+            >
+              <BookOpen className="h-3 w-3 mr-1" />
+              Explain
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickAction("Optimize this LaTeX code for better performance and structure")}
+              disabled={isLoading}
+              className="h-7 text-xs bg-gradient-to-r from-purple-50 to-violet-50 hover:from-purple-100 hover:to-violet-100 border-purple-200 text-purple-700"
+            >
+              <Zap className="h-3 w-3 mr-1" />
+              Optimize
+            </Button>
+          </div>
+        </div>
+
         {/* Selection Confirmation Display */}
         {selectedTextDisplay && (
-          <div className="mb-3 p-2 bg-muted border border-border rounded-md text-xs flex items-center justify-between">
+          <div className="mx-3 mb-2 p-2 bg-muted border border-border rounded-md text-xs flex items-center justify-between">
             <div className="flex items-center gap-2 text-muted-foreground">
               <div className="w-2 h-2 bg-primary rounded-full"></div>
               <span className="font-medium">
@@ -1272,36 +1398,39 @@ export function AIChatPanel({
             </Button>
           </div>
         )}
-        
-        <div className="flex items-end gap-2">
-          <div className="flex-1 rounded-2xl border border-border bg-card">
-            <textarea
-              ref={textareaRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyPress}
-              placeholder="Ask LaTeXAI to help with your document..."
-              disabled={isLoading}
-              className="w-full resize-none bg-transparent px-4 py-3 outline-none
-                         placeholder:text-muted-foreground text-sm max-h-48 min-h-[44px]
-                         scrollbar-thin"
-            />
+
+        {/* Input Area */}
+        <div className="p-3 pt-0">
+          <div className="flex items-end gap-2">
+            <div className="flex-1 rounded-2xl border border-border bg-card">
+              <textarea
+                ref={textareaRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Ask LaTeXAI to help with your document..."
+                disabled={isLoading}
+                className="w-full resize-none bg-transparent px-4 py-3 outline-none
+                           placeholder:text-muted-foreground text-sm max-h-48 min-h-[44px]
+                           scrollbar-thin"
+              />
+            </div>
+            <button
+              onClick={handleSendMessage}
+              disabled={isLoading || !inputValue.trim()}
+              className="h-11 w-11 shrink-0 rounded-xl text-white disabled:opacity-50
+                         bg-gradient-to-r from-rose-400 to-orange-400
+                         hover:from-rose-500 hover:to-orange-500 focus:outline-none
+                         focus:ring-2 focus:ring-rose-300 flex items-center justify-center"
+              aria-label="Send"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </button>
           </div>
-          <button
-            onClick={handleSendMessage}
-            disabled={isLoading || !inputValue.trim()}
-            className="h-11 w-11 shrink-0 rounded-xl text-white disabled:opacity-50
-                       bg-gradient-to-r from-rose-400 to-orange-400
-                       hover:from-rose-500 hover:to-orange-500 focus:outline-none
-                       focus:ring-2 focus:ring-rose-300 flex items-center justify-center"
-            aria-label="Send"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </button>
         </div>
       </div>
     </div>
