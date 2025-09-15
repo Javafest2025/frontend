@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useTabContext } from '@/contexts/TabContext';
 import { CenterTabs } from '@/components/latex/CenterTabs';
+import { ViewModeSelector, type ViewMode } from '@/components/latex/ViewModeSelector';
 import { EnhancedLatexEditor } from '@/components/latex/EnhancedLatexEditor';
 import PDFViewer from '@/components/latex/PDFViewer';
-import { FileText } from 'lucide-react';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { FileText, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OpenItem, TabViewState } from '@/types/tabs';
 
@@ -63,6 +65,11 @@ interface TabContentAreaProps {
   onHandleEditorFocus?: () => void;
   onHandleEditorFocusLost: () => void;
   
+  // PDF and compilation
+  pdfPreviewUrl: string;
+  isCompiling: boolean;
+  onCompile?: () => void;
+  
   // PDF selection to chat
   onPDFSelectionToChat: (text: string) => void;
   
@@ -99,6 +106,9 @@ export function TabContentArea({
   onHandleEditorBlur,
   onHandleEditorFocus,
   onHandleEditorFocusLost,
+  pdfPreviewUrl,
+  isCompiling,
+  onCompile,
   onPDFSelectionToChat,
   onTabDocumentLoad,
 }: TabContentAreaProps) {
@@ -114,9 +124,27 @@ export function TabContentArea({
     swapToPdf,
   } = useTabContext();
 
+  // View mode state for LaTeX editor
+  const [viewMode, setViewMode] = useState<ViewMode>('editor');
+
   const activeItem = openItems.find(item => item.id === activeItemId);
   const hasTexTab = openItems.some(item => item.kind === 'tex');
   const hasPdfTab = openItems.some(item => item.kind === 'pdf');
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    console.log('TabContentArea: View mode change requested:', mode);
+    console.log('Current view mode:', viewMode);
+    console.log('Has compiled PDF:', !!pdfPreviewUrl);
+    console.log('Is compiling:', isCompiling);
+    
+    setViewMode(mode);
+    
+    // Auto-compile when switching to preview if no PDF available
+    if (mode === 'preview' && !pdfPreviewUrl && !isCompiling && onCompile) {
+      console.log('TabContentArea: Auto-triggering compile for preview mode');
+      onCompile();
+    }
+  };
 
   // Custom tab change handler that loads document content when switching to tex tabs
   const handleTabChange = async (tabId: string) => {
@@ -191,7 +219,7 @@ export function TabContentArea({
     }
 
     if (activeItem.kind === 'tex') {
-      return (
+      const renderEditor = () => (
         <div className="flex-1 relative">
           <EnhancedLatexEditor
             value={editorContent}
@@ -220,12 +248,9 @@ export function TabContentArea({
 
           {/* Floating Add-to-Chat overlay when text is selected */}
           {showAddToChat && tempSelectedText && (
-            <div
-              className="absolute top-2 right-2 z-20 flex items-center gap-2 bg-card/95 backdrop-blur border border-border shadow-md rounded-md px-2 py-1"
-            >
+            <div className="absolute top-2 right-2 z-20 flex items-center gap-2 bg-card/95 backdrop-blur border border-border shadow-md rounded-md px-2 py-1">
               <div className="text-xs text-muted-foreground mr-1">
                 {(() => {
-                  // Compute line numbers from selection positions
                   const from = tempSelectionPositions?.from ?? 0;
                   const to = tempSelectionPositions?.to ?? from;
                   const clamp = (n: number) => (isFinite(n) && n >= 0 ? n : 0);
@@ -257,15 +282,68 @@ export function TabContentArea({
           )}
         </div>
       );
+
+      const renderPreview = () => (
+        <div className="flex-1 min-h-0 flex flex-col">
+          {pdfPreviewUrl ? (
+            <PDFViewer
+              fileUrl={pdfPreviewUrl}
+              className="w-full h-full flex-1"
+              onSelectionToChat={onPDFSelectionToChat}
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="text-center">
+                <Eye className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">No PDF Preview</h3>
+                <p className="text-muted-foreground mb-4">
+                  Compile your LaTeX document to see the preview
+                </p>
+                {onCompile && (
+                  <button
+                    onClick={onCompile}
+                    disabled={isCompiling}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {isCompiling ? 'Compiling...' : 'Compile Now'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+
+      // Render based on view mode
+      switch (viewMode) {
+        case 'editor':
+          return renderEditor();
+        case 'preview':
+          return renderPreview();
+        case 'split':
+          return (
+            <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+              <ResizablePanel defaultSize={50} minSize={30} className="flex flex-col">
+                {renderEditor()}
+              </ResizablePanel>
+              <ResizableHandle />
+              <ResizablePanel defaultSize={50} minSize={30} className="flex flex-col overflow-hidden">
+                {renderPreview()}
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          );
+        default:
+          return renderEditor();
+      }
     }
 
     if (activeItem.kind === 'pdf') {
       const viewState = getTabViewState(activeItemId!);
       return (
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col">
           <PDFViewer
             fileUrl={activeItem.url!}
-            className="w-full h-full"
+            className="w-full h-full flex-1"
             onSelectionToChat={onPDFSelectionToChat}
             initialPage={viewState.page}
             initialZoom={viewState.zoom}
@@ -300,8 +378,19 @@ export function TabContentArea({
         onTabClose={closeItem}
         onSwapToTex={hasTexTab && hasPdfTab ? swapToTex : undefined}
         onSwapToPdf={hasTexTab && hasPdfTab ? swapToPdf : undefined}
-        className="border-b flex-shrink-0"
+        className="flex-shrink-0"
       />
+      
+      {/* View Mode Selector - Only show for LaTeX files */}
+      {activeItem?.kind === 'tex' && (
+        <ViewModeSelector
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          hasCompiledPdf={!!pdfPreviewUrl}
+          isCompiling={isCompiling}
+          className="flex-shrink-0"
+        />
+      )}
       
       {/* Tab Content */}
       {renderTabContent()}

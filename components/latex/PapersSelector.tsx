@@ -19,7 +19,9 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { libraryApi } from "@/lib/api/project-service"
+import { triggerBatchExtraction, type BatchExtractionResponse, type BatchExtractionItemResult } from "@/lib/api/project-service/latex-extraction"
 import type { Paper } from "@/types/websearch"
+import { Progress } from "@/components/ui/progress"
 
 interface PapersSelectorProps {
   projectId: string
@@ -37,6 +39,8 @@ export function PapersSelector({ projectId, onPapersLoad, onOpenPaper, className
   const [isToggling, setIsToggling] = useState<Set<string>>(new Set())
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [selectedInDialog, setSelectedInDialog] = useState<Set<string>>(new Set())
+  const [batchProgress, setBatchProgress] = useState<{ running: boolean; total: number; completed: number; summary?: string } | null>(null)
+  const [perPaperStatus, setPerPaperStatus] = useState<Record<string, { status: string; error?: string }>>({})
 
   // Load all papers for the project
   const loadProjectPapers = async () => {
@@ -141,6 +145,80 @@ export function PapersSelector({ projectId, onPapersLoad, onOpenPaper, className
       
       setShowAddDialog(false)
       console.log('Successfully updated LaTeX context papers')
+      // Trigger background extraction for all newly selected context papers
+      if (toAdd.length > 0) {
+        // Start batch with optimistic UI
+        setBatchProgress({ running: true, total: newContextPapers.length, completed: 0 })
+        // Determine all context IDs to ensure extraction coverage
+        const contextIds = Array.from(newSelectedIds)
+        // Kick off batch trigger
+        triggerBatchExtraction(contextIds, true).then((batch: BatchExtractionResponse) => {
+          // Initialize per-paper statuses based on batch response
+          const statusMap: Record<string, { status: string; error?: string }> = {}
+          batch.results.forEach((item: BatchExtractionItemResult) => {
+            // Map backend actions to frontend status
+            if (item.action === 'SKIPPED_ALREADY_EXTRACTED') {
+              statusMap[item.paperId] = { status: 'COMPLETED' }
+            } else if (item.action === 'ERROR') {
+              statusMap[item.paperId] = { status: 'FAILED', error: item.message }
+            } else if (item.action === 'SKIPPED_IN_PROGRESS') {
+              statusMap[item.paperId] = { status: item.status || 'PROCESSING' }
+            } else {
+              // TRIGGERED - start as pending/processing
+              statusMap[item.paperId] = { status: item.status || 'PENDING' }
+            }
+          })
+          setPerPaperStatus(statusMap)
+          // Begin polling until all are extracted or failed
+          const pollIds = contextIds.slice()
+          const updateCompleted = () => {
+            const completedCount = Object.values(statusMap).filter(s => s.status === 'COMPLETED' || s.status === 'FAILED').length
+            setBatchProgress(prev => prev ? { ...prev, completed: Math.min(completedCount, prev.total) } : null)
+          }
+          // Initial update to reflect already completed/failed items from batch response
+          updateCompleted()
+          const pollOnce = async () => {
+            // Lazy import existing helpers to avoid circular deps
+            const { isPaperExtracted, getExtractionStatusOnly } = await import("@/lib/api/project-service/extraction")
+            await Promise.all(pollIds.map(async pid => {
+              const cur = statusMap[pid]?.status
+              // Skip polling papers that are already completed or failed
+              if (cur === 'COMPLETED' || cur === 'FAILED') return
+              try {
+                const done = await isPaperExtracted(pid)
+                if (done) {
+                  statusMap[pid] = { status: 'COMPLETED' }
+                } else {
+                  const st = await getExtractionStatusOnly(pid)
+                  statusMap[pid] = { status: st || 'PENDING' }
+                }
+              } catch (e:any) {
+                statusMap[pid] = { status: 'FAILED', error: e?.message || 'Error' }
+              }
+            }))
+            setPerPaperStatus({ ...statusMap })
+            updateCompleted()
+          }
+          const interval = setInterval(async () => {
+            await pollOnce()
+            const allDone = Object.values(statusMap).every(s => s.status === 'COMPLETED' || s.status === 'FAILED')
+            if (allDone) {
+              clearInterval(interval)
+              const success = Object.values(statusMap).filter(s => s.status === 'COMPLETED').length
+              const failed = Object.values(statusMap).filter(s => s.status === 'FAILED').length
+              const summary = `${success} of ${contextIds.length} papers extracted${failed ? `, ${failed} failed` : ''}`
+              setBatchProgress({ running: false, total: contextIds.length, completed: contextIds.length, summary })
+              // Persist a lightweight summary for the editor header
+              try { localStorage.setItem(`latex-extraction-${projectId}`, summary) } catch {}
+            }
+          }, 3000)
+          // Kick a first immediate poll
+          pollOnce()
+        }).catch((err: unknown) => {
+          console.error('Batch extraction trigger failed', err)
+          setBatchProgress({ running: false, total: 0, completed: 0, summary: 'Extraction trigger failed' })
+        })
+      }
     } catch (error) {
       console.error('Error updating papers context:', error)
       setError('Failed to update papers context')
@@ -252,6 +330,19 @@ export function PapersSelector({ projectId, onPapersLoad, onOpenPaper, className
           <p className="text-xs text-muted-foreground">
             Papers included in LaTeX context
           </p>
+          {batchProgress && (
+            <div className="mt-2 space-y-1">
+              <Progress value={batchProgress.total ? (batchProgress.completed / batchProgress.total) * 100 : 0} />
+              <div className="text-xs text-muted-foreground">
+                {batchProgress.running ? `Extracting ${batchProgress.completed}/${batchProgress.total} papers...` : (batchProgress.summary || 'Extraction ready')}
+              </div>
+            </div>
+          )}
+          {!batchProgress && (
+            <>
+              {(() => { try { const s = localStorage.getItem(`latex-extraction-${projectId}`); return s ? <div className="text-xs text-muted-foreground mt-1">{s}</div> : null } catch { return null } })()}
+            </>
+          )}
           {contextPapers.length > 0 && (
             <Badge variant="secondary" className="text-xs mt-1">
               {contextPapers.length} selected

@@ -77,6 +77,7 @@ interface TabProviderWrapperProps {
   // PDF and compile
   pdfPreviewUrl: string;
   isCompiling: boolean;
+  onCompile?: () => void;
   onPDFSelectionToChat: (text: string) => void;
   
   // Tab opening callback
@@ -118,6 +119,7 @@ function TabProviderContent({
   onHandleEditorFocusLost,
   pdfPreviewUrl,
   isCompiling,
+  onCompile,
   onPDFSelectionToChat,
   onOpenPaperReady,
   onTabDocumentLoad,
@@ -203,13 +205,16 @@ function TabProviderContent({
       onRejectInlineDiff={onRejectInlineDiff}
       showAddToChat={showAddToChat}
       tempSelectedText={tempSelectedText}
-  tempSelectionPositions={tempSelectionPositions}
+      tempSelectionPositions={tempSelectionPositions}
       onHandleAddToChat={onHandleAddToChat}
       onHandleCancelSelection={onHandleCancelSelection}
       onHandleEditorClick={onHandleEditorClick}
       onHandleEditorBlur={onHandleEditorBlur}
       onHandleEditorFocus={onHandleEditorFocus}
       onHandleEditorFocusLost={onHandleEditorFocusLost}
+      pdfPreviewUrl={pdfPreviewUrl}
+      isCompiling={isCompiling}
+      onCompile={onCompile}
       onPDFSelectionToChat={onPDFSelectionToChat}
       onTabDocumentLoad={onTabDocumentLoad}
     />

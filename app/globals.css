@@ -1559,4 +1559,23 @@
     will-change: transform;
   }
 
+  /* Force scrolling for PDF containers */
+  [data-pdf-scroll-container="true"] {
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-behavior: smooth !important;
+    height: 100% !important;
+    max-height: 100% !important;
+  }
+
+  /* Ensure PDF pages are scrollable */
+  .react-pdf__Document {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .react-pdf__Page {
+    margin-bottom: 16px !important;
+  }
+
 }

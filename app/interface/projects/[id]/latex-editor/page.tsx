@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -81,8 +81,14 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null)
   const [editorContent, setEditorContent] = useState('')
   const [compiledContent, setCompiledContent] = useState('')
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>('')
+  const [pdfPreviewUrls, setPdfPreviewUrls] = useState<Map<string, string>>(new Map())
   const [isCompiling, setIsCompiling] = useState(false)
+  
+  // Get PDF URL for current document
+  const pdfPreviewUrl = currentDocument ? pdfPreviewUrls.get(currentDocument.id) || '' : ''
+  
+  // Ref to track current URLs for cleanup
+  const pdfUrlsRef = useRef<Map<string, string>>(new Map())
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [selectedText, setSelectedText] = useState<{ text: string; from: number; to: number }>({ text: '', from: 0, to: 0 })
@@ -154,14 +160,20 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     console.log('🔄 State Change - showAddToChat:', showAddToChat)
   }, [showAddToChat])
 
-  // Cleanup PDF URL when component unmounts or PDF changes
+  // Update ref when URLs change
+  useEffect(() => {
+    pdfUrlsRef.current = pdfPreviewUrls
+  }, [pdfPreviewUrls])
+
+  // Cleanup PDF URLs when component unmounts
   useEffect(() => {
     return () => {
-      if (pdfPreviewUrl) {
-        URL.revokeObjectURL(pdfPreviewUrl)
-      }
+      // Clean up all PDF URLs on component unmount
+      pdfUrlsRef.current.forEach((url) => {
+        URL.revokeObjectURL(url)
+      })
     }
-  }, [pdfPreviewUrl])
+  }, []) // Empty dependency array - only run on mount/unmount
 
   // Load project data
   useEffect(() => {
@@ -210,6 +222,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       console.log('Document changed, clearing version history')
       setVersionHistory([])
       setIsViewingVersion(false)
+      setCurrentVersionIndex(0) // Reset version navigation index
     }
   }, [currentDocument?.id])
 
@@ -398,14 +411,14 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }, [])
 
   const handleCompile = useCallback(async () => {
-    if (isCompiling) {
-      console.log('Compilation already in progress, skipping...')
+    if (isCompiling || !currentDocument) {
+      console.log('Compilation already in progress or no document selected, skipping...')
       return
     }
     
     setIsCompiling(true)
     try {
-      console.log('Starting PDF compilation...')
+      console.log('Starting PDF compilation for document:', currentDocument.title)
       console.log('LaTeX content length:', editorContent.length)
       console.log('LaTeX content preview:', editorContent.substring(0, 200) + '...')
       
@@ -423,8 +436,19 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       
       // Create a URL for the PDF blob with proper MIME type
       const pdfUrl = URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }))
-      console.log('Created PDF blob URL:', pdfUrl)
-      setPdfPreviewUrl(pdfUrl)
+      console.log('Created PDF blob URL for document', currentDocument.id, ':', pdfUrl)
+      
+      // Store PDF URL by document ID
+      setPdfPreviewUrls(prev => {
+        const newMap = new Map(prev)
+        // Clean up old URL if it exists
+        const oldUrl = newMap.get(currentDocument.id)
+        if (oldUrl) {
+          URL.revokeObjectURL(oldUrl)
+        }
+        newMap.set(currentDocument.id, pdfUrl)
+        return newMap
+      })
       
       // Set compiled content to show PDF preview
       setCompiledContent(`
@@ -432,6 +456,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
           <h1>LaTeX PDF Preview</h1>
           <p style="color: green;">✓ PDF compiled successfully!</p>
           <p>Your LaTeX document has been compiled to PDF. Use the preview tab to view it.</p>
+          <p><strong>Document:</strong> ${currentDocument.title}</p>
           <p><strong>PDF Size:</strong> ${(pdfBlob.size / 1024).toFixed(1)} KB</p>
           <p><strong>PDF Type:</strong> ${pdfBlob.type}</p>
         </div>
@@ -440,25 +465,67 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     } catch (error) {
       console.error('PDF compilation failed:', error)
       
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      // Extract detailed error information
+      let errorMessage = 'Unknown error'
+      let detailedError = ''
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+        
+        // Try to extract LaTeX compilation details from backend error
+        if (errorMessage.includes('Output:')) {
+          const outputMatch = errorMessage.match(/Output: (.+)/)
+          if (outputMatch) {
+            detailedError = outputMatch[1]
+              .replace(/\\n/g, '\n')
+              .replace(/<EOL>/g, '\n')
+              .trim()
+          }
+        }
+      }
+      
       setCompiledContent(`
         <div style="padding: 20px; background: white; color: black;">
           <h1>LaTeX Compilation Error</h1>
-          <p style="color: red;">PDF compilation failed: ${errorMessage}</p>
-          <p>Please check your LaTeX syntax and try again.</p>
-          <details style="margin-top: 10px;">
+          <p style="color: red;">✗ PDF compilation failed</p>
+          <p><strong>Document:</strong> ${currentDocument?.title || 'Unknown'}</p>
+          <p><strong>Error:</strong> ${errorMessage}</p>
+          ${detailedError ? `
+            <details style="margin-top: 15px;">
+              <summary style="cursor: pointer; font-weight: bold; color: #d73a49;">📋 Compilation Output</summary>
+              <pre style="background: #f6f8fa; padding: 15px; border-radius: 4px; border-left: 4px solid #d73a49; margin-top: 10px; font-size: 12px; overflow-x: auto; white-space: pre-wrap;">${detailedError}</pre>
+            </details>
+          ` : ''}
+          <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px;">
+            <p style="margin: 0; color: #856404;"><strong>💡 Common Issues:</strong></p>
+            <ul style="margin: 5px 0 0 20px; color: #856404;">
+              <li>Missing packages: Make sure all \\usepackage{} declarations are correct</li>
+              <li>Syntax errors: Check for missing braces, unescaped characters, or typos</li>
+              <li>Document class: Ensure the document class is properly defined</li>
+              <li>Special characters: Use proper LaTeX escaping for special symbols</li>
+            </ul>
+          </div>
+          <details style="margin-top: 15px;">
             <summary>Raw LaTeX Content</summary>
             <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-size: 12px; margin-top: 10px;">${editorContent}</pre>
           </details>
         </div>
       `)
       
-      // Clear PDF preview URL on error
-      setPdfPreviewUrl('')
+      // Clear PDF preview URL on error for current document
+      setPdfPreviewUrls(prev => {
+        const newMap = new Map(prev)
+        const oldUrl = newMap.get(currentDocument.id)
+        if (oldUrl) {
+          URL.revokeObjectURL(oldUrl)
+        }
+        newMap.delete(currentDocument.id)
+        return newMap
+      })
     } finally {
       setIsCompiling(false)
     }
-  }, [editorContent, isCompiling])
+  }, [editorContent, isCompiling, currentDocument])
 
   // Compile when switching to preview tab
   const handleTabChange = useCallback((value: string) => {
@@ -1428,6 +1495,78 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     }
   };
 
+  // State to track current version index for Check Version functionality
+  const [currentVersionIndex, setCurrentVersionIndex] = useState<number>(0)
+
+  // Handle navigating through versions from latest to oldest
+  const handleNavigateVersions = async () => {
+    if (!currentDocument?.id) {
+      return
+    }
+
+    try {
+      // Load version history if not already loaded
+      if (versionHistory.length === 0) {
+        await loadVersionHistory(currentDocument.id)
+        
+        // After loading, check if we have any versions
+        const updatedHistory = await latexApi.getDocumentVersions(currentDocument.id)
+        if (updatedHistory.status === 200 && updatedHistory.data.length === 0) {
+          // No versions exist yet
+          alert('No versions found. Create your first version using the "Save Version" button!')
+          return
+        }
+        
+        // If we now have versions, continue with the navigation
+        if (updatedHistory.status === 200 && updatedHistory.data.length > 0) {
+          setVersionHistory(updatedHistory.data)
+          const latestVersion = updatedHistory.data[0] // Assuming versions are sorted latest first
+          setEditorContent(latestVersion.content)
+          setCurrentVersion(latestVersion.versionNumber)
+          setIsViewingVersion(true)
+          setCurrentVersionIndex(0)
+          console.log('Started version navigation with latest version:', latestVersion.versionNumber)
+        }
+        return
+      }
+
+      // If we're viewing the current working version, start with the latest saved version
+      if (!isViewingVersion) {
+        if (versionHistory.length > 0) {
+          const latestVersion = versionHistory[0] // Assuming versions are sorted latest first
+          setEditorContent(latestVersion.content)
+          setCurrentVersion(latestVersion.versionNumber)
+          setIsViewingVersion(true)
+          setCurrentVersionIndex(0)
+          console.log('Started version navigation with latest version:', latestVersion.versionNumber)
+        } else {
+          alert('No versions found. Create your first version using the "Save Version" button!')
+        }
+        return
+      }
+
+      // Navigate to the next older version
+      const nextIndex = currentVersionIndex + 1
+      if (nextIndex < versionHistory.length) {
+        const nextVersion = versionHistory[nextIndex]
+        setEditorContent(nextVersion.content)
+        setCurrentVersion(nextVersion.versionNumber)
+        setCurrentVersionIndex(nextIndex)
+        console.log(`Navigated to version ${nextVersion.versionNumber} (${nextIndex + 1}/${versionHistory.length})`)
+      } else {
+        // We've reached the oldest version, cycle back to current working version
+        setEditorContent(currentDocument.content)
+        setCurrentVersion(currentDocument.version || 1)
+        setIsViewingVersion(false)
+        setCurrentVersionIndex(0)
+        console.log('Cycled back to current working version')
+      }
+    } catch (error) {
+      console.error('Failed to navigate versions:', error)
+      alert('Failed to navigate versions')
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 relative overflow-hidden">
@@ -1813,36 +1952,73 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   onHandleEditorFocusLost={() => handleEditorFocusLost({ cursorPosition: cursorPosition || 0 })}
                   pdfPreviewUrl={pdfPreviewUrl}
                   isCompiling={isCompiling}
+                  onCompile={handleCompile}
                   onPDFSelectionToChat={handlePDFSelectionToChat}
                   onOpenPaperReady={(fn) => setHandleOpenPaper(() => fn)}
                   onTabDocumentLoad={handleDocumentSwitchById}
                   />
                 </div>
                 {/* Bottom version/footer bar that keeps editor above it */}
-                <div className="flex-shrink-0 border-t border-border bg-card px-3 py-1 text-xs text-muted-foreground flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span>Lines: {editorContent ? editorContent.split('\n').length : 0}</span>
+                <div className="flex-shrink-0 border-t border-border bg-card px-3 py-2 text-xs text-muted-foreground flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="text-foreground">Lines: {editorContent ? editorContent.split('\n').length : 0}</span>
                     {currentDocument?.version && (
-                      <span>v{currentDocument.version}{isViewingVersion ? ' (viewing version)' : ''}</span>
+                      <span className="text-foreground">v{currentDocument.version}{isViewingVersion ? ' (viewing version)' : ''}</span>
                     )}
                     <span>Updated: {currentDocument?.updatedAt ? new Date(currentDocument.updatedAt).toLocaleTimeString() : '-'}</span>
+                    {currentDocument?.id && versionHistory.length > 0 && (
+                      <span className="text-blue-600">
+                        Versions: {versionHistory.length}
+                        {isViewingVersion && (
+                          <span className="ml-2 text-orange-600">
+                            ({currentVersionIndex + 1}/{versionHistory.length + 1})
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button 
                       variant="ghost" 
                       size="sm"
                       onClick={() => setShowVersionDialog(true)}
-                      className="h-7 px-2"
+                      className="h-8 px-3 text-xs hover:bg-primary/10 hover:text-primary"
+                      disabled={!currentDocument?.id}
+                      title="Save current version with commit message"
                     >
+                      <GitBranch className="h-3 w-3 mr-1" />
                       Save Version
                     </Button>
                     <Button 
                       variant="ghost" 
                       size="sm"
                       onClick={navigateToPreviousVersion}
-                      className="h-7 px-2"
+                      className="h-8 px-3 text-xs hover:bg-primary/10 hover:text-primary"
+                      disabled={!currentDocument?.id}
+                      title={isViewingVersion ? "Return to current working version" : "View latest saved version"}
                     >
-                      Current
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      {isViewingVersion ? "Current" : "Latest"}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleNavigateVersions}
+                      className="h-8 px-3 text-xs hover:bg-secondary/80"
+                      disabled={!currentDocument?.id}
+                      title={
+                        versionHistory.length === 0 
+                          ? "No versions yet - create a version first using 'Save Version'" 
+                          : `Navigate through versions (${isViewingVersion ? currentVersionIndex + 1 : 'current'}/${versionHistory.length + 1})`
+                      }
+                    >
+                      <ChevronLeft className="h-3 w-3 mr-1" />
+                      Check Version
+                      {isViewingVersion && versionHistory.length > 0 && (
+                        <span className="ml-1 text-orange-600">
+                          ({currentVersionIndex + 1}/{versionHistory.length + 1})
+                        </span>
+                      )}
                     </Button>
                   </div>
                 </div>
