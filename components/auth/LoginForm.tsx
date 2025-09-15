@@ -29,7 +29,6 @@ export function LoginForm() {
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [sessionExpired, setSessionExpired] = useState(false)
-    const router = useRouter()
     const searchParams = useSearchParams()
     const { updateAuthState } = useAuth()
     const { navigateWithLoading } = useNavigationWithLoading()
@@ -114,6 +113,8 @@ export function LoginForm() {
                 localStorage.setItem("scholarai_user", JSON.stringify(response.user))
                 // Update auth state
                 updateAuthState(response.token, response.user)
+                // Clear session expired state
+                setSessionExpired(false)
                 toast({
                     title: "Login Successful!",
                     description: "Redirecting to dashboard...",
@@ -164,6 +165,8 @@ export function LoginForm() {
             localStorage.setItem("scholarai_token", data.token)
             localStorage.setItem("scholarai_user", JSON.stringify(data.user))
             updateAuthState(data.token, data.user)
+            // Clear session expired state
+            setSessionExpired(false)
             toast({
                 title: "Login Successful!",
                 description: "Redirecting to dashboard...",
@@ -201,9 +204,11 @@ export function LoginForm() {
         <div className="w-full min-h-screen flex flex-col px-4 font-['Segoe_UI']">
             {/* Logo in top left corner */}
             <div className="absolute top-6 left-6 z-10">
-                <div
-                    className="flex items-center space-x-3 cursor-pointer hover:scale-105 transition-transform duration-200"
+                <button
+                    type="button"
+                    className="flex items-center space-x-3 cursor-pointer hover:scale-105 transition-transform duration-200 bg-transparent border-none p-0"
                     onClick={() => navigateWithLoading("/")}
+                    aria-label="Go to home page"
                 >
                     <div className="relative">
                         <Brain className="h-8 w-8 text-primary" />
@@ -212,7 +217,7 @@ export function LoginForm() {
                     <span className="text-xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
                         ScholarAI
                     </span>
-                </div>
+                </button>
             </div>
 
             <div className="flex-1 flex items-center justify-center">

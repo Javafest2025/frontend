@@ -7,6 +7,11 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+
+  // Add polyfills for server-side compatibility
+  experimental: {
+    serverComponentsExternalPackages: [],
+  },
   images: {
     unoptimized: true,
     domains: ['scholarai-papers.s3.ams5.backblazeb2.com', 'res.cloudinary.com'],
