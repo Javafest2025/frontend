@@ -28,7 +28,6 @@ export function LoginForm() {
     const [errors, setErrors] = useState({ email: "", password: "" })
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-    const [sessionExpired, setSessionExpired] = useState(false)
     const searchParams = useSearchParams()
     const { updateAuthState } = useAuth()
     const { navigateWithLoading } = useNavigationWithLoading()
@@ -38,7 +37,17 @@ export function LoginForm() {
     /*  Handlers                                                 */
     /* ────────────────────────────────────────────────────────── */
     useEffect(() => {
-        if (searchParams.get("session") === "expired") setSessionExpired(true)
+        if (searchParams.get("session") === "expired") {
+            toast({
+                title: "Session Expired",
+                description: "Your session has expired. Please log in again to continue.",
+                variant: "destructive",
+            })
+            // Clear the URL parameter to prevent showing again on reload
+            const newUrl = new URL(window.location.href)
+            newUrl.searchParams.delete("session")
+            window.history.replaceState({}, "", newUrl.toString())
+        }
         if (searchParams.get("signup") === "success") {
             toast({
                 title: "Account Created Successfully!",
@@ -113,8 +122,6 @@ export function LoginForm() {
                 localStorage.setItem("scholarai_user", JSON.stringify(response.user))
                 // Update auth state
                 updateAuthState(response.token, response.user)
-                // Clear session expired state
-                setSessionExpired(false)
                 toast({
                     title: "Login Successful!",
                     description: "Redirecting to dashboard...",
@@ -165,8 +172,6 @@ export function LoginForm() {
             localStorage.setItem("scholarai_token", data.token)
             localStorage.setItem("scholarai_user", JSON.stringify(data.user))
             updateAuthState(data.token, data.user)
-            // Clear session expired state
-            setSessionExpired(false)
             toast({
                 title: "Login Successful!",
                 description: "Redirecting to dashboard...",
@@ -225,12 +230,6 @@ export function LoginForm() {
                     <h1 className="text-3xl font-extrabold text-center mb-8 text-foreground drop-shadow-lg">
                         {AUTH_CONSTANTS.loginTitle}
                     </h1>
-
-                    {sessionExpired && (
-                        <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-md text-foreground text-sm">
-                            Your session has expired. Please log in again to continue.
-                        </div>
-                    )}
 
 
 
