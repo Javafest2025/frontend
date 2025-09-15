@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_ENV: prod
-        NEXT_PUBLIC_API_BASE_URL: http://70.153.18.56:8989
+        NEXT_PUBLIC_API_BASE_URL: http://scholarai.indonesiacentral.cloudapp.azure.com:8989
         NEXT_PUBLIC_DEV_API_URL: http://localhost:8989
         NEXT_PUBLIC_DOCKER_BACKEND_URL: http://scholar-api-gateway:8989      
     container_name: scholar-frontend
@@ -22,7 +22,7 @@ services:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_ENV=prod
-      - NEXT_PUBLIC_API_BASE_URL=http://70.153.18.56:8989
+      - NEXT_PUBLIC_API_BASE_URL=http://scholarai.indonesiacentral.cloudapp.azure.com:8989
       - NEXT_PUBLIC_DEV_API_URL=http://localhost:8989
       - NEXT_PUBLIC_DOCKER_BACKEND_URL=http://scholar-api-gateway:8989
     networks:
