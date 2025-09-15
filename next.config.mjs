@@ -10,7 +10,7 @@ const nextConfig = {
 
   // Add polyfills for server-side compatibility
   experimental: {
-    serverComponentsExternalPackages: [],
+    serverExternalPackages: [],
   },
   images: {
     unoptimized: true,
