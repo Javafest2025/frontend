@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Progress } from "@/components/ui/progress"
 import { ShareProjectDialog } from "@/components/interface/ShareProjectDialog"
 import { ProjectEditDialog } from "@/components/interface/ProjectEditDialog"
 import {
@@ -17,23 +16,18 @@ import {
     User,
     Tag,
     Globe,
-    TrendingUp,
     Clock,
     CheckCircle,
     RefreshCw,
     AlertCircle,
     BarChart3,
-    Database,
-    Brain,
     Users,
     Edit3,
     Share2,
     MessageSquare,
     ListTodo,
-    FileText
 } from "lucide-react"
-import { projectsApi } from "@/lib/api/project-service"
-import { libraryApi } from "@/lib/api/project-service"
+import { projectsApi, libraryApi } from "@/lib/api/project-service"
 import { accountApi } from "@/lib/api/user-service"
 import { Project } from "@/types/project"
 import { UserAccount } from "@/types/account"
@@ -315,7 +309,7 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                                 {parseProjectTopics(project).length > 0 ? (
                                                     parseProjectTopics(project).map((topic, index) => (
                                                         <Badge
-                                                            key={index}
+                                                            key={`topic-${topic}-${index}`}
                                                             className="bg-green-500/10 text-green-500 border-green-500/20 px-3 py-1"
                                                         >
                                                             {topic}
@@ -378,16 +372,6 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                                 <div className="text-sm text-muted-foreground relative z-10">Reading List</div>
                                             </div>
                                         </div>
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm font-medium text-foreground">Progress</span>
-                                                <span className="text-sm text-muted-foreground">{project.progress || 0}%</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <TrendingUp className="h-4 w-4 text-green-500" />
-                                                <Progress value={project.progress || 0} className="flex-1" />
-                                            </div>
-                                        </div>
                                         <div className="text-center p-4 rounded-lg bg-background/40 backdrop-blur-xl border border-purple-500/20 relative overflow-hidden group transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20">
                                             {/* Shimmer effect for Notes - only on hover */}
                                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
@@ -396,9 +380,11 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                             <div className="text-sm text-muted-foreground relative z-10">Notes</div>
                                         </div>
                                         <Separator />
-                                        <div className="text-center">
-                                            <div className="text-3xl font-bold text-gradient-primary">{project.progress || 0}%</div>
-                                            <div className="text-sm text-muted-foreground">Overall Progress</div>
+                                        <div className="text-center p-6 rounded-xl bg-background/40 backdrop-blur-xl border border-primary/20 relative overflow-hidden group transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20 hover:border-primary/40">
+                                            {/* Shimmer effect for Overall Progress - only on hover */}
+                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
+                                            <div className="text-4xl font-bold text-gradient-primary relative z-10">{project.progress || 0}%</div>
+                                            <div className="text-sm text-muted-foreground relative z-10">Overall Progress</div>
                                         </div>
                                     </div>
                                 </CardContent>
