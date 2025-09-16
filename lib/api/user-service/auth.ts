@@ -192,8 +192,8 @@ export const authenticatedFetch = async (
 
     const headers = { ...baseHeaders, ...providedHeaders };
 
-    // Default to not sending cross-site credentials unless explicitly requested
-    const credentials: RequestCredentials = (options.credentials as RequestCredentials) ?? 'omit';
+    // Default to include credentials (cookies) for authentication
+    const credentials: RequestCredentials = (options.credentials as RequestCredentials) ?? 'include';
 
     console.log("🌐 Making authenticated request to:", url);
     console.log("📋 Request headers:", headers);
@@ -362,7 +362,9 @@ export const login = async (formData: {
 
         // Manually set refresh token cookie on frontend domain to bypass cross-origin issues
         if (refreshToken) {
-            document.cookie = `refreshToken=${refreshToken}; Path=/; Max-Age=604800; SameSite=Lax`;
+            // Set cookie for both frontend and backend domains
+            const cookieValue = `refreshToken=${refreshToken}; Path=/; Max-Age=604800; SameSite=Lax`;
+            document.cookie = cookieValue;
             console.log("✅ Refresh token cookie set on frontend domain");
         }
         const user = {
