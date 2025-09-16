@@ -208,6 +208,19 @@ export const authenticatedFetch = async (
 
         console.log("📊 Response status:", response.status, response.statusText);
 
+        // Check if the backend automatically refreshed the token and provided a new one
+        const newAccessToken = response.headers.get("X-New-Access-Token");
+        if (newAccessToken) {
+            console.log("🔄 Backend automatically refreshed token, updating local storage");
+            // Validate the new token format
+            if (isValidJWT(newAccessToken)) {
+                localStorage.setItem("accessToken", newAccessToken);
+                console.log("✅ New access token stored successfully");
+            } else {
+                console.error("❌ Invalid JWT format received from backend refresh");
+            }
+        }
+
         if (response.status === 401) {
             console.log("🔄 Access token expired, attempting to refresh...");
             // Try to refresh token
