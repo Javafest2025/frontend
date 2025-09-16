@@ -99,6 +99,29 @@ const hiddenPreviewRangesField = StateField.define<DecorationSet>({
   provide: f => EditorView.decorations.from(f)
 })
 
+// --- Highlighted ranges for citation issues ---
+const setHighlightedRanges = StateEffect.define<Array<{ from: number; to: number; className: string }>>()
+
+const highlightedRangesField = StateField.define<DecorationSet>({
+  create() { return Decoration.none },
+  update(value, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setHighlightedRanges)) {
+        const builder = new RangeSetBuilder<Decoration>()
+        for (const range of e.value) {
+          if (range.from < range.to) {
+            builder.add(range.from, range.to, Decoration.mark({ class: range.className }))
+          }
+        }
+        return builder.finish()
+      }
+    }
+    if (tr.docChanged) return value.map(tr.changes)
+    return value
+  },
+  provide: f => EditorView.decorations.from(f)
+})
+
 // Last cursor beacon system
 export const setLastCursorBeacon = StateEffect.define<LastCursorBeacon>()
 
@@ -523,6 +546,15 @@ const latexTheme = EditorView.theme({
   '.cm-preview-hide': {
     display: 'none'
   },
+  '.cm-citation-flag': {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderBottom: '2px solid #ef4444',
+    borderRadius: '2px'
+  },
+  '.bg-red-200\\/40': {
+    backgroundColor: 'rgba(254, 202, 202, 0.4)',
+    borderRadius: '3px'
+  },
   '.cm-selectionBackground': {
     backgroundColor: '#44475a',
   },
@@ -852,6 +884,7 @@ const latexExtensions: Extension[] = [
   addDeleteHighlighting,
   inlineDiffField,
   hiddenPreviewRangesField,
+  highlightedRangesField,
   inlineDiffPlugin,
   lastCursorBeaconField,
   lastCursorBeaconHandlers,
@@ -1003,6 +1036,17 @@ export function EnhancedLatexEditor({
       effects: [setHiddenPreviewRanges.of(inlineDiffPreviews)]
     })
   }, [inlineDiffPreviews])
+
+  // Manage highlighted ranges for citation issues
+  useEffect(() => {
+    const editorView = editorRef.current?.view
+    if (!editorView) return
+
+    // Update the editor with new highlighted ranges
+    editorView.dispatch({
+      effects: [setHighlightedRanges.of(highlightedRanges || [])]
+    })
+  }, [highlightedRanges])
 
   // Handle inline diff events
   useEffect(() => {

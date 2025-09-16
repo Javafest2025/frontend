@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Eye, Edit, LayoutPanelLeft, FileText, File } from 'lucide-react';
+import { Eye, Edit, LayoutPanelLeft, FileText, File, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type ViewMode = 'editor' | 'preview' | 'split';
@@ -11,6 +11,12 @@ interface ViewModeSelectorProps {
   hasCompiledPdf?: boolean;
   isCompiling?: boolean;
   className?: string;
+  
+  // NEW: Citation checking props
+  citationCount?: number;            // undefined if no run yet
+  onOpenCitationPanel?: () => void;  // opens the drawer
+  onRunCitationCheck?: () => void;   // kicks a new run
+  citationBusy?: boolean;            // show spinner
 }
 
 export function ViewModeSelector({
@@ -18,7 +24,11 @@ export function ViewModeSelector({
   onViewModeChange,
   hasCompiledPdf = false,
   isCompiling = false,
-  className
+  className,
+  citationCount,
+  onOpenCitationPanel,
+  onRunCitationCheck,
+  citationBusy = false
 }: ViewModeSelectorProps) {
   
   const handleViewModeChange = (mode: ViewMode) => {
@@ -113,6 +123,54 @@ export function ViewModeSelector({
           >
             <LayoutPanelLeft className="h-3 w-3 inline mr-1" />
             Split
+          </button>
+          
+          {/* Citation Issues Button - ALWAYS VISIBLE FOR DEBUGGING */}
+          {true && (
+            <button
+              type="button"
+              onClick={(e) => { 
+                e.preventDefault(); 
+                e.stopPropagation();
+                console.log('🔎 Citation button clicked! citationCount:', citationCount)
+                onOpenCitationPanel?.(); 
+              }}
+              className="relative z-50 px-2.5 py-1 text-xs rounded border bg-white dark:bg-slate-700
+                         text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600
+                         hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer select-none"
+              title="View citation issues"
+            >
+              <AlertTriangle className="h-3 w-3 inline mr-1" />
+              Citation Issues (DEBUG)
+              {typeof citationCount === 'number' && citationCount > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center text-[10px] 
+                                rounded-full px-1.5 py-0.5 bg-red-600 text-white">
+                  {citationCount}
+                </span>
+              )}
+              {citationBusy && (
+                <span className="ml-1 h-1.5 w-1.5 bg-orange-500 rounded-full animate-pulse inline-block" />
+              )}
+            </button>
+          )}
+
+          {/* Run Citation Check Button - FOR DEBUGGING */}
+          <button
+            type="button"
+            onClick={(e) => { 
+              e.preventDefault(); 
+              e.stopPropagation();
+              console.log('🔎 Run Citation Check clicked! citationBusy:', citationBusy)
+              onRunCitationCheck?.(); 
+            }}
+            disabled={citationBusy}
+            className="relative z-50 px-2.5 py-1 text-xs rounded border bg-blue-50 dark:bg-blue-900
+                       text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600
+                       hover:bg-blue-100 dark:hover:bg-blue-800 cursor-pointer select-none
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Run citation check"
+          >
+            {citationBusy ? 'Running...' : 'Run Citation Check'}
           </button>
         </div>
       </div>

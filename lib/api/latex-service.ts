@@ -1,4 +1,46 @@
 import { getMicroserviceUrl } from '@/lib/config/api-config'
+import type { 
+  CitationCheckJob, 
+  CitationIssue,
+  StartCitationCheckRequest, 
+  StartCitationCheckResponse,
+  UpdateCitationIssueRequest 
+} from '@/types/citations'
+
+// Convert backend CitationIssueDto to frontend CitationIssue format
+const convertBackendIssuesToFrontend = (backendIssues: any[]): CitationIssue[] => {
+  if (!backendIssues) return []
+  
+  console.log('🔄 Converting backend issues to frontend format:', backendIssues)
+  
+  return backendIssues.map((issue) => {
+    console.log('🔍 Converting individual issue:', issue)
+    console.log('🔍 Raw lineStart:', issue.lineStart, 'Type:', typeof issue.lineStart)
+    console.log('🔍 Raw lineEnd:', issue.lineEnd, 'Type:', typeof issue.lineEnd)
+    
+    const converted = {
+      id: issue.id,
+      projectId: '', // Not provided by backend DTO
+      documentId: '', // Not provided by backend DTO  
+      texFileName: '', // Not provided by backend DTO
+      type: issue.issueType || 'missing-citation', // issueType → type
+      severity: (issue.severity || 'medium').toLowerCase() as 'low' | 'medium' | 'high',
+      from: issue.position || 0, // position → from
+      to: (issue.position || 0) + (issue.length || 0), // position + length → to
+      lineStart: issue.lineStart, // Use backend value directly - no fallbacks!
+      lineEnd: issue.lineEnd, // Use backend value directly - no fallbacks!
+      snippet: issue.citationText || '', // citationText → snippet
+      citedKeys: [], // Backend doesn't provide this yet
+      suggestions: issue.suggestions || [], // Use backend suggestions or empty array
+      evidence: issue.evidence || [], // Use backend evidence or empty array
+      createdAt: new Date().toISOString()
+    }
+    
+    console.log('✅ Converted issue:', converted)
+    console.log('✅ Final lineStart:', converted.lineStart, 'lineEnd:', converted.lineEnd)
+    return converted
+  })
+}
 
 // Types for LaTeX service
 export interface CreateDocumentRequest {
@@ -484,6 +526,108 @@ export const latexApi = {
         'Content-Type': 'application/json',
       },
     })
+    return response.json()
+  },
+
+  // Citation checking API
+  async startCitationCheck(params: StartCitationCheckRequest): Promise<StartCitationCheckResponse> {
+    // Map frontend request to backend DTO format
+    const backendRequest = {
+      projectId: params.projectId,
+      documentId: params.documentId,
+      content: params.latexContent,                    // latexContent → content
+      filename: params.texFileName,                    // texFileName → filename  
+      forceRecheck: params.overwrite || false,         // overwrite → forceRecheck
+      options: {
+        checkWeb: params.runWebCheck || true,          // runWebCheck → options.checkWeb
+        checkLocal: true,                              // Always check local papers
+        similarityThreshold: 0.7,                      // Default similarity threshold
+        maxEvidencePerIssue: 5                         // Default max evidence
+      }
+    }
+
+    const response = await fetch(getProjectServiceUrl('/api/citations/jobs'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(backendRequest),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to start citation check: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    // Map backend response (id) to frontend interface (jobId)
+    return { jobId: data.id }
+  },
+
+  async getCitationJob(jobId: string): Promise<CitationCheckJob> {
+    const response = await fetch(getProjectServiceUrl(`/api/citations/jobs/${jobId}`), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get citation job: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    
+    // Map backend response fields to frontend expectations
+    return {
+      jobId: data.id,                           // id → jobId
+      status: data.status,                      // status stays the same
+      step: data.currentStep,                   // currentStep → step
+      progressPct: data.progressPercent || 0,   // progressPercent → progressPct
+      summary: data.summary,                    // summary stays the same
+      issues: convertBackendIssuesToFrontend(data.issues || []), // Convert backend DTO to frontend format
+      errorMessage: data.message                // message → errorMessage
+    }
+  },
+
+  async getCitationResult(documentId: string): Promise<CitationCheckJob> {
+    const response = await fetch(getProjectServiceUrl(`/api/citations/documents/${documentId}`), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get citation result: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    
+    // Map backend response fields to frontend expectations
+    return {
+      jobId: data.id,                           // id → jobId
+      status: data.status,                      // status stays the same
+      step: data.currentStep,                   // currentStep → step
+      progressPct: data.progressPercent || 0,   // progressPercent → progressPct
+      summary: data.summary,                    // summary stays the same
+      issues: convertBackendIssuesToFrontend(data.issues || []), // Convert backend DTO to frontend format
+      errorMessage: data.message                // message → errorMessage
+    }
+  },
+
+  async updateCitationIssue(issueId: string, patch: UpdateCitationIssueRequest): Promise<APIResponse<any>> {
+    const response = await fetch(getProjectServiceUrl(`/api/citations/issues/${issueId}`), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(patch),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to update citation issue: ${response.statusText}`)
+    }
+
     return response.json()
   },
 }

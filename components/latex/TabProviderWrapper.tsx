@@ -85,6 +85,13 @@ interface TabProviderWrapperProps {
   
   // Document loading for tab switching
   onTabDocumentLoad?: (documentId: string) => Promise<void>;
+  
+  // Citation checking
+  citationCount?: number;
+  onOpenCitationPanel?: () => void;
+  onRunCitationCheck?: () => void;
+  citationBusy?: boolean;
+  highlightedRanges?: Array<{ from: number; to: number; className: string }>;
 }
 
 function TabProviderContent({
@@ -123,6 +130,11 @@ function TabProviderContent({
   onPDFSelectionToChat,
   onOpenPaperReady,
   onTabDocumentLoad,
+  citationCount,
+  onOpenCitationPanel,
+  onRunCitationCheck,
+  citationBusy,
+  highlightedRanges
 }: TabProviderWrapperProps) {
   const { openItem, openItems } = useTabContext();
 
@@ -217,6 +229,11 @@ function TabProviderContent({
       onCompile={onCompile}
       onPDFSelectionToChat={onPDFSelectionToChat}
       onTabDocumentLoad={onTabDocumentLoad}
+      citationCount={citationCount}
+      onOpenCitationPanel={onOpenCitationPanel}
+      onRunCitationCheck={onRunCitationCheck}
+      citationBusy={citationBusy}
+      highlightedRanges={highlightedRanges}
     />
     </>
   );

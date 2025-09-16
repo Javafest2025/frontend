@@ -75,6 +75,13 @@ interface TabContentAreaProps {
   
   // Document loading for tab switching
   onTabDocumentLoad?: (documentId: string) => Promise<void>;
+  
+  // Citation checking
+  citationCount?: number;
+  onOpenCitationPanel?: () => void;
+  onRunCitationCheck?: () => void;
+  citationBusy?: boolean;
+  highlightedRanges?: Array<{ from: number; to: number; className: string }>;
 }
 
 export function TabContentArea({
@@ -111,6 +118,11 @@ export function TabContentArea({
   onCompile,
   onPDFSelectionToChat,
   onTabDocumentLoad,
+  citationCount,
+  onOpenCitationPanel,
+  onRunCitationCheck,
+  citationBusy,
+  highlightedRanges
 }: TabContentAreaProps) {
   const {
     openItems,
@@ -244,6 +256,7 @@ export function TabContentArea({
             onAcceptInlineDiff={onAcceptInlineDiff}
             onRejectInlineDiff={onRejectInlineDiff}
             onLastCursorChange={onLastCursorPosChange}
+            highlightedRanges={highlightedRanges}
           />
 
           {/* Floating Add-to-Chat overlay when text is selected */}
@@ -388,6 +401,10 @@ export function TabContentArea({
           onViewModeChange={handleViewModeChange}
           hasCompiledPdf={!!pdfPreviewUrl}
           isCompiling={isCompiling}
+          citationCount={citationCount}
+          onOpenCitationPanel={onOpenCitationPanel}
+          onRunCitationCheck={onRunCitationCheck}
+          citationBusy={citationBusy}
           className="flex-shrink-0"
         />
       )}

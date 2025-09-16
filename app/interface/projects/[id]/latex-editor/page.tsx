@@ -46,8 +46,10 @@ import { EnhancedLatexEditor } from "@/components/latex/EnhancedLatexEditor"
 import { PapersSelector } from "@/components/latex/PapersSelector"
 import { CenterTabs } from "@/components/latex/CenterTabs"
 import { TabProviderWrapper } from "@/components/latex/TabProviderWrapper"
+import { CitationPanel } from "@/components/latex/CitationPanel"
 import type { OpenItem, TabViewState } from "@/types/tabs"
 import type { Paper } from "@/types/websearch"
+import type { CitationIssue, CitationCheckJob } from "@/types/citations"
 
 interface Project {
   id: string
@@ -143,6 +145,13 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   // New state to track when selection should be shown in chat
   const [selectionAddedToChat, setSelectionAddedToChat] = useState(false)
 
+  // Citation checking state
+  const [citationIssues, setCitationIssues] = useState<CitationIssue[]>([])
+  const [citationCount, setCitationCount] = useState(0)
+  const [citationBusy, setCitationBusy] = useState(false)
+  const [currentCitationJob, setCurrentCitationJob] = useState<CitationCheckJob | null>(null)
+  const [showCitationPanel, setShowCitationPanel] = useState(false)
+
   // Debug state changes
   useEffect(() => {
     console.log('🔄 State Change - selectionAddedToChat:', selectionAddedToChat)
@@ -159,6 +168,23 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   useEffect(() => {
     console.log('🔄 State Change - showAddToChat:', showAddToChat)
   }, [showAddToChat])
+
+  // Debug citation state changes
+  useEffect(() => {
+    console.log('🔎 Citation State Change - citationCount:', citationCount)
+  }, [citationCount])
+
+  useEffect(() => {
+    console.log('🔎 Citation State Change - citationIssues:', citationIssues)
+  }, [citationIssues])
+
+  useEffect(() => {
+    console.log('🔎 Citation State Change - citationBusy:', citationBusy)
+  }, [citationBusy])
+
+  useEffect(() => {
+    console.log('🔎 Citation State Change - selectedPapers:', selectedPapers)
+  }, [selectedPapers])
 
   // Update ref when URLs change
   useEffect(() => {
@@ -215,6 +241,36 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       loadDocuments(projectId)
     }
   }, [projectId, documents.length])
+
+  // Load existing citations when document changes
+  useEffect(() => {
+    const loadExistingCitations = async () => {
+      if (currentDocument?.id && !citationBusy) {
+        try {
+          console.log('🔄 Loading existing citations for document:', currentDocument.id)
+          const citationResult = await latexApi.getCitationResult(currentDocument.id)
+          console.log('🔄 Existing citation result:', citationResult)
+          
+          if (citationResult.issues && citationResult.issues.length > 0) {
+            console.log('🔄 Found existing citations:', citationResult.issues.length, 'issues')
+            setCitationIssues(citationResult.issues)
+            setCitationCount(citationResult.issues.length)
+          } else {
+            console.log('🔄 No existing citations found')
+            setCitationIssues([])
+            setCitationCount(0)
+          }
+        } catch (error) {
+          console.log('🔄 No existing citations found (error):', error)
+          // If there's an error (e.g., no citations found), reset the state
+          setCitationIssues([])
+          setCitationCount(0)
+        }
+      }
+    }
+
+    loadExistingCitations()
+  }, [currentDocument?.id, citationBusy])
 
   // Clear version history when switching documents to prevent stale data
   useEffect(() => {
@@ -729,6 +785,100 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       }
     }, 100)
   }
+
+  // Citation handlers
+  const handleRunCitationCheck = useCallback(async () => {
+    if (!currentDocument?.id || !projectId || citationBusy) {
+      console.log('Citation check prevented:', { 
+        hasDocument: !!currentDocument?.id, 
+        hasProjectId: !!projectId, 
+        citationBusy 
+      })
+      return
+    }
+
+    try {
+      setCitationBusy(true)
+      console.log('🔎 Starting citation check for document:', currentDocument.id)
+      console.log('🔎 Selected papers for citation check:', selectedPapers)
+      console.log('🔎 Selected papers count:', selectedPapers?.length || 0)
+      console.log('🔎 Project ID:', projectId)
+      console.log('🔎 Content length:', editorContent.length)
+
+      // Ensure selectedPapers is an array to prevent map error
+      const safePapers = selectedPapers || []
+      console.log('🔎 Safe papers:', safePapers)
+
+      // Start the citation check job
+      const response = await latexApi.startCitationCheck({
+        projectId: projectId,
+        documentId: currentDocument.id,
+        texFileName: currentDocument.title,
+        latexContent: editorContent,
+        selectedPaperIds: safePapers.map(paper => paper.id),
+        overwrite: true,
+        runWebCheck: true
+      })
+
+      console.log('🔎 Citation check response:', response)
+
+      setCurrentCitationJob({
+        jobId: response.jobId,
+        status: 'QUEUED',
+        step: 'PARSING',
+        progressPct: 0
+      })
+
+      // Poll for job completion
+      const pollInterval = setInterval(async () => {
+        try {
+          const jobStatus = await latexApi.getCitationJob(response.jobId)
+          console.log('🔎 Citation job status:', jobStatus)
+          setCurrentCitationJob(jobStatus)
+          
+          if (jobStatus.status === 'DONE') {
+            clearInterval(pollInterval)
+            console.log('🔎 Citation check COMPLETED - setting issues:', jobStatus.issues)
+            setCitationIssues(jobStatus.issues || [])
+            setCitationCount(jobStatus.issues?.length || 0)
+            setCitationBusy(false)
+            console.log('🔎 Citation check completed:', jobStatus.issues?.length, 'issues found')
+            console.log('🔎 Citation issues set to:', jobStatus.issues)
+          } else if (jobStatus.status === 'ERROR') {
+            clearInterval(pollInterval)
+            setCitationBusy(false)
+            console.error('Citation check failed:', jobStatus.errorMessage)
+          }
+        } catch (error) {
+          console.error('Error polling citation job:', error)
+          clearInterval(pollInterval)
+          setCitationBusy(false)
+        }
+      }, 2000) // Poll every 2 seconds
+
+    } catch (error) {
+      console.error('Failed to start citation check:', error)
+      setCitationBusy(false)
+    }
+  }, [currentDocument?.id, projectId, editorContent, selectedPapers, citationBusy])
+
+  const handleOpenCitationPanel = useCallback(() => {
+    setShowCitationPanel(true)
+    console.log('Opening citation panel with', citationIssues.length, 'issues')
+  }, [citationIssues.length])
+
+  const handleNavigateToIssue = useCallback((issue: CitationIssue) => {
+    // Navigate to the line where the citation issue is
+    // We can use the lineStart to position the cursor
+    const lineContent = editorContent.split('\n')
+    let charPosition = 0
+    for (let i = 0; i < issue.lineStart - 1; i++) {
+      charPosition += lineContent[i].length + 1 // +1 for newline
+    }
+    setCursorPosition(charPosition + issue.from)
+    setShowCitationPanel(false)
+    console.log('Navigating to issue at line', issue.lineStart, 'position', charPosition + issue.from)
+  }, [editorContent])
 
   // Create initial tex item when currentDocument changes
   useEffect(() => {
@@ -1956,6 +2106,10 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   onPDFSelectionToChat={handlePDFSelectionToChat}
                   onOpenPaperReady={(fn) => setHandleOpenPaper(() => fn)}
                   onTabDocumentLoad={handleDocumentSwitchById}
+                  citationCount={citationCount}
+                  onOpenCitationPanel={handleOpenCitationPanel}
+                  onRunCitationCheck={handleRunCitationCheck}
+                  citationBusy={citationBusy}
                   />
                 </div>
                 {/* Bottom version/footer bar that keeps editor above it */}
@@ -2226,6 +2380,14 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Citation Panel */}
+      <CitationPanel
+        open={showCitationPanel}
+        onOpenChange={setShowCitationPanel}
+        issues={citationIssues}
+        onNavigateToIssue={handleNavigateToIssue}
+      />
     </div>
   )
 }
