@@ -20,7 +20,9 @@ import {
     Clock,
     FolderOpen,
     Star,
-    StarOff
+    StarOff,
+    ChevronRight,
+    ChevronLeft
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils/cn"
@@ -47,6 +49,7 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
     const [showFavorites, setShowFavorites] = useState(false)
     const [favoriteNotes, setFavoriteNotes] = useState<Note[]>([])
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
+    const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false)
     const { toast } = useToast()
 
     // Form states
@@ -363,110 +366,16 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                     </div>
                 </motion.div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
-                    {/* File Explorer - Left Sidebar */}
+                <div className="flex gap-6 h-[calc(100vh-120px)]">
+                    {/* Note Editor/Viewer - Main Content */}
                     <motion.div
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.6, delay: 0.2 }}
-                        className="lg:col-span-1"
-                    >
-                        <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg transition-all duration-300 hover:shadow-primary/5 h-full"
-                            style={{
-                                boxShadow: `
-                                    0 0 20px hsl(var(--primary) / 0.1),
-                                    0 0 40px hsl(var(--accent) / 0.06)
-                                `
-                            }}
-                        >
-                            <CardHeader className="pb-4">
-                                <CardTitle className="flex items-center gap-2">
-                                    <FolderOpen className="h-5 w-5 text-primary" />
-                                    Notes Explorer
-                                </CardTitle>
-                                <div className="space-y-3">
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                        <Input
-                                            placeholder="Search notes..."
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="pl-10 bg-background/40 border-border placeholder:text-muted-foreground"
-                                        />
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setShowFavorites(!showFavorites)}
-                                        className={cn(
-                                            "w-full justify-start",
-                                            showFavorites && "bg-primary/10 text-primary"
-                                        )}
-                                    >
-                                        <Star className="mr-2 h-4 w-4" />
-                                        Favorites Only
-                                    </Button>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="pt-0">
-                                <ScrollArea className="h-[calc(100vh-400px)]">
-                                    <div className="space-y-2">
-                                        <AnimatePresence>
-                                            {filteredNotes.map((note) => (
-                                                <motion.div
-                                                    key={note.id}
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, y: -10 }}
-                                                    className={cn(
-                                                        "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all duration-300 group",
-                                                        selectedNote?.id === note.id
-                                                            ? "bg-primary/10 border-primary/30 text-primary"
-                                                            : "bg-background/20 border-border hover:bg-background/30 hover:border-primary/20"
-                                                    )}
-                                                    onClick={() => {
-                                                        setSelectedNote(note)
-                                                        setIsEditing(false)
-                                                        setIsCreating(false)
-                                                    }}
-                                                >
-                                                    <FileText className="h-4 w-4 flex-shrink-0" />
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="font-medium text-sm truncate">
-                                                                {note.title}
-                                                            </span>
-                                                            {note.isFavorite && (
-                                                                <Star className="h-3 w-3 text-yellow-500 flex-shrink-0" />
-                                                            )}
-                                                        </div>
-                                                        <p className="text-xs text-muted-foreground truncate">
-                                                            {new Date(note.updatedAt).toLocaleDateString()}
-                                                        </p>
-                                                    </div>
-                                                </motion.div>
-                                            ))}
-                                        </AnimatePresence>
-                                        {filteredNotes.length === 0 && (
-                                            <div className="text-center py-8">
-                                                <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                                                <p className="text-sm text-muted-foreground">
-                                                    {searchQuery ? "No notes found" : "No notes yet"}
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </ScrollArea>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-
-                    {/* Note Editor/Viewer - Main Content */}
-                    <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.6, delay: 0.4 }}
-                        className="lg:col-span-3"
+                        className={cn(
+                            "flex-1 transition-all duration-300",
+                            isExplorerCollapsed ? "mr-0" : "mr-0"
+                        )}
                     >
                         <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg transition-all duration-300 hover:shadow-primary/5 h-full"
                             style={{
@@ -529,7 +438,7 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                         </div>
                                     </CardHeader>
                                     <CardContent className="pt-0">
-                                        <ScrollArea className="h-[calc(100vh-400px)]">
+                                        <ScrollArea className="h-[calc(100vh-320px)]">
                                             <div className="prose prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-code:text-primary prose-pre:bg-muted/50 prose-pre:border prose-pre:border-border">
                                                 <ReactMarkdown
                                                     components={{
@@ -645,7 +554,7 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                                 value={noteContent}
                                                 onChange={(e) => setNoteContent(e.target.value)}
                                                 placeholder="Write your note here... (Markdown supported)"
-                                                className="h-[calc(100vh-500px)] resize-none bg-background/40 border-border placeholder:text-muted-foreground font-mono"
+                                                className="h-[calc(100vh-420px)] resize-none bg-background/40 border-border placeholder:text-muted-foreground font-mono"
                                                 disabled={isSaving}
                                             />
                                         </div>
@@ -654,6 +563,140 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                             )}
                         </Card>
                     </motion.div>
+
+                    {/* Notes Explorer - Right Sidebar */}
+                    <motion.div
+                        animate={{
+                            opacity: isExplorerCollapsed ? 0 : 1,
+                            width: isExplorerCollapsed ? 0 : 320
+                        }}
+                        transition={{
+                            duration: 0.3,
+                            ease: "easeInOut"
+                        }}
+                        className="overflow-hidden"
+                    >
+                        <Card className="bg-background/40 backdrop-blur-xl border-border shadow-lg transition-all duration-300 hover:shadow-primary/5 h-full"
+                            style={{
+                                boxShadow: `
+                                    0 0 20px hsl(var(--primary) / 0.1),
+                                    0 0 40px hsl(var(--accent) / 0.06)
+                                `
+                            }}
+                        >
+                            <CardHeader className="pb-4">
+                                <CardTitle className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <FolderOpen className="h-5 w-5 text-primary" />
+                                        Notes Explorer
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
+                                        className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </CardTitle>
+                                <div className="space-y-3">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Search notes..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="pl-10 bg-background/40 border-border placeholder:text-muted-foreground"
+                                        />
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setShowFavorites(!showFavorites)}
+                                        className={cn(
+                                            "w-full justify-start",
+                                            showFavorites && "bg-primary/10 text-primary"
+                                        )}
+                                    >
+                                        <Star className="mr-2 h-4 w-4" />
+                                        Favorites Only
+                                    </Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                                <ScrollArea className="h-[calc(100vh-320px)]">
+                                    <div className="space-y-2">
+                                        <AnimatePresence>
+                                            {filteredNotes.map((note) => (
+                                                <motion.div
+                                                    key={note.id}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -10 }}
+                                                    className={cn(
+                                                        "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all duration-300 group",
+                                                        selectedNote?.id === note.id
+                                                            ? "bg-primary/10 border-primary/30 text-primary"
+                                                            : "bg-background/20 border-border hover:bg-background/30 hover:border-primary/20"
+                                                    )}
+                                                    onClick={() => {
+                                                        setSelectedNote(note)
+                                                        setIsEditing(false)
+                                                        setIsCreating(false)
+                                                    }}
+                                                >
+                                                    <FileText className="h-4 w-4 flex-shrink-0" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium text-sm truncate">
+                                                                {note.title}
+                                                            </span>
+                                                            {note.isFavorite && (
+                                                                <Star className="h-3 w-3 text-yellow-500 flex-shrink-0" />
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground truncate">
+                                                            {new Date(note.updatedAt).toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+                                                </motion.div>
+                                            ))}
+                                        </AnimatePresence>
+                                        {filteredNotes.length === 0 && (
+                                            <div className="text-center py-8">
+                                                <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                                                <p className="text-sm text-muted-foreground">
+                                                    {searchQuery ? "No notes found" : "No notes yet"}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </ScrollArea>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+
+                    {/* Collapse Toggle Button - Only visible when collapsed */}
+                    <AnimatePresence>
+                        {isExplorerCollapsed && (
+                            <motion.div
+                                initial={{ opacity: 0, width: 0 }}
+                                animate={{ opacity: 1, width: "auto" }}
+                                exit={{ opacity: 0, width: 0 }}
+                                transition={{ duration: 0.3, ease: "easeInOut" }}
+                                className="flex items-center overflow-hidden"
+                            >
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setIsExplorerCollapsed(false)}
+                                    className="h-12 w-8 p-0 hover:bg-primary/10 hover:text-primary rounded-l-none border-l-0"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
         </div>
