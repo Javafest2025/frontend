@@ -231,7 +231,10 @@ export const authenticatedFetch = async (
                 if (retryResponse.status === 401) {
                     console.error("❌ Retry request also failed with 401 - refresh token invalid");
                     clearAuthData();
-                    // Don't redirect here, let the calling code handle it
+                    // Redirect to login since refresh token is invalid
+                    if (typeof window !== "undefined") {
+                        window.location.href = "/login";
+                    }
                     return retryResponse;
                 }
 
@@ -239,7 +242,10 @@ export const authenticatedFetch = async (
             } else {
                 console.error("❌ Failed to refresh token, clearing auth data");
                 clearAuthData();
-                // Return the original response so the calling code can handle it
+                // Redirect to login since refresh token is invalid
+                if (typeof window !== "undefined") {
+                    window.location.href = "/login";
+                }
                 return response;
             }
         }
