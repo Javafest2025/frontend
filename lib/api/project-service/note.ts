@@ -7,6 +7,16 @@ import {
     APIResponse,
 } from "@/types/project"
 
+export interface ImageUploadResponse {
+    imageId: string
+    originalFilename: string
+    storedFilename: string
+    fileSize: number
+    mimeType: string
+    uploadedAt: string
+    imageUrl: string
+}
+
 // Helper function to handle API response
 const handleApiResponse = async <T>(response: Response): Promise<T> => {
     if (!response.ok) {
@@ -304,5 +314,43 @@ export const notesApi = {
             console.error("Search by content error:", error)
             throw error
         }
+    },
+
+    // Upload image for notes
+    async uploadImage(projectId: string, file: File): Promise<ImageUploadResponse> {
+        try {
+            console.log("📸 Uploading image for project:", projectId, "File:", file.name)
+
+            const formData = new FormData()
+            formData.append('file', file)
+
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/projects/${projectId}/notes/images`),
+                {
+                    method: "POST",
+                    body: formData,
+                }
+            )
+
+            console.log("📊 Upload image response status:", response.status, response.statusText)
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ Upload image failed:", response.status, errorText)
+                throw new Error(`Failed to upload image: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ Image uploaded successfully:", data)
+            return data.data
+        } catch (error) {
+            console.error("Upload image error:", error)
+            throw error
+        }
+    },
+
+    // Get image by ID
+    getImageUrl(projectId: string, imageId: string): string {
+        return getMicroserviceUrl("project-service", `/api/v1/projects/${projectId}/notes/images/${imageId}`)
     },
 }

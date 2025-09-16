@@ -27,8 +27,9 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils/cn"
 import ReactMarkdown from 'react-markdown'
-import { notesApi } from "@/lib/api/project-service"
+import { notesApi, ImageUploadResponse } from "@/lib/api/project-service"
 import { Note } from "@/types/project"
+import { getApiBaseUrl } from "@/lib/config/api-config"
 
 interface ProjectNotesPageProps {
     params: Promise<{
@@ -50,6 +51,7 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
     const [favoriteNotes, setFavoriteNotes] = useState<Note[]>([])
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
     const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false)
+    const [isUploadingImage, setIsUploadingImage] = useState(false)
     const { toast } = useToast()
 
     // Form states
@@ -312,6 +314,60 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
         }
     }
 
+    const handleImagePaste = async (event: React.ClipboardEvent) => {
+        const items = event.clipboardData?.items
+        if (!items || !projectId) return
+
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i]
+            if (item.type.startsWith('image/')) {
+                event.preventDefault()
+
+                const file = item.getAsFile()
+                if (!file) continue
+
+                setIsUploadingImage(true)
+                try {
+                    console.log('📸 Pasting image:', file.name, file.type, file.size)
+
+                    const uploadResponse = await notesApi.uploadImage(projectId, file)
+
+                    // Generate the correct image URL using the microservice URL
+                    const imageUrl = notesApi.getImageUrl(projectId, uploadResponse.imageId)
+
+                    // Insert image markdown at cursor position
+                    const imageMarkdown = `![${uploadResponse.originalFilename}](${imageUrl})`
+
+                    // Get current cursor position in textarea
+                    const textarea = event.target as HTMLTextAreaElement
+                    const start = textarea.selectionStart
+                    const end = textarea.selectionEnd
+                    const currentContent = noteContent
+
+                    // Insert image markdown at cursor position
+                    const newContent = currentContent.substring(0, start) + imageMarkdown + currentContent.substring(end)
+                    setNoteContent(newContent)
+
+                    toast({
+                        title: "Success",
+                        description: "Image pasted successfully!",
+                    })
+
+                } catch (error) {
+                    console.error('Error uploading pasted image:', error)
+                    toast({
+                        title: "Error",
+                        description: "Failed to upload image. Please try again.",
+                        variant: "destructive"
+                    })
+                } finally {
+                    setIsUploadingImage(false)
+                }
+                break
+            }
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 relative overflow-hidden">
@@ -455,6 +511,24 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                                         pre: ({ children }) => <pre className="bg-muted/50 border border-border rounded-lg p-4 overflow-x-auto mb-3">{children}</pre>,
                                                         blockquote: ({ children }) => <blockquote className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground mb-3">{children}</blockquote>,
                                                         a: ({ children, href }) => <a href={href} className="text-primary hover:underline">{children}</a>,
+                                                        img: ({ src, alt, ...props }) => {
+                                                            // Handle relative URLs by making them absolute through the API gateway
+                                                            let imageSrc = src
+                                                            if (src && src.startsWith('/api/v1/projects/')) {
+                                                                // This is a relative URL from our backend, make it absolute
+                                                                const baseUrl = getApiBaseUrl()
+                                                                imageSrc = `${baseUrl}/project-service${src}`
+                                                            }
+
+                                                            return (
+                                                                <img
+                                                                    src={imageSrc}
+                                                                    alt={alt}
+                                                                    className="max-w-full h-auto rounded-lg border border-border my-4 shadow-sm"
+                                                                    {...props}
+                                                                />
+                                                            )
+                                                        },
                                                         table: ({ children }) => <div className="overflow-x-auto mb-3"><table className="min-w-full border border-border rounded-lg">{children}</table></div>,
                                                         th: ({ children }) => <th className="border border-border px-3 py-2 text-left font-semibold text-foreground bg-muted/30">{children}</th>,
                                                         td: ({ children }) => <td className="border border-border px-3 py-2 text-muted-foreground">{children}</td>,
@@ -549,13 +623,19 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                         <div className="flex-1">
                                             <label className="text-sm font-medium text-foreground mb-2 block">
                                                 Content (Markdown supported)
+                                                {isUploadingImage && (
+                                                    <span className="ml-2 text-xs text-primary">
+                                                        📸 Uploading image...
+                                                    </span>
+                                                )}
                                             </label>
                                             <Textarea
                                                 value={noteContent}
                                                 onChange={(e) => setNoteContent(e.target.value)}
-                                                placeholder="Write your note here... (Markdown supported)"
+                                                onPaste={handleImagePaste}
+                                                placeholder="Write your note here... (Markdown supported, paste images with Ctrl+V)"
                                                 className="h-[calc(100vh-420px)] resize-none bg-background/40 border-border placeholder:text-muted-foreground font-mono"
-                                                disabled={isSaving}
+                                                disabled={isSaving || isUploadingImage}
                                             />
                                         </div>
                                     </CardContent>
