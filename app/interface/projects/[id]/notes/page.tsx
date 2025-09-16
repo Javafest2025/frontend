@@ -6,8 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
     MessageSquare,
@@ -20,18 +18,15 @@ import {
     X,
     Calendar,
     Clock,
-    User,
-    MoreHorizontal,
     FolderOpen,
-    File,
     Star,
     StarOff
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils/cn"
 import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { projectsApi } from "@/lib/api/project-service"
+import { notesApi } from "@/lib/api/project-service"
+import { Note } from "@/types/project"
 
 interface ProjectNotesPageProps {
     params: Promise<{
@@ -39,15 +34,6 @@ interface ProjectNotesPageProps {
     }>
 }
 
-interface Note {
-    id: string
-    title: string
-    content: string
-    createdAt: string
-    updatedAt: string
-    isFavorite: boolean
-    tags?: string[]
-}
 
 export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
     const [projectId, setProjectId] = useState<string>("")
@@ -75,25 +61,21 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                 console.log('Resolved params:', resolvedParams) // Debug log
                 setProjectId(resolvedParams.id)
 
-                // TODO: Re-enable these API calls when backend is ready
-                // const [response, favoritesResponse] = await Promise.all([
-                //     projectsApi.getNotes(resolvedParams.id),
-                //     projectsApi.getFavoriteNotes(resolvedParams.id)
-                // ])
+                // Fetch notes and favorites from the backend
+                const [notesData, favoritesData] = await Promise.all([
+                    notesApi.getNotes(resolvedParams.id),
+                    notesApi.getFavoriteNotes(resolvedParams.id)
+                ])
 
-                // console.log('Notes response:', response) // Debug log
-                // console.log('Favorites response:', favoritesResponse) // Debug log
-
-                // Handle the API response structure
-                const notesData: Note[] = [] // Fallback data - backend not ready
-                const favoritesData: Note[] = [] // Fallback data - backend not ready
+                console.log('Notes response:', notesData) // Debug log
+                console.log('Favorites response:', favoritesData) // Debug log
 
                 setNotes(notesData)
                 setFavoriteNotes(favoritesData)
 
-                // if (notesData.length > 0) {
-                //     setSelectedNote(notesData[0])
-                // }
+                if (notesData.length > 0) {
+                    setSelectedNote(notesData[0])
+                }
             } catch (error) {
                 console.error('Error loading notes:', error)
                 setNotes([])
@@ -173,9 +155,9 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                 console.log('Creating new note with data:', { projectId, title: noteTitle, content: noteContent })
 
                 // Add a pre-request log to see if we reach this point
-                console.log('About to call projectsApi.createNote...')
+                console.log('About to call notesApi.createNote...')
 
-                const response = await projectsApi.createNote(projectId, {
+                const response = await notesApi.createNote(projectId, {
                     title: noteTitle,
                     content: noteContent
                 })
@@ -212,7 +194,7 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                     title: noteTitle,
                     content: noteContent
                 })
-                const response = await projectsApi.updateNote(projectId, selectedNote.id, {
+                const response = await notesApi.updateNote(projectId, selectedNote.id, {
                     title: noteTitle,
                     content: noteContent
                 })
@@ -255,7 +237,7 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
         if (!projectId) return
 
         try {
-            await projectsApi.deleteNote(projectId, noteId)
+            await notesApi.deleteNote(projectId, noteId)
             setNotes(prev => prev.filter(note => note.id !== noteId))
             if (selectedNote?.id === noteId) {
                 const remainingNotes = notes.filter(note => note.id !== noteId)
@@ -279,7 +261,7 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
         if (!projectId) return
 
         try {
-            const response = await projectsApi.toggleNoteFavorite(projectId, noteId)
+            const response = await notesApi.toggleNoteFavorite(projectId, noteId)
             const updatedNote = response
             setNotes(prev => prev.map(note =>
                 note.id === noteId ? updatedNote : note
@@ -367,16 +349,15 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                         </div>
                         <Button
                             onClick={handleCreateNote}
-                            className="gradient-primary-to-accent text-primary-foreground border-0 transition-all duration-300 hover:scale-[1.02]"
+                            className="group gradient-primary-to-accent text-primary-foreground border-0 transition-all duration-200 hover:scale-[1.05] hover:shadow-lg hover:shadow-primary/20"
                             style={{
                                 boxShadow: `
-                                    0 0 15px hsl(var(--primary) / 0.4),
-                                    0 0 30px hsl(var(--accent) / 0.2),
-                                    inset 0 1px 0 hsl(var(--primary-foreground) / 0.1)
+                                    0 0 8px hsl(var(--primary) / 0.2),
+                                    0 0 16px hsl(var(--accent) / 0.1)
                                 `
                             }}
                         >
-                            <Plus className="mr-2 h-4 w-4" />
+                            <Plus className="mr-2 h-4 w-4 transition-all duration-200 group-hover:rotate-90 group-hover:scale-110" />
                             New Note
                         </Button>
                     </div>
@@ -570,9 +551,8 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                                         td: ({ children }) => <td className="border border-border px-3 py-2 text-muted-foreground">{children}</td>,
                                                         input: ({ checked, ...props }) => <input type="checkbox" checked={checked} className="mr-2" {...props} />
                                                     }}
-                                                    remarkPlugins={[remarkGfm as any]}
                                                 >
-                                                    {selectedNote.content}
+                                                    {selectedNote.content || ''}
                                                 </ReactMarkdown>
                                             </div>
                                         </ScrollArea>
@@ -588,9 +568,15 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                         </p>
                                         <Button
                                             onClick={handleCreateNote}
-                                            className="gradient-primary-to-accent text-primary-foreground border-0"
+                                            className="group gradient-primary-to-accent text-primary-foreground border-0 transition-all duration-200 hover:scale-[1.05] hover:shadow-lg hover:shadow-primary/20"
+                                            style={{
+                                                boxShadow: `
+                                                    0 0 8px hsl(var(--primary) / 0.2),
+                                                    0 0 16px hsl(var(--accent) / 0.1)
+                                                `
+                                            }}
                                         >
-                                            <Plus className="mr-2 h-4 w-4" />
+                                            <Plus className="mr-2 h-4 w-4 transition-all duration-200 group-hover:rotate-90 group-hover:scale-110" />
                                             Create First Note
                                         </Button>
                                     </div>
@@ -616,11 +602,11 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                                 </Button>
                                                 <Button
                                                     onClick={handleSaveNote}
-                                                    className="gradient-primary-to-accent text-primary-foreground border-0"
+                                                    className="gradient-primary-to-accent text-primary-foreground border-0 transition-all duration-200 hover:scale-[1.05] hover:shadow-lg hover:shadow-primary/20"
                                                     style={{
                                                         boxShadow: `
-                                                            0 0 15px hsl(var(--primary) / 0.4),
-                                                            0 0 30px hsl(var(--accent) / 0.2)
+                                                            0 0 8px hsl(var(--primary) / 0.2),
+                                                            0 0 16px hsl(var(--accent) / 0.1)
                                                         `
                                                     }}
                                                     disabled={isSaving || !noteTitle.trim()}

@@ -603,6 +603,20 @@ export function ProjectsDashboard() {
                                                         </div>
                                                     </div>
 
+                                                    {/* Progress Bar */}
+                                                    <div className="mb-3">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <span className="text-xs sm:text-sm font-medium">Progress</span>
+                                                            <span className="text-xs sm:text-sm text-muted-foreground">{project.progress}%</span>
+                                                        </div>
+                                                        <div className="w-full bg-secondary/50 rounded-full h-2">
+                                                            <div
+                                                                className="gradient-primary-to-accent h-2 rounded-full transition-all duration-1000 ease-out"
+                                                                style={{ width: `${project.progress}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+
                                                     {/* Tags */}
                                                     <div className="flex flex-wrap gap-1 mb-3">
                                                         {parseProjectTags(project).slice(0, 3).map((tag) => (
