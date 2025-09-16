@@ -78,7 +78,7 @@
   ENV HOSTNAME=0.0.0.0
   ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=923685198285-bcuenjqssub489v92n9m3fgmeo1qv19f.apps.googleusercontent.com
   ENV NEXT_PUBLIC_GITHUB_CLIENT_ID=Ov23lib9rnCavmUN37Qf
-  ENV NEXT_PUBLIC_API_BASE_URL=http://scholarai.indonesiacentral.cloudapp.azure.com:8989
+  ENV NEXT_PUBLIC_API_BASE_URL=https://api.scholarai.me
   ENV NEXT_PUBLIC_DEV_API_URL=http://localhost:8989
   ENV NEXT_PUBLIC_DOCKER_BACKEND_URL=http://scholar-api-gateway:8989
   
