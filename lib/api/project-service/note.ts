@@ -17,6 +17,17 @@ export interface ImageUploadResponse {
     imageUrl: string
 }
 
+export interface PaperSuggestion {
+    id: string
+    title: string
+    abstractText: string
+    authors: string[]
+    publicationDate: string
+    venueName: string
+    citationCount: number
+    displayText: string
+}
+
 // Helper function to handle API response
 const handleApiResponse = async <T>(response: Response): Promise<T> => {
     if (!response.ok) {
@@ -352,5 +363,33 @@ export const notesApi = {
     // Get image by ID
     getImageUrl(projectId: string, imageId: string): string {
         return getMicroserviceUrl("project-service", `/api/v1/projects/${projectId}/notes/images/${imageId}`)
+    },
+
+    async searchPapersForMention(projectId: string, query: string): Promise<PaperSuggestion[]> {
+        try {
+            console.log("🔍 Searching papers for mention:", projectId, query)
+
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/projects/${projectId}/notes/papers/search?q=${encodeURIComponent(query)}`),
+                {
+                    method: "GET",
+                }
+            )
+
+            console.log("📊 Paper search response status:", response.status, response.statusText)
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ Paper search failed:", response.status, errorText)
+                throw new Error(`Failed to search papers: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ Paper suggestions retrieved:", data)
+            return data.data || []
+        } catch (error) {
+            console.error("Paper search error:", error)
+            throw error
+        }
     },
 }

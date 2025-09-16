@@ -27,7 +27,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils/cn"
 import ReactMarkdown from 'react-markdown'
-import { notesApi, ImageUploadResponse } from "@/lib/api/project-service"
+import { notesApi, ImageUploadResponse, PaperSuggestion } from "@/lib/api/project-service"
 import { Note } from "@/types/project"
 import { getApiBaseUrl } from "@/lib/config/api-config"
 
@@ -52,6 +52,10 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
     const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false)
     const [isUploadingImage, setIsUploadingImage] = useState(false)
+    const [paperSuggestions, setPaperSuggestions] = useState<PaperSuggestion[]>([])
+    const [showPaperSuggestions, setShowPaperSuggestions] = useState(false)
+    const [mentionQuery, setMentionQuery] = useState("")
+    const [mentionPosition, setMentionPosition] = useState({ start: 0, end: 0 })
     const { toast } = useToast()
 
     // Form states
@@ -314,6 +318,44 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
         }
     }
 
+    const handlePaperMention = async (content: string, cursorPos: number) => {
+        // Look for @ mentions in the content
+        const beforeCursor = content.substring(0, cursorPos)
+        const mentionMatch = beforeCursor.match(/@([^@\s]*)$/)
+
+        if (mentionMatch) {
+            const query = mentionMatch[1]
+            setMentionQuery(query)
+            setMentionPosition({ start: cursorPos - query.length - 1, end: cursorPos })
+
+            if (query.length > 0) {
+                try {
+                    const suggestions = await notesApi.searchPapersForMention(projectId, query)
+                    setPaperSuggestions(suggestions)
+                    setShowPaperSuggestions(true)
+                } catch (error) {
+                    console.error('Error fetching paper suggestions:', error)
+                    setShowPaperSuggestions(false)
+                }
+            } else {
+                setShowPaperSuggestions(false)
+            }
+        } else {
+            setShowPaperSuggestions(false)
+        }
+    }
+
+    const insertPaperMention = (paper: PaperSuggestion) => {
+        const mentionText = `@[${paper.displayText}](${paper.id})`
+        const beforeMention = noteContent.substring(0, mentionPosition.start)
+        const afterMention = noteContent.substring(mentionPosition.end)
+        const newContent = beforeMention + mentionText + afterMention
+
+        setNoteContent(newContent)
+        setShowPaperSuggestions(false)
+        setMentionQuery("")
+    }
+
     const handleImagePaste = async (event: React.ClipboardEvent) => {
         const items = event.clipboardData?.items
         if (!items || !projectId) return
@@ -532,7 +574,37 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                                         table: ({ children }) => <div className="overflow-x-auto mb-3"><table className="min-w-full border border-border rounded-lg">{children}</table></div>,
                                                         th: ({ children }) => <th className="border border-border px-3 py-2 text-left font-semibold text-foreground bg-muted/30">{children}</th>,
                                                         td: ({ children }) => <td className="border border-border px-3 py-2 text-muted-foreground">{children}</td>,
-                                                        input: ({ checked, ...props }) => <input type="checkbox" checked={checked} className="mr-2" {...props} />
+                                                        input: ({ checked, ...props }) => <input type="checkbox" checked={checked} className="mr-2" {...props} />,
+                                                        // Custom component for paper mentions
+                                                        a: ({ href, children, ...props }) => {
+                                                            // Check if this is a paper mention link
+                                                            if (href && href.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                                                                return (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            // Navigate to paper details page
+                                                                            window.open(`/interface/projects/${projectId}/library?paper=${href}`, '_blank')
+                                                                        }}
+                                                                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-400 bg-blue-400/10 border border-blue-400/20 rounded-md hover:bg-blue-400/20 hover:border-blue-400/30 transition-colors"
+                                                                        {...props}
+                                                                    >
+                                                                        📄 {children}
+                                                                    </button>
+                                                                )
+                                                            }
+                                                            // Regular link
+                                                            return (
+                                                                <a
+                                                                    href={href}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-blue-400 hover:text-blue-300 underline"
+                                                                    {...props}
+                                                                >
+                                                                    {children}
+                                                                </a>
+                                                            )
+                                                        }
                                                     }}
                                                 >
                                                     {selectedNote.content || ''}
@@ -620,7 +692,7 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                                 disabled={isSaving}
                                             />
                                         </div>
-                                        <div className="flex-1">
+                                        <div className="flex-1 relative">
                                             <label className="text-sm font-medium text-foreground mb-2 block">
                                                 Content (Markdown supported)
                                                 {isUploadingImage && (
@@ -629,14 +701,65 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                                     </span>
                                                 )}
                                             </label>
-                                            <Textarea
-                                                value={noteContent}
-                                                onChange={(e) => setNoteContent(e.target.value)}
-                                                onPaste={handleImagePaste}
-                                                placeholder="Write your note here... (Markdown supported, paste images with Ctrl+V)"
-                                                className="h-[calc(100vh-420px)] resize-none bg-background/40 border-border placeholder:text-muted-foreground font-mono"
-                                                disabled={isSaving || isUploadingImage}
-                                            />
+                                            <div className="relative">
+                                                <Textarea
+                                                    value={noteContent}
+                                                    onChange={(e) => {
+                                                        const newContent = e.target.value
+                                                        const cursorPos = e.target.selectionStart || 0
+
+                                                        setNoteContent(newContent)
+
+                                                        // Check for @ mentions
+                                                        handlePaperMention(newContent, cursorPos)
+                                                    }}
+                                                    onPaste={handleImagePaste}
+                                                    placeholder="Write your note here... (Markdown supported, paste images with Ctrl+V)"
+                                                    className="h-[calc(100vh-420px)] resize-none bg-background/40 border-border placeholder:text-muted-foreground font-mono pr-80"
+                                                    disabled={isSaving || isUploadingImage}
+                                                />
+
+                                                {/* Paper Suggestions Dropdown - Slides in from right */}
+                                                <AnimatePresence>
+                                                    {showPaperSuggestions && paperSuggestions.length > 0 && (
+                                                        <motion.div
+                                                            initial={{ x: "100%", opacity: 0 }}
+                                                            animate={{ x: 0, opacity: 1 }}
+                                                            exit={{ x: "100%", opacity: 0 }}
+                                                            transition={{
+                                                                type: "spring",
+                                                                stiffness: 300,
+                                                                damping: 30,
+                                                                duration: 0.3
+                                                            }}
+                                                            className="absolute z-50 w-72 bg-background border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto top-2 right-2"
+                                                        >
+                                                            <div className="p-2 text-xs text-muted-foreground border-b border-border">
+                                                                Paper suggestions for "@{mentionQuery}"
+                                                            </div>
+                                                            {paperSuggestions.map((paper) => (
+                                                                <button
+                                                                    key={paper.id}
+                                                                    onClick={() => insertPaperMention(paper)}
+                                                                    className="w-full p-3 text-left hover:bg-accent hover:text-accent-foreground border-b border-border last:border-b-0"
+                                                                >
+                                                                    <div className="font-medium text-sm">{paper.title}</div>
+                                                                    <div className="text-xs text-muted-foreground mt-1">
+                                                                        {paper.authors.slice(0, 2).join(", ")}
+                                                                        {paper.authors.length > 2 && " et al."}
+                                                                    </div>
+                                                                    {paper.venueName && (
+                                                                        <div className="text-xs text-muted-foreground">
+                                                                            {paper.venueName}
+                                                                            {paper.publicationDate && ` (${new Date(paper.publicationDate).getFullYear()})`}
+                                                                        </div>
+                                                                    )}
+                                                                </button>
+                                                            ))}
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </>
