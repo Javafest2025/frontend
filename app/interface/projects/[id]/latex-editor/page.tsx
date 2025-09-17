@@ -32,7 +32,8 @@ import {
   ChevronRight,
   PanelRightOpen,
   PanelRightClose,
-  Code
+  Code,
+  Globe
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { useSettings } from "@/contexts/SettingsContext"
@@ -443,6 +444,9 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       ))
       
       console.log('Document saved successfully')
+      
+      // Reset editing state after successful save
+      setIsEditing(false)
       
       // Reset version viewing state since we're now viewing the current content
       setIsViewingVersion(false)
@@ -1869,6 +1873,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   console.error('No projectId available')
                 }
               }}
+              title="Reloads the editor"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Reload
@@ -1876,10 +1881,38 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={handleSave}
+              onClick={() => {
+                window.location.reload()
+              }}
+              title="Refresh entire browser page"
             >
-              <Save className="h-4 w-4 mr-2" />
-              Save
+              <Globe className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button 
+              variant={isEditing ? "default" : "outline"}
+              size="sm"
+              onClick={handleSave}
+              className={cn(
+                "transition-all duration-300 relative overflow-hidden",
+                isEditing && "bg-blue-500 hover:bg-blue-600 text-white border-blue-500 shadow-md"
+              )}
+              style={isEditing ? {
+                background: 'linear-gradient(45deg, #3b82f6, #60a5fa, #3b82f6, #60a5fa)',
+                backgroundSize: '400% 400%',
+                animation: 'gradient-shimmer 2s ease-in-out infinite'
+              } : undefined}
+            >
+              <Save className={cn("h-4 w-4 mr-2 relative z-10", isEditing ? "text-white" : "text-current")} />
+              <span className={cn(
+                "font-medium relative z-10",
+                isEditing ? "text-white font-bold" : "text-current"
+              )}>
+                {isEditing ? "Save*" : "Save"}
+              </span>
+              {isEditing && (
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer-slide" />
+              )}
             </Button>
             <Button 
               variant="outline" 
@@ -1892,29 +1925,11 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => handleRevertVersion()}
-              disabled={!currentDocument?.version || currentDocument.version <= 1}
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Revert
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
               onClick={handleCompile}
               disabled={isCompiling}
             >
               <Play className="h-4 w-4 mr-2" />
               {isCompiling ? 'Compiling...' : 'Compile'}
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleRunCitationCheck}
-              disabled={citationBusy || !currentDocument}
-            >
-              <RefreshCw className={cn("h-4 w-4 mr-2", citationBusy && "animate-spin")} />
-              {citationBusy ? 'Checking...' : 'Check Citations'}
             </Button>
             <label className="inline-flex items-center gap-2 text-xs px-2 py-1 border rounded">
               <input 
@@ -2505,41 +2520,6 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Stale Content Banner - Only show if not dismissed */}
-      {contentHashStale && currentCitationJob?.summary && !contentHashDismissed && (
-        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 bg-amber-50 border border-amber-200 rounded-lg p-4 shadow-lg max-w-md">
-          <div className="flex items-center space-x-3">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-amber-800">Content has changed</h3>
-              <p className="text-sm text-amber-700">Citation results may be outdated. Re-run check for accuracy.</p>
-            </div>
-            <div className="flex-shrink-0 flex items-center space-x-2">
-              <button
-                onClick={handleRunCitationCheck}
-                disabled={citationBusy}
-                className="text-sm bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-1 rounded font-medium disabled:opacity-50"
-              >
-                {citationBusy ? 'Checking...' : 'Re-check'}
-              </button>
-              <button
-                onClick={() => setContentHashDismissed(true)}
-                className="text-amber-600 hover:text-amber-800 p-1"
-                title="Dismiss notification"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Citation Issues Panel */}
       <CitationIssuesPanel
         job={currentCitationJob}
@@ -2551,6 +2531,8 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         }}
         onRecheck={handleForcedRecheck}
         timeoutWarning={citationTimeoutWarning}
+        contentHashStale={contentHashStale && currentCitationJob?.summary && !contentHashDismissed}
+        onDismissStaleWarning={() => setContentHashDismissed(true)}
       />
     </div>
   )

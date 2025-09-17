@@ -46,6 +46,8 @@ interface CitationIssuesPanelProps {
   onRecheck?: () => void
   onHighlightIssue?: (issue: CitationIssue | null) => void
   timeoutWarning?: boolean
+  contentHashStale?: boolean
+  onDismissStaleWarning?: () => void
 }
 
 export function CitationIssuesPanel({
@@ -55,7 +57,9 @@ export function CitationIssuesPanel({
   onJumpToRange,
   onRecheck,
   onHighlightIssue,
-  timeoutWarning = false
+  timeoutWarning = false,
+  contentHashStale = false,
+  onDismissStaleWarning
 }: CitationIssuesPanelProps) {
   const [filter, setFilter] = useState<CitationFilter>({
     types: [],
@@ -148,6 +152,43 @@ export function CitationIssuesPanel({
             Review and resolve citation issues in your LaTeX document
           </SheetDescription>
         </SheetHeader>
+
+        {/* Stale Content Warning */}
+        {contentHashStale && (
+          <div className="flex-shrink-0 border border-amber-200 rounded-lg p-4 bg-amber-50 dark:bg-amber-950/20">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Content has changed</h3>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  Citation results may be outdated. Re-run check for accuracy.
+                </p>
+              </div>
+              <div className="flex-shrink-0 flex items-center space-x-2">
+                <Button
+                  onClick={onRecheck}
+                  variant="outline"
+                  size="sm"
+                  className="bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300 dark:bg-amber-900 dark:hover:bg-amber-800 dark:text-amber-200 dark:border-amber-700"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Re-check
+                </Button>
+                <Button
+                  onClick={onDismissStaleWarning}
+                  variant="ghost"
+                  size="sm"
+                  className="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200"
+                  title="Dismiss notification"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Progress Section */}
         {job?.status === 'RUNNING' && (

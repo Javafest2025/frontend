@@ -68,77 +68,82 @@ export function ViewModeSelector({
 
   return (
     <div className="w-full border-b bg-slate-100 dark:bg-slate-800 px-3 py-2 relative z-50">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-          <FileText className="h-4 w-4" />
-          <span className="font-medium">View Mode</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+            <FileText className="h-4 w-4" />
+            <span className="font-medium">View Mode</span>
+          </div>
+          
+          {/* Left group: Editor, Preview, Split buttons */}
+          <div className="flex gap-1.5 relative z-50">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Editor button clicked!');
+                handleViewModeChange('editor');
+              }}
+              className={`relative z-50 px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer select-none ${
+                viewMode === 'editor'
+                  ? 'bg-blue-500 text-white border-blue-500'
+                  : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'
+              }`}
+            >
+              <Edit className="h-3 w-3 inline mr-1" />
+              Editor
+            </button>
+            
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Preview button clicked!');
+                handleViewModeChange('preview');
+              }}
+              disabled={isPreviewDisabled}
+              className={`relative z-50 px-2.5 py-1 text-xs rounded border transition-colors select-none ${
+                viewMode === 'preview'
+                  ? 'bg-blue-500 text-white border-blue-500'
+                  : isPreviewDisabled
+                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border-slate-200 dark:border-slate-700 cursor-not-allowed'
+                  : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer'
+              }`}
+            >
+              <Eye className="h-3 w-3 inline mr-1" />
+              Preview
+              {isCompiling && (
+                <div className="ml-1 h-1.5 w-1.5 bg-orange-500 rounded-full animate-pulse inline-block" />
+              )}
+            </button>
+            
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Split button clicked!');
+                handleViewModeChange('split');
+              }}
+              disabled={isSplitDisabled}
+              className={`relative z-50 px-2.5 py-1 text-xs rounded border transition-colors select-none ${
+                viewMode === 'split'
+                  ? 'bg-blue-500 text-white border-blue-500'
+                  : isSplitDisabled
+                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border-slate-200 dark:border-slate-700 cursor-not-allowed'
+                  : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer'
+              }`}
+            >
+              <LayoutPanelLeft className="h-3 w-3 inline mr-1" />
+              Split
+            </button>
+          </div>
         </div>
         
-        {/* Simple button group with explicit z-index and pointer events */}
+        {/* Right group: Citations, Check Citations, Final Review buttons */}
         <div className="flex gap-1.5 relative z-50">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('Editor button clicked!');
-              handleViewModeChange('editor');
-            }}
-            className={`relative z-50 px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer select-none ${
-              viewMode === 'editor'
-                ? 'bg-blue-500 text-white border-blue-500'
-                : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'
-            }`}
-          >
-            <Edit className="h-3 w-3 inline mr-1" />
-            Editor
-          </button>
-          
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('Preview button clicked!');
-              handleViewModeChange('preview');
-            }}
-            disabled={isPreviewDisabled}
-            className={`relative z-50 px-2.5 py-1 text-xs rounded border transition-colors select-none ${
-              viewMode === 'preview'
-                ? 'bg-blue-500 text-white border-blue-500'
-                : isPreviewDisabled
-                ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border-slate-200 dark:border-slate-700 cursor-not-allowed'
-                : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer'
-            }`}
-          >
-            <Eye className="h-3 w-3 inline mr-1" />
-            Preview
-            {isCompiling && (
-              <div className="ml-1 h-1.5 w-1.5 bg-orange-500 rounded-full animate-pulse inline-block" />
-            )}
-          </button>
-          
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('Split button clicked!');
-              handleViewModeChange('split');
-            }}
-            disabled={isSplitDisabled}
-            className={`relative z-50 px-2.5 py-1 text-xs rounded border transition-colors select-none ${
-              viewMode === 'split'
-                ? 'bg-blue-500 text-white border-blue-500'
-                : isSplitDisabled
-                ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border-slate-200 dark:border-slate-700 cursor-not-allowed'
-                : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer'
-            }`}
-          >
-            <LayoutPanelLeft className="h-3 w-3 inline mr-1" />
-            Split
-          </button>
-          
           {/* Enhanced Citation Issues Button with Real-time Status */}
           {(citationCount !== undefined || citationBusy || currentJob) && (
             <button
