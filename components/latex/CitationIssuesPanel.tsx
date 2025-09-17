@@ -45,6 +45,7 @@ interface CitationIssuesPanelProps {
   onJumpToRange?: (from: number, to: number) => void
   onRecheck?: () => void
   onHighlightIssue?: (issue: CitationIssue | null) => void
+  timeoutWarning?: boolean
 }
 
 export function CitationIssuesPanel({
@@ -53,7 +54,8 @@ export function CitationIssuesPanel({
   onOpenChange,
   onJumpToRange,
   onRecheck,
-  onHighlightIssue
+  onHighlightIssue,
+  timeoutWarning = false
 }: CitationIssuesPanelProps) {
   const [filter, setFilter] = useState<CitationFilter>({
     types: [],
@@ -160,6 +162,17 @@ export function CitationIssuesPanel({
             <p className="text-xs text-muted-foreground mt-1">
               {job.progressPct}% complete
             </p>
+            {timeoutWarning && (
+              <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 rounded">
+                <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-xs font-medium">Taking longer than expected</span>
+                </div>
+                <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                  Switched to backup mode. Citation check is still running...
+                </p>
+              </div>
+            )}
           </div>
         )}
 

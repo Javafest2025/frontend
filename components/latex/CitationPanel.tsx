@@ -7,9 +7,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, ExternalLink, FileText, Globe, X } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { AlertTriangle, ExternalLink, FileText, Globe, X, Loader2, StopCircle } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
-import type { CitationIssue } from "@/types/citations"
+import type { CitationIssue, CitationCheckJob } from "@/types/citations"
 import { CitationIssueTypeLabels, CitationSeverityColors } from "@/types/citations"
 
 interface CitationPanelProps {
@@ -17,9 +18,19 @@ interface CitationPanelProps {
   onOpenChange: (open: boolean) => void
   issues: CitationIssue[]
   onNavigateToIssue?: (issue: CitationIssue) => void
+  // NEW: Real-time job status support
+  currentJob?: CitationCheckJob | null
+  onCancelJob?: () => void
 }
 
-export function CitationPanel({ open, onOpenChange, issues, onNavigateToIssue }: CitationPanelProps) {
+export function CitationPanel({ 
+  open, 
+  onOpenChange, 
+  issues, 
+  onNavigateToIssue,
+  currentJob,
+  onCancelJob 
+}: CitationPanelProps) {
   // Ensure issues is always an array to prevent undefined errors
   const safeIssues = issues || []
   
@@ -172,14 +183,69 @@ export function CitationPanel({ open, onOpenChange, issues, onNavigateToIssue }:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center space-x-2">
-            <AlertTriangle className="h-5 w-5" />
-            <span>Citation Issues</span>
-            <Badge variant="secondary">{safeIssues.length} issues</Badge>
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="h-5 w-5" />
+              <span>Citation Issues</span>
+              <Badge variant="secondary">{safeIssues.length} issues</Badge>
+            </div>
+            {/* Real-time Job Status with Cancel */}
+            {currentJob && currentJob.status !== 'DONE' && currentJob.status !== 'ERROR' && onCancelJob && (
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                  <span className="text-blue-600 font-medium">
+                    {currentJob.step || 'Processing'}...
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {currentJob.progressPct || 0}%
+                  </Badge>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onCancelJob}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <StopCircle className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
+              </div>
+            )}
           </DialogTitle>
-          <DialogDescription>
-            Review and address citation issues found in your document
-          </DialogDescription>
+          <div className="space-y-2">
+            <DialogDescription>
+              Review and address citation issues found in your document
+            </DialogDescription>
+            {/* Progress Bar for Active Jobs */}
+            {currentJob && currentJob.status !== 'DONE' && currentJob.status !== 'ERROR' && (
+              <div className="space-y-2">
+                <Progress 
+                  value={currentJob.progressPct || 0} 
+                  className="w-full h-2"
+                />
+                <div className="text-xs text-muted-foreground">
+                  {currentJob.step || 'Initializing'} • {currentJob.progressPct || 0}% complete
+                </div>
+              </div>
+            )}
+            {/* Error State Display */}
+            {currentJob?.status === 'ERROR' && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                  <span className="text-sm font-medium text-red-800">
+                    Citation check failed
+                  </span>
+                </div>
+                {currentJob.errorMessage && (
+                  <p className="text-sm text-red-700 mt-1">
+                    {currentJob.errorMessage}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </DialogHeader>
         
         <ScrollArea className="flex-1 overflow-y-auto" data-pdf-scroll-container="true">

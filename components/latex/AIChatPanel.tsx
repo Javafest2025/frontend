@@ -26,13 +26,10 @@ import {
   History,
   RotateCcw,
   RefreshCw,
-  Sparkles,
-  CheckCircle,
-  Search
+  Sparkles
 } from 'lucide-react'
 import { latexApi } from '@/lib/api/latex-service'
 import type { LatexAiChatSession, LatexAiChatMessage, CreateLatexChatMessageRequest } from '@/types/chat'
-import type { StartCitationCheckRequest, CitationCheckJob } from '@/types/citations'
 
 // Using LatexAiChatMessage type from chat.ts instead of local interface
 
@@ -92,14 +89,7 @@ export function AIChatPanel({
   const [selectedTextDisplay, setSelectedTextDisplay] = useState<string>('')
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [positionMarkers, setPositionMarkers] = useState<Array<{ position: number; label: string; blinking: boolean }>>([])
-  const [showAdvancedTools, setShowAdvancedTools] = useState(false)
   
-  // Citation check state
-  const [isCitationCheckRunning, setIsCitationCheckRunning] = useState(false)
-  const [citationProgress, setCitationProgress] = useState(0)
-  const [citationStatus, setCitationStatus] = useState('')
-  const [citationJobId, setCitationJobId] = useState<string | null>(null)
-  const [citationResults, setCitationResults] = useState<CitationCheckJob | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -961,111 +951,6 @@ export function AIChatPanel({
     }, 100)
   }
 
-  const handleCitationCheck = async () => {
-    if (!documentId || !projectId) {
-      console.error('Document ID or Project ID missing for citation check')
-      return
-    }
-
-    try {
-      console.log('Starting citation check for document:', documentId)
-      
-      // Set initial state
-      setIsCitationCheckRunning(true)
-      setCitationProgress(0)
-      setCitationStatus('Initializing citation check...')
-      setCitationResults(null) // Clear previous results
-      
-      const request = {
-        projectId,
-        documentId,
-        texFileName: 'document.tex', // You might want to get this from props
-        latexContent: content,
-        selectedPaperIds: selectedPapers?.map(p => p.id) || [],
-        overwrite: true,
-        runWebCheck: true
-      }
-
-      const response = await latexApi.startCitationCheck(request)
-      console.log('Citation check started with job ID:', response.jobId)
-      
-      setCitationJobId(response.jobId)
-      setCitationStatus('Citation check started, analyzing content...')
-      
-      // Start polling for progress
-      pollCitationProgress(response.jobId)
-      
-    } catch (error) {
-      console.error('Failed to start citation check:', error)
-      setIsCitationCheckRunning(false)
-      setCitationStatus('Failed to start citation check')
-      setCitationJobId(null)
-    }
-  }
-
-  const pollCitationProgress = async (jobId: string) => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const result = await latexApi.getCitationJob(jobId)
-        
-        setCitationProgress(result.progressPct || 0)
-        
-        // Update status based on current step
-        switch (result.step) {
-          case 'PARSING':
-            setCitationStatus('Parsing LaTeX document...')
-            break
-          case 'LOCAL_RETRIEVAL':
-            setCitationStatus('Searching local papers for citations...')
-            break
-          case 'LOCAL_VERIFICATION':
-            setCitationStatus('Verifying local citations...')
-            break
-          case 'WEB_RETRIEVAL':
-            setCitationStatus('Searching web for supporting evidence...')
-            break
-          case 'WEB_VERIFICATION':
-            setCitationStatus('Verifying web sources...')
-            break
-          case 'SAVING':
-            setCitationStatus('Saving citation analysis...')
-            break
-          case 'DONE':
-            setCitationStatus('Citation check completed!')
-            setIsCitationCheckRunning(false)
-            setCitationResults(result)
-            clearInterval(pollInterval)
-            console.log('Citation check completed:', result)
-            break
-          case 'ERROR':
-            setCitationStatus('Citation check failed')
-            setIsCitationCheckRunning(false)
-            clearInterval(pollInterval)
-            break
-          default:
-            setCitationStatus(`Processing: ${result.step}...`)
-        }
-        
-        // Stop polling if job is done or failed
-        if (result.status === 'DONE' || result.status === 'ERROR') {
-          clearInterval(pollInterval)
-          setIsCitationCheckRunning(false)
-        }
-        
-      } catch (error) {
-        console.error('Error polling citation progress:', error)
-        clearInterval(pollInterval)
-        setIsCitationCheckRunning(false)
-        setCitationStatus('Connection error during citation check')
-      }
-    }, 2000) // Poll every 2 seconds
-  }
-
-  const handleFinalReview = () => {
-    // TODO: Implement final review functionality
-    console.log('Final review clicked - to be implemented')
-  }
-
   const renderMessage = (message: LatexAiChatMessage) => {
     const isAI = message.messageType === 'AI'
     const hasSuggestion = message.hasLatexSuggestion && message.latexSuggestion && message.latexSuggestion.trim()
@@ -1384,112 +1269,6 @@ export function AIChatPanel({
       
       {/* AI Tools Bar - Always visible above input */}
       <div className="sticky bottom-0 bg-background border-t border-border">
-        {/* Advanced Tools Simple Button */}
-        <div className="p-3 pb-2 border-b border-border">
-          <Button
-            onClick={() => setShowAdvancedTools(!showAdvancedTools)}
-            className={`w-full h-10 font-medium text-blue-700 dark:text-blue-200 blue-shimmer-button
-                       transition-all duration-200 ease-out border border-blue-400/50 hover:border-blue-500/70
-                       hover:text-blue-800 dark:hover:text-blue-100 shadow-lg hover:shadow-blue-500/25
-                       ${showAdvancedTools 
-                         ? 'border-blue-500/70 text-blue-800 dark:text-blue-100' 
-                         : 'hover:border-blue-500/70'
-                       }`}
-          >
-            <div className="flex items-center justify-center">
-              <span className="text-sm font-semibold">Advanced AI Tools</span>
-              <ChevronDown className={`h-4 w-4 ml-2 transition-transform duration-200 text-blue-600 dark:text-blue-300
-                          ${showAdvancedTools ? 'rotate-180' : ''}`} />
-            </div>
-          </Button>
-          
-          {/* Advanced Tools Panel */}
-          {showAdvancedTools && (
-            <div className="mt-3 p-4 bg-gradient-to-br from-slate-50 to-blue-50 border border-slate-200 rounded-xl shadow-sm space-y-3">
-              <Button
-                onClick={handleCitationCheck}
-                disabled={isLoading || isCitationCheckRunning}
-                className="w-full justify-start h-11 blue-shimmer-button text-blue-800 hover:text-blue-900 border border-blue-400/50 hover:border-blue-500/70 rounded-lg shadow-sm hover:shadow-blue-500/25 transition-all duration-200 font-medium"
-              >
-                <Search className="h-4 w-4 mr-3 text-blue-600" />
-                <span className="text-sm font-semibold">Citation Check</span>
-              </Button>
-              
-              {/* Citation Check Progress */}
-              {isCitationCheckRunning && (
-                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-blue-700">Citation Analysis</span>
-                    <span className="text-xs text-blue-600">{citationProgress}%</span>
-                  </div>
-                  <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
-                      style={{ width: `${citationProgress}%` } as React.CSSProperties}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-blue-600 animate-pulse">{citationStatus}</p>
-                </div>
-              )}
-
-              {/* Citation Results */}
-              {citationResults && !isCitationCheckRunning && (
-                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-green-700">Citation Analysis Complete</span>
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  </div>
-                  
-                  {citationResults.issues && citationResults.issues.length > 0 ? (
-                    <div className="space-y-2">
-                      <p className="text-xs text-green-600 mb-2">
-                        Found {citationResults.issues.length} citation issue{citationResults.issues.length > 1 ? 's' : ''}:
-                      </p>
-                      <div className="max-h-32 overflow-y-auto space-y-1">
-                        {citationResults.issues.slice(0, 3).map((issue, index) => (
-                          <div key={issue.id || index} className="p-2 bg-white border border-orange-200 rounded text-xs">
-                            <div className="font-medium text-orange-700 capitalize">
-                              {issue.type?.replace(/-/g, ' ')} - {issue.severity}
-                            </div>
-                            <div className="text-orange-600 mt-1">
-                              {issue.snippet || 'Citation issue detected'}
-                            </div>
-                          </div>
-                        ))}
-                        {citationResults.issues.length > 3 && (
-                          <div className="text-xs text-green-600 font-medium">
-                            ...and {citationResults.issues.length - 3} more
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-green-600">✅ No citation issues found!</p>
-                  )}
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCitationResults(null)}
-                    className="mt-2 w-full text-xs"
-                  >
-                    Hide Results
-                  </Button>
-                </div>
-              )}
-              
-              <Button
-                onClick={handleFinalReview}
-                disabled={isLoading}
-                className="w-full justify-start h-11 blue-shimmer-button text-blue-800 hover:text-blue-900 border border-blue-400/50 hover:border-blue-500/70 rounded-lg shadow-sm hover:shadow-blue-500/25 transition-all duration-200 font-medium"
-              >
-                <CheckCircle className="h-4 w-4 mr-3 text-blue-600" />
-                <span className="text-sm font-semibold">Final Review</span>
-              </Button>
-            </div>
-          )}
-        </div>
-
         {/* Quick AI Actions */}
         <div className="p-3 pb-2">
           <div className="flex flex-wrap gap-2">

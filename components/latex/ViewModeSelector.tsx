@@ -1,7 +1,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Eye, Edit, LayoutPanelLeft, FileText, File, AlertTriangle } from 'lucide-react';
+import { Eye, Edit, LayoutPanelLeft, FileText, File, AlertTriangle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { CitationCheckJob } from '@/types/citations';
 
 export type ViewMode = 'editor' | 'preview' | 'split';
 
@@ -12,11 +13,16 @@ interface ViewModeSelectorProps {
   isCompiling?: boolean;
   className?: string;
   
-  // NEW: Citation checking props
+  // Enhanced Citation checking props
   citationCount?: number;            // undefined if no run yet
   onOpenCitationPanel?: () => void;  // opens the drawer
   onRunCitationCheck?: () => void;   // kicks a new run
   citationBusy?: boolean;            // show spinner
+  currentJob?: CitationCheckJob | null; // real-time job status
+  
+  // Web check toggle
+  runWebCheck?: boolean;
+  onRunWebCheckChange?: (value: boolean) => void;
 }
 
 export function ViewModeSelector({
@@ -28,7 +34,10 @@ export function ViewModeSelector({
   citationCount,
   onOpenCitationPanel,
   onRunCitationCheck,
-  citationBusy = false
+  citationBusy = false,
+  currentJob,
+  runWebCheck = true,
+  onRunWebCheckChange
 }: ViewModeSelectorProps) {
   
   const handleViewModeChange = (mode: ViewMode) => {
@@ -125,8 +134,8 @@ export function ViewModeSelector({
             Split
           </button>
           
-          {/* Citation Issues Button - ALWAYS VISIBLE FOR DEBUGGING */}
-          {true && (
+          {/* Enhanced Citation Issues Button with Real-time Status */}
+          {(citationCount !== undefined || citationBusy || currentJob) && (
             <button
               type="button"
               onClick={(e) => { 
@@ -135,26 +144,47 @@ export function ViewModeSelector({
                 console.log('🔎 Citation button clicked! citationCount:', citationCount)
                 onOpenCitationPanel?.(); 
               }}
-              className="relative z-50 px-2.5 py-1 text-xs rounded border bg-white dark:bg-slate-700
-                         text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600
-                         hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer select-none"
-              title="View citation issues"
+              className={cn(
+                "relative z-50 px-2.5 py-1 text-xs rounded border select-none transition-colors",
+                citationCount && citationCount > 0
+                  ? "bg-red-50 text-red-700 border-red-300 hover:bg-red-100"
+                  : citationBusy || (currentJob && currentJob.status !== 'DONE')
+                  ? "bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100"
+                  : "bg-green-50 text-green-700 border-green-300 hover:bg-green-100"
+              )}
+              title={
+                citationBusy || (currentJob && currentJob.status !== 'DONE')
+                  ? `Citation check in progress: ${currentJob?.step || 'Processing'}...`
+                  : citationCount && citationCount > 0
+                  ? `${citationCount} citation issues found`
+                  : "No citation issues found"
+              }
             >
-              <AlertTriangle className="h-3 w-3 inline mr-1" />
-              Citation Issues (DEBUG)
-              {typeof citationCount === 'number' && citationCount > 0 && (
-                <span className="ml-1 inline-flex items-center justify-center text-[10px] 
-                                rounded-full px-1.5 py-0.5 bg-red-600 text-white">
-                  {citationCount}
-                </span>
-              )}
-              {citationBusy && (
-                <span className="ml-1 h-1.5 w-1.5 bg-orange-500 rounded-full animate-pulse inline-block" />
-              )}
+              <div className="flex items-center">
+                {citationBusy || (currentJob && currentJob.status !== 'DONE') ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                )}
+                <span>Citations</span>
+                {/* Issue Count Badge */}
+                {typeof citationCount === 'number' && citationCount > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center text-[10px] 
+                                  rounded-full px-1.5 py-0.5 bg-red-600 text-white">
+                    {citationCount}
+                  </span>
+                )}
+                {/* Progress Indicator */}
+                {currentJob && currentJob.status !== 'DONE' && currentJob.status !== 'ERROR' && (
+                  <span className="ml-1 text-[10px] text-blue-600">
+                    {currentJob.progressPct || 0}%
+                  </span>
+                )}
+              </div>
             </button>
           )}
 
-          {/* Run Citation Check Button - FOR DEBUGGING */}
+          {/* Enhanced Run Citation Check Button */}
           <button
             type="button"
             onClick={(e) => { 
@@ -164,14 +194,38 @@ export function ViewModeSelector({
               onRunCitationCheck?.(); 
             }}
             disabled={citationBusy}
-            className="relative z-50 px-2.5 py-1 text-xs rounded border bg-blue-50 dark:bg-blue-900
-                       text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600
-                       hover:bg-blue-100 dark:hover:bg-blue-800 cursor-pointer select-none
-                       disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Run citation check"
+            className={cn(
+              "relative z-50 px-2.5 py-1 text-xs rounded border select-none transition-colors",
+              "bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100",
+              "disabled:opacity-50 disabled:cursor-not-allowed"
+            )}
+            title={citationBusy ? "Citation check in progress..." : "Start citation analysis"}
           >
-            {citationBusy ? 'Running...' : 'Run Citation Check'}
+            <div className="flex items-center">
+              {citationBusy ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <AlertTriangle className="h-3 w-3 mr-1" />
+              )}
+              {citationBusy 
+                ? currentJob?.step || 'Analyzing...'
+                : 'Check Citations'
+              }
+            </div>
           </button>
+
+          {/* Web Check Toggle */}
+          {onRunWebCheckChange && (
+            <label className="inline-flex items-center gap-1.5 text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700">
+              <input 
+                type="checkbox" 
+                checked={runWebCheck} 
+                onChange={e => onRunWebCheckChange(e.target.checked)}
+                className="w-3 h-3"
+              />
+              <span>Include web check</span>
+            </label>
+          )}
         </div>
       </div>
 

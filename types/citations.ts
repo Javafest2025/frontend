@@ -61,15 +61,30 @@ export type CitationCheckStep =
   | 'DONE'
   | 'ERROR';
 
+export type CitationSummary = {
+  total: number;
+  byType: Record<CitationIssueType, number>;
+  contentHash?: string;
+  startedAt?: string;
+  finishedAt?: string;
+};
+
 export type CitationCheckJob = {
   jobId: string;
   status: 'QUEUED'|'RUNNING'|'DONE'|'ERROR';
   step: CitationCheckStep;
   progressPct: number;      // 0..100
-  summary?: { total: number; byType: Record<CitationIssueType, number> };
+  summary?: CitationSummary;
   issues?: CitationIssue[];
   errorMessage?: string;
 };
+
+export type CitationSseEvent =
+  | { type: 'status'; status: CitationCheckJob['status']; step: CitationCheckStep; progressPct: number }
+  | { type: 'tick'; message: string }
+  | { type: 'issue'; issue: CitationIssue }
+  | { type: 'summary'; summary: CitationSummary }
+  | { type: 'error'; message: string };
 
 // Request types
 export interface StartCitationCheckRequest {
@@ -80,6 +95,7 @@ export interface StartCitationCheckRequest {
   selectedPaperIds: string[];   // from PapersSelector context
   overwrite?: boolean;          // default true
   runWebCheck?: boolean;        // default true
+  contentHash?: string;         // NEW (frontend computes & transmits)
 }
 
 export interface StartCitationCheckResponse {

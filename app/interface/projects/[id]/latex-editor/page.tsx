@@ -37,7 +37,7 @@ import {
 import { cn } from "@/lib/utils/cn"
 import { useSettings } from "@/contexts/SettingsContext"
 import { projectsApi } from "@/lib/api/project-service"
-import { latexApi } from "@/lib/api/latex-service"
+import { latexApi, sha256Hex, startCitationCheck, streamCitationJob, getCitationResult, cancelCitationJob, startCitationCheckWithStreaming, pollCitationJob } from "@/lib/api/latex-service"
 import { AIChatPanel } from "@/components/latex/AIChatPanel"
 import { AIAssistancePanel } from "@/components/latex/AIAssistancePanel"
 import { LaTeXPDFViewer } from "@/components/latex/LaTeXPDFViewer"
@@ -46,7 +46,8 @@ import { EnhancedLatexEditor } from "@/components/latex/EnhancedLatexEditor"
 import { PapersSelector } from "@/components/latex/PapersSelector"
 import { CenterTabs } from "@/components/latex/CenterTabs"
 import { TabProviderWrapper } from "@/components/latex/TabProviderWrapper"
-import { CitationPanel } from "@/components/latex/CitationPanel"
+import { ViewModeSelector } from "@/components/latex/ViewModeSelector"
+import { CitationIssuesPanel } from "@/components/latex/CitationIssuesPanel"
 import type { OpenItem, TabViewState } from "@/types/tabs"
 import type { Paper } from "@/types/websearch"
 import type { CitationIssue, CitationCheckJob } from "@/types/citations"
@@ -146,11 +147,17 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [selectionAddedToChat, setSelectionAddedToChat] = useState(false)
 
   // Citation checking state
-  const [citationIssues, setCitationIssues] = useState<CitationIssue[]>([])
-  const [citationCount, setCitationCount] = useState(0)
   const [citationBusy, setCitationBusy] = useState(false)
   const [currentCitationJob, setCurrentCitationJob] = useState<CitationCheckJob | null>(null)
   const [showCitationPanel, setShowCitationPanel] = useState(false)
+  const [runWebCheck, setRunWebCheck] = useState(true)
+  const [citationTimeoutWarning, setCitationTimeoutWarning] = useState(false)
+  
+  // Enhanced citation state for content hash and SSE streaming
+  const [lastContentHash, setLastContentHash] = useState<string | null>(null)
+  const [contentHashStale, setContentHashStale] = useState(false)
+  const [contentHashDismissed, setContentHashDismissed] = useState(false)
+  const [sseConnection, setSseConnection] = useState<{ close: () => void } | null>(null)
 
   // Debug state changes
   useEffect(() => {
@@ -171,16 +178,12 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
 
   // Debug citation state changes
   useEffect(() => {
-    console.log('🔎 Citation State Change - citationCount:', citationCount)
-  }, [citationCount])
-
-  useEffect(() => {
-    console.log('🔎 Citation State Change - citationIssues:', citationIssues)
-  }, [citationIssues])
-
-  useEffect(() => {
     console.log('🔎 Citation State Change - citationBusy:', citationBusy)
   }, [citationBusy])
+
+  useEffect(() => {
+    console.log('🔎 Citation State Change - currentCitationJob:', currentCitationJob)
+  }, [currentCitationJob])
 
   useEffect(() => {
     console.log('🔎 Citation State Change - selectedPapers:', selectedPapers)
@@ -248,23 +251,20 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       if (currentDocument?.id && !citationBusy) {
         try {
           console.log('🔄 Loading existing citations for document:', currentDocument.id)
-          const citationResult = await latexApi.getCitationResult(currentDocument.id)
+          const citationResult = await getCitationResult(currentDocument.id)
           console.log('🔄 Existing citation result:', citationResult)
           
-          if (citationResult.issues && citationResult.issues.length > 0) {
-            console.log('🔄 Found existing citations:', citationResult.issues.length, 'issues')
-            setCitationIssues(citationResult.issues)
-            setCitationCount(citationResult.issues.length)
+          if (citationResult && citationResult.summary) {
+            console.log('🔄 Found existing citation job:', citationResult)
+            setCurrentCitationJob(citationResult)
           } else {
             console.log('🔄 No existing citations found')
-            setCitationIssues([])
-            setCitationCount(0)
+            setCurrentCitationJob(null)
           }
         } catch (error) {
-          console.log('🔄 No existing citations found (error):', error)
-          // If there's an error (e.g., no citations found), reset the state
-          setCitationIssues([])
-          setCitationCount(0)
+          console.log('🔄 Error loading citations:', error)
+          // If there's an error, reset the state
+          setCurrentCitationJob(null)
         }
       }
     }
@@ -295,6 +295,38 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  // Monitor content changes for stale citation detection (debounced)
+  useEffect(() => {
+    const checkContentHash = async () => {
+      if (editorContent && currentCitationJob?.summary?.contentHash) {
+        const currentHash = await sha256Hex(editorContent)
+        if (currentHash !== currentCitationJob.summary.contentHash) {
+          setContentHashStale(true)
+          setContentHashDismissed(false) // Reset dismissed state on new changes
+          console.log('🔶 Content hash mismatch - results are stale')
+        } else {
+          setContentHashStale(false)
+          setContentHashDismissed(false)
+        }
+      }
+    }
+    
+    // Debounce content hash checking to avoid excessive notifications during typing
+    const timeoutId = setTimeout(checkContentHash, 2000) // 2 second delay
+    return () => clearTimeout(timeoutId)
+  }, [editorContent, currentCitationJob?.summary?.contentHash])
+
+  // Cleanup SSE connection on unmount or document change
+  useEffect(() => {
+    return () => {
+      if (sseConnection) {
+        console.log('🔌 Closing SSE connection')
+        sseConnection.close()
+        setSseConnection(null)
+      }
+    }
+  }, [currentDocument?.id])
 
   // Listen for selection changes and clearing from the editor
   // But don't automatically set selectedText - only show Add to Chat button
@@ -787,7 +819,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }
 
   // Citation handlers
-  const handleRunCitationCheck = useCallback(async () => {
+  const handleRunCitationCheck = useCallback(async (forceRecheck = false) => {
     if (!currentDocument?.id || !projectId || citationBusy) {
       console.log('Citation check prevented:', { 
         hasDocument: !!currentDocument?.id, 
@@ -799,73 +831,146 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
 
     try {
       setCitationBusy(true)
-      console.log('🔎 Starting citation check for document:', currentDocument.id)
-      console.log('🔎 Selected papers for citation check:', selectedPapers)
-      console.log('🔎 Selected papers count:', selectedPapers?.length || 0)
-      console.log('🔎 Project ID:', projectId)
-      console.log('🔎 Content length:', editorContent.length)
+      const contentHash = await sha256Hex(editorContent)
 
-      // Ensure selectedPapers is an array to prevent map error
-      const safePapers = selectedPapers || []
-      console.log('🔎 Safe papers:', safePapers)
+      // 1) Try reuse-by-hash (only if not forcing recheck)
+      if (!forceRecheck) {
+        const latest = await getCitationResult(currentDocument.id).catch(() => null)
+        if (latest && latest.summary?.contentHash === contentHash && latest.status === 'DONE') {
+          setCurrentCitationJob(latest)
+          setShowCitationPanel(true)
+          setCitationBusy(false)
+          return
+        }
+      }
 
-      // Start the citation check job
-      const response = await latexApi.startCitationCheck({
-        projectId: projectId,
+      // 2) Clear previous issues/state and open panel immediately to show progress
+      setCurrentCitationJob(null)    
+      setShowCitationPanel(true)     
+
+      // Close any existing SSE connection
+      if (sseConnection) {
+        sseConnection.close()
+        setSseConnection(null)
+      }
+
+      // 3) Start job with streaming
+      const { jobId } = await startCitationCheck({
+        projectId,
         documentId: currentDocument.id,
-        texFileName: currentDocument.title,
+        texFileName: currentDocument.title ?? 'main.tex',
         latexContent: editorContent,
-        selectedPaperIds: safePapers.map(paper => paper.id),
-        overwrite: true,
-        runWebCheck: true
+        selectedPaperIds: (selectedPapers ?? []).map(p => p.id),
+        overwrite: forceRecheck,      // Use forceRecheck parameter for cache override
+        runWebCheck,                  // reflects UI toggle
+        contentHash
       })
 
-      console.log('🔎 Citation check response:', response)
-
-      setCurrentCitationJob({
-        jobId: response.jobId,
-        status: 'QUEUED',
-        step: 'PARSING',
-        progressPct: 0
-      })
-
-      // Poll for job completion
-      const pollInterval = setInterval(async () => {
+      // 4) Stream progress with enhanced error handling and timeout
+      let timeoutId: NodeJS.Timeout | null = null;
+      
+      // Helper function for polling fallback
+      const startPollingFallback = async (jobId: string) => {
         try {
-          const jobStatus = await latexApi.getCitationJob(response.jobId)
-          console.log('🔎 Citation job status:', jobStatus)
-          setCurrentCitationJob(jobStatus)
-          
-          if (jobStatus.status === 'DONE') {
-            clearInterval(pollInterval)
-            console.log('🔎 Citation check COMPLETED - setting issues:', jobStatus.issues)
-            setCitationIssues(jobStatus.issues || [])
-            setCitationCount(jobStatus.issues?.length || 0)
-            setCitationBusy(false)
-            console.log('🔎 Citation check completed:', jobStatus.issues?.length, 'issues found')
-            console.log('🔎 Citation issues set to:', jobStatus.issues)
-          } else if (jobStatus.status === 'ERROR') {
-            clearInterval(pollInterval)
-            setCitationBusy(false)
-            console.error('Citation check failed:', jobStatus.errorMessage)
-          }
-        } catch (error) {
-          console.error('Error polling citation job:', error)
-          clearInterval(pollInterval)
+          console.log('🔄 Starting polling fallback for job:', jobId)
+          await pollCitationJob(jobId, (snap: CitationCheckJob) => {
+            console.log('📊 Polling update:', snap.status, snap.step)
+            setCurrentCitationJob(snap)
+            
+            // Complete when done
+            if (snap.status === 'DONE' || snap.status === 'ERROR') {
+              setCitationBusy(false)
+              console.log('✅ Polling completed with status:', snap.status)
+            }
+          })
+        } catch (pollErr) {
+          console.error('❌ Polling fallback failed:', pollErr)
           setCitationBusy(false)
         }
-      }, 2000) // Poll every 2 seconds
+      };
+      
+      const stream = streamCitationJob(jobId, {
+        onStatus: (s) => {
+          setCurrentCitationJob(j => ({ ...(j ?? {} as any), jobId, ...s }))
+          setCitationTimeoutWarning(false); // Reset warning on progress
+          // Reset timeout on each status update
+          if (timeoutId) clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            console.warn('⏰ Citation check timeout - switching to polling fallback');
+            setCitationTimeoutWarning(true);
+            setSseConnection(null);
+            if (stream) stream.close();
+            startPollingFallback(jobId);
+          }, 30000); // 30 second timeout
+        },
+        onIssue:  (issue) => setCurrentCitationJob(j => ({ ...(j ?? {} as any), jobId, issues: [ ...(j?.issues ?? []), issue ] })),
+        onSummary:(summary) => {
+          if (timeoutId) clearTimeout(timeoutId);
+          setCitationTimeoutWarning(false);
+          setCurrentCitationJob(j => ({ ...(j ?? {} as any), jobId, summary }))
+          setCitationBusy(false)
+          if (stream) stream.close()
+          setSseConnection(null)
+          console.log('✅ Citation check completed via summary event')
+        },
+        onComplete: () => {
+          if (timeoutId) clearTimeout(timeoutId);
+          setCitationTimeoutWarning(false);
+          console.log('🔌 SSE completion event received - fetching final results');
+          // Fetch final results when completion event is received
+          getCitationResult(currentDocument.id).then(result => {
+            if (result) {
+              setCurrentCitationJob(result);
+            }
+            setCitationBusy(false);
+            if (stream) stream.close();
+            setSseConnection(null);
+            console.log('✅ Citation check completed via completion event');
+          }).catch(err => {
+            console.error('Failed to fetch final results:', err);
+            setCitationBusy(false);
+          });
+        },
+        onError: async (error) => {
+          if (timeoutId) clearTimeout(timeoutId);
+          console.error('🔌 SSE Stream error occurred, switching to polling fallback:', error)
+          setSseConnection(null)
+          startPollingFallback(jobId);
+        },
+      })
 
-    } catch (error) {
-      console.error('Failed to start citation check:', error)
+      setSseConnection(stream)
+
+    } catch (e) {
+      console.error('Failed to start citation check:', e)
       setCitationBusy(false)
     }
-  }, [currentDocument?.id, projectId, editorContent, selectedPapers, citationBusy])
+  }, [currentDocument?.id, projectId, editorContent, selectedPapers, runWebCheck, citationBusy])
 
-  const handleOpenCitationPanel = useCallback(() => {
+  // Forced recheck handler for the citation panel
+  const handleForcedRecheck = useCallback(() => {
+    console.log('🔄 Forced recheck triggered from citation panel')
+    return handleRunCitationCheck(true) // Force overwrite existing results
+  }, [handleRunCitationCheck])
+
+  const handleOpenCitationPanel = useCallback(async () => {
+    if (!currentDocument) return
+    
+    // If no current job, try to get latest result
+    if (!currentCitationJob) {
+      try {
+        const latest = await getCitationResult(currentDocument.id)
+        if (latest) {
+          setCurrentCitationJob(latest)
+        }
+      } catch (error) {
+        console.log('No previous citation results found:', error)
+      }
+    }
+    
     setShowCitationPanel(true)
-    console.log('Opening citation panel with', citationIssues.length, 'issues')
-  }, [citationIssues.length])
+    console.log('Opening citation panel with current job:', currentCitationJob)
+  }, [currentDocument, currentCitationJob])
 
   const handleNavigateToIssue = useCallback((issue: CitationIssue) => {
     // Navigate to the line where the citation issue is
@@ -1805,6 +1910,24 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             <Button 
               variant="outline" 
               size="sm"
+              onClick={handleRunCitationCheck}
+              disabled={citationBusy || !currentDocument}
+            >
+              <RefreshCw className={cn("h-4 w-4 mr-2", citationBusy && "animate-spin")} />
+              {citationBusy ? 'Checking...' : 'Check Citations'}
+            </Button>
+            <label className="inline-flex items-center gap-2 text-xs px-2 py-1 border rounded">
+              <input 
+                type="checkbox" 
+                checked={runWebCheck} 
+                onChange={e => setRunWebCheck(e.target.checked)}
+                className="w-3 h-3"
+              />
+              Include web check
+            </label>
+            <Button 
+              variant="outline" 
+              size="sm"
               onClick={handleDownloadPDF}
               disabled={!pdfPreviewUrl || isCompiling}
             >
@@ -2106,10 +2229,11 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   onPDFSelectionToChat={handlePDFSelectionToChat}
                   onOpenPaperReady={(fn) => setHandleOpenPaper(() => fn)}
                   onTabDocumentLoad={handleDocumentSwitchById}
-                  citationCount={citationCount}
+                  citationCount={currentCitationJob?.summary?.total ?? 0}
                   onOpenCitationPanel={handleOpenCitationPanel}
                   onRunCitationCheck={handleRunCitationCheck}
                   citationBusy={citationBusy}
+                  currentJob={currentCitationJob}
                   />
                 </div>
                 {/* Bottom version/footer bar that keeps editor above it */}
@@ -2381,12 +2505,52 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Citation Panel */}
-      <CitationPanel
+      {/* Stale Content Banner - Only show if not dismissed */}
+      {contentHashStale && currentCitationJob?.summary && !contentHashDismissed && (
+        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 bg-amber-50 border border-amber-200 rounded-lg p-4 shadow-lg max-w-md">
+          <div className="flex items-center space-x-3">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-amber-800">Content has changed</h3>
+              <p className="text-sm text-amber-700">Citation results may be outdated. Re-run check for accuracy.</p>
+            </div>
+            <div className="flex-shrink-0 flex items-center space-x-2">
+              <button
+                onClick={handleRunCitationCheck}
+                disabled={citationBusy}
+                className="text-sm bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-1 rounded font-medium disabled:opacity-50"
+              >
+                {citationBusy ? 'Checking...' : 'Re-check'}
+              </button>
+              <button
+                onClick={() => setContentHashDismissed(true)}
+                className="text-amber-600 hover:text-amber-800 p-1"
+                title="Dismiss notification"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Citation Issues Panel */}
+      <CitationIssuesPanel
+        job={currentCitationJob}
         open={showCitationPanel}
         onOpenChange={setShowCitationPanel}
-        issues={citationIssues}
-        onNavigateToIssue={handleNavigateToIssue}
+        onJumpToRange={(from, to) => {
+          setCursorPosition(from)
+          setShowCitationPanel(false)
+        }}
+        onRecheck={handleForcedRecheck}
+        timeoutWarning={citationTimeoutWarning}
       />
     </div>
   )

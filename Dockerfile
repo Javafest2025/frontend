@@ -25,8 +25,8 @@ ENV NEXT_TELEMETRY_DISABLED 1
 ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=923685198285-bcuenjqssub489v92n9m3fgmeo1qv19f.apps.googleusercontent.com
 ENV NEXT_PUBLIC_GITHUB_CLIENT_ID=Ov23lib9rnCavmUN37Qf
 ENV NEXT_PUBLIC_ENV=docker
-ENV NEXT_PUBLIC_API_URL=http://localhost:8989
-ENV NEXT_PUBLIC_DOCKER_BACKEND_URL=http://localhost:8989
+ENV NEXT_PUBLIC_API_URL=http://localhost/api
+ENV NEXT_PUBLIC_DOCKER_BACKEND_URL=http://localhost/api
 
 # Build the application
 RUN npm run build
@@ -65,8 +65,8 @@ EXPOSE 3000
 # Set environment variables
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
-ENV NEXT_PUBLIC_API_URL=http://localhost:8989
-ENV NEXT_PUBLIC_DOCKER_BACKEND_URL=http://localhost:8989
+ENV NEXT_PUBLIC_API_URL=http://localhost/api
+ENV NEXT_PUBLIC_DOCKER_BACKEND_URL=http://localhost/api
 ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=923685198285-bcuenjqssub489v92n9m3fgmeo1qv19f.apps.googleusercontent.com
 ENV NEXT_PUBLIC_GITHUB_CLIENT_ID=Ov23lib9rnCavmUN37Qf
 ENV NEXT_PUBLIC_ENV=docker

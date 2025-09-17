@@ -91,6 +91,7 @@ interface TabProviderWrapperProps {
   onOpenCitationPanel?: () => void;
   onRunCitationCheck?: () => void;
   citationBusy?: boolean;
+  currentJob?: any; // CitationCheckJob type
   highlightedRanges?: Array<{ from: number; to: number; className: string }>;
 }
 
@@ -134,6 +135,7 @@ function TabProviderContent({
   onOpenCitationPanel,
   onRunCitationCheck,
   citationBusy,
+  currentJob,
   highlightedRanges
 }: TabProviderWrapperProps) {
   const { openItem, openItems } = useTabContext();
@@ -233,6 +235,7 @@ function TabProviderContent({
       onOpenCitationPanel={onOpenCitationPanel}
       onRunCitationCheck={onRunCitationCheck}
       citationBusy={citationBusy}
+      currentJob={currentJob}
       highlightedRanges={highlightedRanges}
     />
     </>

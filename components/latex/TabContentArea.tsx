@@ -8,6 +8,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { FileText, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OpenItem, TabViewState } from '@/types/tabs';
+import type { CitationCheckJob } from '@/types/citations';
 
 interface TabContentAreaProps {
   // Editor-related props
@@ -81,6 +82,7 @@ interface TabContentAreaProps {
   onOpenCitationPanel?: () => void;
   onRunCitationCheck?: () => void;
   citationBusy?: boolean;
+  currentJob?: CitationCheckJob | null; // Real-time job status
   highlightedRanges?: Array<{ from: number; to: number; className: string }>;
 }
 
@@ -122,6 +124,7 @@ export function TabContentArea({
   onOpenCitationPanel,
   onRunCitationCheck,
   citationBusy,
+  currentJob,
   highlightedRanges
 }: TabContentAreaProps) {
   const {
@@ -405,6 +408,7 @@ export function TabContentArea({
           onOpenCitationPanel={onOpenCitationPanel}
           onRunCitationCheck={onRunCitationCheck}
           citationBusy={citationBusy}
+          currentJob={currentJob}
           className="flex-shrink-0"
         />
       )}
