@@ -582,8 +582,8 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                                                 return (
                                                                     <button
                                                                         onClick={() => {
-                                                                            // Navigate to paper details page
-                                                                            window.open(`/interface/projects/${projectId}/library?paper=${href}`, '_blank')
+                                                                            // Navigate to library page with paper highlight
+                                                                            window.open(`/interface/projects/${projectId}/library?highlight=${href}`, '_blank')
                                                                         }}
                                                                         className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-400 bg-blue-400/10 border border-blue-400/20 rounded-md hover:bg-blue-400/20 hover:border-blue-400/30 transition-colors"
                                                                         {...props}

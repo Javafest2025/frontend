@@ -37,6 +37,8 @@ interface StreamingPaperCardProps {
     isFavorited?: boolean
     isLoading?: boolean
     streamDelay?: number
+    isHighlighted?: boolean
+    onHighlightClick?: () => void
 }
 
 export function StreamingPaperCard({
@@ -47,8 +49,11 @@ export function StreamingPaperCard({
     onToggleFavorite,
     isFavorited = false,
     isLoading = false,
-    streamDelay = 0
+    streamDelay = 0,
+    isHighlighted = false,
+    onHighlightClick
 }: StreamingPaperCardProps) {
+    console.log('📄 StreamingPaperCard rendered for paper:', paper?.id, 'isHighlighted:', isHighlighted)
     const [isVisible, setIsVisible] = useState(false)
     const [isContentLoaded, setIsContentLoaded] = useState(false)
     const [isMetadataLoaded, setIsMetadataLoaded] = useState(false)
@@ -193,12 +198,58 @@ export function StreamingPaperCard({
         >
             <Card
                 className={cn(
-                    "bg-background/40 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-primary/10 relative overflow-hidden group h-48",
+                    "bg-background/40 backdrop-blur-xl border-2 transition-all duration-500 cursor-pointer hover:shadow-lg relative overflow-hidden group h-48",
+                    isHighlighted
+                        ? "border-amber-400/80 bg-gradient-to-br from-amber-50/20 to-yellow-50/20 shadow-amber-400/30"
+                        : "border-primary/20 hover:border-primary/40 hover:shadow-primary/10",
                     !isContentLoaded && "opacity-60",
                     isContentLoaded && "opacity-100"
                 )}
-                onClick={handleCardClick}
+                style={{
+                    boxShadow: isHighlighted
+                        ? '0 0 40px hsl(45 93% 47% / 0.4), 0 0 80px hsl(45 93% 47% / 0.2), inset 0 0 20px hsl(45 93% 47% / 0.1)'
+                        : undefined
+                }}
+                onClick={() => {
+                    if (isHighlighted && onHighlightClick) {
+                        onHighlightClick()
+                    }
+                    handleCardClick()
+                }}
             >
+                {/* Elegant animated border for highlighted cards */}
+                {isHighlighted && (
+                    <motion.div
+                        className="absolute inset-0 rounded-lg"
+                        style={{
+                            background: 'linear-gradient(45deg, transparent, hsl(45 93% 47% / 0.3), transparent, hsl(45 93% 47% / 0.3), transparent)',
+                            backgroundSize: '200% 200%',
+                        }}
+                        animate={{
+                            backgroundPosition: ['0% 0%', '200% 200%']
+                        }}
+                        transition={{
+                            duration: 3,
+                            repeat: Infinity,
+                            ease: 'linear'
+                        }}
+                    />
+                )}
+
+                {/* Subtle inner glow for highlighted cards */}
+                {isHighlighted && (
+                    <motion.div
+                        className="absolute inset-1 rounded-lg bg-gradient-to-br from-amber-400/5 to-yellow-400/5"
+                        animate={{
+                            opacity: [0.3, 0.6, 0.3]
+                        }}
+                        transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            ease: 'easeInOut'
+                        }}
+                    />
+                )}
 
 
                 {/* Shimmer effect - only on hover */}
