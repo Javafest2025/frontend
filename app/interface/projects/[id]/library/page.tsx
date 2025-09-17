@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -64,6 +65,7 @@ interface ProjectLibraryPageProps {
 }
 
 export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) {
+    const searchParams = useSearchParams()
     const [projectId, setProjectId] = useState<string>("")
     const [allPapers, setAllPapers] = useState<Paper[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -84,6 +86,24 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
     const [libraryError, setLibraryError] = useState<string | null>(null)
     const [favoritePapers, setFavoritePapers] = useState<Set<string>>(new Set())
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
+    const [highlightedPaperId, setHighlightedPaperId] = useState<string | null>(null)
+
+    // Debug log for highlightedPaperId changes
+    useEffect(() => {
+        console.log('🔄 highlightedPaperId state changed to:', highlightedPaperId)
+    }, [highlightedPaperId])
+
+    // Handle URL highlight parameter
+    useEffect(() => {
+        const highlightParam = searchParams.get('highlight')
+        console.log('🔍 Highlight parameter from URL:', highlightParam)
+        if (highlightParam && isValidUUID(highlightParam)) {
+            console.log('✅ Setting highlighted paper ID:', highlightParam)
+            setHighlightedPaperId(highlightParam)
+        } else {
+            console.log('❌ Invalid or missing highlight parameter')
+        }
+    }, [searchParams])
 
     // Load project ID and papers
     useEffect(() => {
@@ -544,32 +564,48 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                         {viewMode === 'grid' ? (
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6">
                                                 <AnimatePresence mode="popLayout">
-                                                    {filteredAndSortedPapers.map((paper, index) => (
-                                                        <StreamingPaperCard
-                                                            key={`${paper.id}-${sortBy}-${sortDirection}`}
-                                                            paper={paper}
-                                                            index={index}
-                                                            onSelect={handlePaperSelect}
-                                                            onViewPdf={handleViewPdf}
-                                                            streamDelay={0}
-                                                        />
-                                                    ))}
+                                                    {filteredAndSortedPapers.map((paper, index) => {
+                                                        const isHighlighted = highlightedPaperId === paper.id
+                                                        if (isHighlighted) {
+                                                            console.log('🎯 Found highlighted paper in grid:', paper.id, 'highlightedPaperId:', highlightedPaperId)
+                                                        }
+                                                        return (
+                                                            <StreamingPaperCard
+                                                                key={`${paper.id}-${sortBy}-${sortDirection}`}
+                                                                paper={paper}
+                                                                index={index}
+                                                                onSelect={handlePaperSelect}
+                                                                onViewPdf={handleViewPdf}
+                                                                isHighlighted={isHighlighted}
+                                                                onHighlightClick={() => setHighlightedPaperId(null)}
+                                                                streamDelay={0}
+                                                            />
+                                                        )
+                                                    })}
                                                 </AnimatePresence>
                                             </div>
                                         ) : (
                                             <div className="space-y-3 pb-6">
                                                 <AnimatePresence mode="popLayout">
-                                                    {filteredAndSortedPapers.map((paper, index) => (
-                                                        <PaperCard
-                                                            key={`${paper.id}-${sortBy}-${sortDirection}`}
-                                                            paper={paper}
-                                                            index={index}
-                                                            onSelect={handlePaperSelect}
-                                                            onViewPdf={handleViewPdf}
-                                                            onToggleFavorite={handleToggleFavorite}
-                                                            isFavorited={favoritePapers.has(paper.id)}
-                                                        />
-                                                    ))}
+                                                    {filteredAndSortedPapers.map((paper, index) => {
+                                                        const isHighlighted = highlightedPaperId === paper.id
+                                                        if (isHighlighted) {
+                                                            console.log('🎯 Found highlighted paper in list:', paper.id, 'highlightedPaperId:', highlightedPaperId)
+                                                        }
+                                                        return (
+                                                            <PaperCard
+                                                                key={`${paper.id}-${sortBy}-${sortDirection}`}
+                                                                paper={paper}
+                                                                index={index}
+                                                                onSelect={handlePaperSelect}
+                                                                onViewPdf={handleViewPdf}
+                                                                isHighlighted={isHighlighted}
+                                                                onHighlightClick={() => setHighlightedPaperId(null)}
+                                                                onToggleFavorite={handleToggleFavorite}
+                                                                isFavorited={favoritePapers.has(paper.id)}
+                                                            />
+                                                        )
+                                                    })}
                                                 </AnimatePresence>
                                             </div>
                                         )}

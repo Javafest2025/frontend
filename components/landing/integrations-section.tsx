@@ -1,23 +1,19 @@
 "use client"
 
-import { motion } from "framer-motion"
-import { useInView } from "framer-motion"
+import { motion, useInView } from "framer-motion"
 import { useRef } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
     Globe,
     Database,
-    BookOpen,
     FileText,
     Sparkles,
     Link,
     Zap,
     Shield,
-    ArrowUpRight,
     Search,
     Microscope,
-    GraduationCap,
     Brain,
     Network,
     Cpu,
@@ -322,52 +318,6 @@ export function IntegrationsSection() {
                     })}
                 </motion.div>
 
-                {/* API Access Section */}
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-                    transition={{ duration: 0.8, delay: 1.6 }}
-                    className="text-center"
-                >
-                    <Card className="max-w-4xl mx-auto border-primary/30 bg-gradient-to-br from-background/20 to-muted/10 overflow-hidden backdrop-blur-md">
-                        <CardContent className="p-8">
-                            <div className="flex items-center justify-center mb-6">
-                                <div className="p-4 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/30">
-                                    <ArrowUpRight className="h-8 w-8 text-primary" />
-                                </div>
-                            </div>
-
-                            <h3 className="text-2xl font-bold text-foreground mb-4">
-                                Enterprise API Access
-                            </h3>
-
-                            <p className="text-muted-foreground mb-6 leading-relaxed max-w-2xl mx-auto">
-                                Need custom integrations or higher rate limits? Our Enterprise API provides
-                                programmatic access to all data sources with advanced filtering,
-                                bulk operations, and priority support.
-                            </p>
-
-                            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                                <motion.a
-                                    href="#"
-                                    whileHover={{ scale: 1.05 }}
-                                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-primary to-purple-600 text-white rounded-lg font-medium hover:from-primary/90 hover:to-purple-700 transition-all duration-300 shadow-lg shadow-primary/25"
-                                >
-                                    View API Documentation
-                                    <ArrowUpRight className="ml-2 h-4 w-4" />
-                                </motion.a>
-
-                                <motion.a
-                                    href="#"
-                                    whileHover={{ scale: 1.05 }}
-                                    className="inline-flex items-center px-6 py-3 border border-primary/30 text-primary rounded-lg font-medium hover:bg-primary/5 transition-all duration-300"
-                                >
-                                    Contact Sales
-                                </motion.a>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </motion.div>
             </div>
         </section>
     )

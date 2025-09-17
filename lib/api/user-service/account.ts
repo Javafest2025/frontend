@@ -80,12 +80,47 @@ export const accountApi = {
         try {
             console.log("📤 Sending account update data:", accountData);
 
+            // Process data for backend compatibility
+            const processedData = { ...accountData };
+
+            // Convert dateOfBirth from YYYY-MM-DD to ISO string for backend
+            if (processedData.dateOfBirth && processedData.dateOfBirth.trim() !== "") {
+                try {
+                    // Parse the YYYY-MM-DD date and convert to ISO string
+                    const date = new Date(processedData.dateOfBirth + 'T00:00:00.000Z');
+                    processedData.dateOfBirth = date.toISOString();
+                    console.log("📅 Converted dateOfBirth:", processedData.dateOfBirth);
+                } catch (error) {
+                    console.error("❌ Error converting dateOfBirth:", error);
+                    // Remove invalid date to avoid backend validation errors
+                    delete processedData.dateOfBirth;
+                }
+            }
+
+            // Remove empty string values for URL fields to avoid validation errors
+            const urlFields = ['googleScholarUrl', 'personalWebsiteUrl', 'linkedInUrl', 'twitterUrl', 'avatarUrl'];
+            urlFields.forEach(field => {
+                if (processedData[field as keyof typeof processedData] === '') {
+                    delete processedData[field as keyof typeof processedData];
+                }
+            });
+
+            // Remove empty string values for other fields that might cause validation issues
+            const otherFields = ['phoneNumber', 'orcidId'];
+            otherFields.forEach(field => {
+                if (processedData[field as keyof typeof processedData] === '') {
+                    delete processedData[field as keyof typeof processedData];
+                }
+            });
+
+            console.log("📤 Processed data for backend:", processedData);
+
             const response = await authenticatedFetch(getMicroserviceUrl("user-service", "/api/v1/profile"), {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify(accountData)
+                body: JSON.stringify(processedData)
             })
 
             console.log("📊 Update response status:", response.status, response.statusText);

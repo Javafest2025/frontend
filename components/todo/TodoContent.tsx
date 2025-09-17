@@ -181,7 +181,7 @@ export function TodoContent() {
   const handleRefresh = async () => {
     try {
       setIsRefreshing(true)
-      
+
       // Load todos and summary from API
       const [todosResult, summaryResult] = await Promise.all([
         todosApi.getTodos(filters, sort),
@@ -834,7 +834,7 @@ export function TodoContent() {
                                 onValueChange={(value: Todo['status']) => handleStatusUpdate(todo.id, value)}
                               >
                                 <SelectTrigger className={cn(
-                                  "h-7 w-[130px] transition-all duration-200",
+                                  "h-7 w-[140px] transition-all duration-200 whitespace-nowrap",
                                   status.color.replace('text-', 'border-').replace('-500', '-500/30'),
                                   "hover:bg-background/50"
                                 )}>

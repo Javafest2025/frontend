@@ -170,7 +170,7 @@ export function AccountContent() {
           // Account fetch returned null, which means authentication failed
           console.log("🔄 Authentication failed, redirecting to login");
           // Redirect to login page
-          window.location.href = '/auth/login';
+          window.location.href = '/login';
           return;
         }
 
@@ -258,7 +258,7 @@ export function AccountContent() {
 
       const result = await accountApi.updateAccount(updateData)
 
-      if (result && result.success) {
+      if (result?.success) {
         setAccountData(result.data || null)
 
         // Update form with new data to reflect any server-side changes
@@ -360,165 +360,129 @@ export function AccountContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90 relative overflow-hidden">
-      {/* Enhanced Animated Background Effects */}
-      <div className="absolute inset-0 overflow-hidden">
-        {/* Gradient Orbs */}
-        <div className="absolute top-0 -left-4 w-96 h-96 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
-        <div className="absolute top-0 -right-4 w-96 h-96 bg-gradient-to-r from-accent/20 to-primary/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-96 h-96 bg-gradient-to-r from-primary/15 to-accent/15 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 relative overflow-hidden">
+      {/* Consistent Background Effects */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-primary/10 via-purple-500/5 to-transparent rounded-full blur-3xl" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-blue-500/10 via-purple-500/5 to-transparent rounded-full blur-3xl" />
 
-        {/* Grid Pattern */}
-        <div className="absolute inset-0 bg-[linear-gradient(hsl(var(--muted-foreground)/0.1)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--muted-foreground)/0.1)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
-
-        {/* Floating Particles */}
-        <div className="absolute inset-0">
-          {Array.from({ length: 20 }, (_, i) => (
-            <div
-              key={`particle-${i}`}
-              className="absolute w-1 h-1 bg-gradient-to-r from-primary/60 to-accent/60 rounded-full opacity-60 animate-ping"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 5}s`,
-                animationDuration: `${2 + Math.random() * 3}s`
-              }}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Hero Profile Header */}
-      <div className="relative z-10">
+      {/* Page Header */}
+      <div className="relative z-10 container mx-auto px-6 py-4">
         <motion.div
-          initial={{ opacity: 0, y: -50 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative h-80 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 backdrop-blur-sm border-b border-border"
+          transition={{ duration: 0.6 }}
+          className="mb-6"
         >
-          {/* Header Background Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-background/20 via-transparent to-background/20"></div>
-
-          {/* Profile Content */}
-          <div className="relative z-10 container mx-auto px-6 h-full flex items-end pb-8">
-            <div className="flex items-end gap-6 w-full">
-              {/* Profile Picture - Floating Style */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8, y: 50 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-                className="relative group"
-              >
-                <div className="relative">
-                  {/* Glowing Ring */}
-                  <div className="absolute -inset-2 bg-gradient-to-r from-primary via-accent to-primary rounded-full opacity-75 group-hover:opacity-100 blur-lg transition-all duration-300 shadow-lg hover:shadow-xl"></div>
-
-                  {/* Profile Picture */}
-                  <Avatar className="relative h-40 w-40 border-4 border-border shadow-2xl ring-4 ring-primary/10 backdrop-blur-sm">
-                    <AvatarImage
-                      src={accountData?.avatarUrl || ""}
-                      alt="Profile picture"
-                      className="object-cover"
-                    />
-                    <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20 text-4xl font-bold text-primary-foreground backdrop-blur-sm">
-                      <GraduationCap className="h-16 w-16 text-primary-foreground" />
-                    </AvatarFallback>
-                  </Avatar>
-
-                  {/* Upload Button */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gradient-primary flex items-center gap-2">
+                <User className="h-6 w-6 text-primary" />
+                Account
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Manage your profile and account settings
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {!isEditMode ? (
+                <Button
+                  onClick={() => setIsEditMode(true)}
+                  className="bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-primary/10 hover:border-primary/50 text-foreground font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+                >
+                  <Edit3 className="mr-2 h-4 w-4" />
+                  Edit Profile
+                </Button>
+              ) : (
+                <div className="flex gap-2">
                   <Button
-                    size="sm"
-                    className="absolute -bottom-2 -right-2 h-12 w-12 rounded-full p-0 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-xl border-2 border-border backdrop-blur-sm group-hover:scale-110 transition-all duration-300 shadow-lg hover:shadow-xl"
-                    onClick={() => {
-                      console.log("Camera button clicked")
-                      const avatarUploader = document.querySelector('.avatar-uploader-input') as HTMLInputElement
-                      console.log("Found avatar uploader input:", avatarUploader)
-                      if (avatarUploader) {
-                        avatarUploader.click()
-                        console.log("Clicked avatar uploader input")
-                      } else {
-                        console.error("Avatar uploader input not found")
-                      }
-                    }}
-                    disabled={isUploadingImage}
+                    variant="outline"
+                    onClick={handleCancelEdit}
+                    className="bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-background/50 hover:border-primary/50 hover:scale-105 transition-all duration-300"
                   >
-                    {isUploadingImage ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Camera className="h-5 w-5" />
-                    )}
+                    Cancel
                   </Button>
-
-
+                  <Button
+                    onClick={handleSubmit(onSubmit)}
+                    className="bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-primary/10 hover:border-primary/50 text-foreground font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
+                  </Button>
                 </div>
-              </motion.div>
-
-              {/* Profile Info */}
-              <motion.div
-                initial={{ opacity: 0, x: -30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-                className="flex-1 text-foreground"
-              >
-                <h1 className="text-5xl font-bold bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent mb-2">
-                  {accountData?.fullName || "Your Name"}
-                </h1>
-                <p className="text-xl text-primary flex items-center gap-2 mb-2">
-                  <Mail className="h-5 w-5" />
-                  {accountData?.email || userData?.email || "your.email@example.com"}
-                </p>
-                <p className="text-lg text-foreground/90 flex items-center gap-2">
-                  <Building className="h-5 w-5" />
-                  {accountData?.affiliation || "Add your affiliation"}
-                </p>
-              </motion.div>
-
-              {/* Action Buttons */}
-              <motion.div
-                initial={{ opacity: 0, x: 30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 0.6 }}
-                className="flex flex-col gap-3"
-              >
-                {!isEditMode ? (
-                  <Button
-                    onClick={() => setIsEditMode(true)}
-                    className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-2xl hover:shadow-3xl transition-all duration-300 shadow-lg hover:shadow-xl border border-border backdrop-blur-sm px-8 py-3 text-lg"
-                  >
-                    <Edit3 className="mr-2 h-5 w-5" />
-                    Edit Profile
-                  </Button>
-                ) : (
-                  <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      onClick={handleCancelEdit}
-                      className="bg-background/20 border-border text-foreground hover:bg-background/30 backdrop-blur-sm"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSubmit(onSubmit)}
-                      className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-2xl hover:shadow-3xl transition-all duration-300 shadow-lg hover:shadow-xl"
-                    >
-                      <Save className="mr-2 h-5 w-5" />
-                      Save Changes
-                    </Button>
-                  </div>
-                )}
-              </motion.div>
+              )}
             </div>
           </div>
+        </motion.div>
+
+        {/* Profile Summary Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="mb-6"
+        >
+          <Card className="bg-background/40 backdrop-blur-xl border-2 border-primary/25 p-6 hover:bg-background/50 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300">
+            <div className="flex items-center gap-6">
+              {/* Profile Picture */}
+              <div className="relative group">
+                <Avatar className="h-24 w-24 border-2 border-primary/30 shadow-lg hover:border-primary/60 hover:shadow-xl hover:shadow-primary/20 hover:scale-105 transition-all duration-300 cursor-pointer">
+                  <AvatarImage
+                    src={accountData?.avatarUrl || ""}
+                    alt="Profile picture"
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20 text-2xl font-bold text-primary-foreground">
+                    <GraduationCap className="h-8 w-8 text-primary-foreground" />
+                  </AvatarFallback>
+                </Avatar>
+                {/* Upload Button */}
+                <Button
+                  size="sm"
+                  className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full p-0 bg-primary hover:bg-primary/90 hover:scale-110 hover:shadow-xl hover:shadow-primary/30 shadow-lg border-2 border-background transition-all duration-300"
+                  onClick={() => {
+                    console.log("Camera button clicked")
+                    const avatarUploader = document.querySelector('.avatar-uploader-input') as HTMLInputElement
+                    if (avatarUploader) {
+                      avatarUploader.click()
+                    }
+                  }}
+                  disabled={isUploadingImage}
+                >
+                  {isUploadingImage ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+
+              {/* Profile Info */}
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-foreground mb-1">
+                  {accountData?.fullName || "Your Name"}
+                </h2>
+                <p className="text-primary flex items-center gap-2 mb-1">
+                  <Mail className="h-4 w-4" />
+                  {accountData?.email || userData?.email || "your.email@example.com"}
+                </p>
+                <p className="text-foreground/80 flex items-center gap-2">
+                  <Building className="h-4 w-4" />
+                  {accountData?.affiliation || "Add your affiliation"}
+                </p>
+              </div>
+            </div>
+          </Card>
         </motion.div>
       </div>
 
       {/* Main Content Area */}
-      <main className="relative z-10 container mx-auto p-6 pt-8">
+      <main className="relative z-10 container mx-auto px-6 pb-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="w-full space-y-6"
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="w-full space-y-4"
         >
           {/* AvatarUploader for camera button access */}
           <div className="fixed inset-0 z-50 hidden" id="avatar-uploader-container">
@@ -535,25 +499,23 @@ export function AccountContent() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="relative group"
             >
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/50 to-accent/50 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
-              <Card className="relative bg-card/40 backdrop-blur-xl border border-border shadow-2xl overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border">
-                  <CardTitle className="flex items-center gap-2 text-card-foreground">
+              <Card className="bg-background/40 backdrop-blur-xl border-2 border-primary/25 p-4 hover:bg-background/50 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
                     <BookOpen className="h-5 w-5 text-primary" />
                     About
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-6">
+                <CardContent>
                   {isEditMode ? (
                     <Textarea
                       {...register("bio")}
                       placeholder="Tell us about yourself..."
-                      className="min-h-[100px] bg-background/50 border border-border focus:border-primary text-foreground placeholder:text-muted-foreground backdrop-blur-sm"
+                      className="min-h-[100px] bg-background/50 border border-border focus:border-primary hover:border-primary/60 text-foreground placeholder:text-muted-foreground hover:bg-background/60 transition-all duration-300"
                     />
                   ) : (
-                    <p className="text-foreground/80 leading-relaxed text-lg">{accountData?.bio}</p>
+                    <p className="text-foreground/80 leading-relaxed">{accountData?.bio}</p>
                   )}
                 </CardContent>
               </Card>
@@ -565,57 +527,59 @@ export function AccountContent() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="relative group"
           >
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/50 to-accent/50 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
-            <Card className="relative bg-card/40 backdrop-blur-xl border border-border shadow-2xl overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border">
-                <CardTitle className="flex items-center gap-2 text-card-foreground">
+            <Card className="bg-background/40 backdrop-blur-xl border-2 border-primary/25 p-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
                   <Award className="h-5 w-5 text-primary" />
                   Professional & Academic
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-6">
+              <CardContent>
                 {isEditMode ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
+                      <label htmlFor="affiliation" className="block text-sm font-medium mb-2 text-foreground">
                         Affiliation
                       </label>
                       <Input
+                        id="affiliation"
                         {...register("affiliation")}
                         placeholder="Your institution or organization"
-                        className="bg-background/50 border border-border focus:border-primary text-foreground placeholder:text-muted-foreground backdrop-blur-sm"
+                        className="bg-background/50 border border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
+                      <label htmlFor="positionTitle" className="block text-sm font-medium mb-2 text-foreground">
                         Position
                       </label>
                       <Input
+                        id="positionTitle"
                         {...register("positionTitle")}
                         placeholder="Your job title or position"
-                        className="bg-background/50 border border-border focus:border-primary text-foreground placeholder:text-muted-foreground backdrop-blur-sm"
+                        className="bg-background/50 border border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium mb-2 text-foreground">
+                      <label htmlFor="researchInterests" className="block text-sm font-medium mb-2 text-foreground">
                         Research Interests
                       </label>
                       <Textarea
+                        id="researchInterests"
                         {...register("researchInterests")}
                         placeholder="Your research areas and interests"
-                        className="min-h-[100px] bg-background/50 border border-border focus:border-primary text-foreground placeholder:text-muted-foreground backdrop-blur-sm"
+                        className="min-h-[100px] bg-background/50 border border-border focus:border-primary hover:border-primary/60 text-foreground placeholder:text-muted-foreground hover:bg-background/60 transition-all duration-300"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
+                      <label htmlFor="orcidId" className="block text-sm font-medium mb-2 text-foreground">
                         ORCID iD
                       </label>
                       <Input
+                        id="orcidId"
                         {...register("orcidId")}
                         placeholder="Your ORCID identifier"
-                        className="bg-background/50 border border-border focus:border-primary text-foreground placeholder:text-muted-foreground backdrop-blur-sm"
+                        className="bg-background/50 border border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
                   </div>
@@ -633,10 +597,10 @@ export function AccountContent() {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.4, delay: 0.1 * index }}
-                          className="p-4 rounded-xl bg-background/10 backdrop-blur-md border border-primary/20 hover:bg-background/20 hover:border-primary/30 transition-all duration-300 shadow-lg hover:shadow-xl"
+                          className="p-4 rounded-xl bg-background/10 border border-primary/20 hover:bg-background/30 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/20 hover:scale-[1.02] transition-all duration-300 cursor-pointer"
                         >
                           <div className="flex items-start gap-3">
-                            <div className="p-2 rounded-lg bg-gradient-to-r from-primary/30 to-accent/30 backdrop-blur-sm border border-primary/40">
+                            <div className="p-2 rounded-lg bg-gradient-to-r from-primary/30 to-accent/30 border border-primary/40 hover:from-primary/50 hover:to-accent/50 hover:border-primary/60 hover:shadow-md transition-all duration-300">
                               <item.icon className="h-4 w-4 text-primary" />
                             </div>
                             <div className="flex-1">
@@ -645,8 +609,8 @@ export function AccountContent() {
                                 <div className="flex flex-wrap gap-2">
                                   {item.value?.split(',').map((interest, idx) => (
                                     <span
-                                      key={idx}
-                                      className="px-3 py-1 text-xs bg-primary/20 backdrop-blur-sm border border-primary/30 rounded-full text-primary-foreground"
+                                      key={`interest-${interest.trim()}`}
+                                      className="px-3 py-1 text-xs bg-primary/20 backdrop-blur-sm border border-primary/30 rounded-full text-primary-foreground hover:bg-primary/30 hover:border-primary/50 hover:scale-105 hover:shadow-md hover:shadow-primary/20 transition-all duration-300 cursor-pointer"
                                     >
                                       {interest.trim()}
                                     </span>
@@ -671,31 +635,30 @@ export function AccountContent() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="relative group"
           >
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/50 to-accent/50 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
-            <Card className="relative bg-card/40 backdrop-blur-xl border border-border shadow-2xl overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border">
-                <CardTitle className="flex items-center gap-2 text-card-foreground">
+            <Card className="bg-background/40 backdrop-blur-xl border-2 border-primary/25 p-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
                   <Mail className="h-5 w-5 text-primary" />
                   Contact Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-6">
+              <CardContent>
                 {isEditMode ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
+                      <label htmlFor="phoneNumber" className="block text-sm font-medium mb-2 text-foreground">
                         Phone Number
                       </label>
                       <Input
+                        id="phoneNumber"
                         {...register("phoneNumber")}
                         placeholder="Your phone number"
-                        className="bg-background/50 border border-border focus:border-primary text-foreground placeholder:text-muted-foreground backdrop-blur-sm"
+                        className="bg-background/50 border border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
+                      <label htmlFor="dateOfBirth" className="block text-sm font-medium mb-2 text-foreground">
                         Date of Birth
                       </label>
                       <Popover>
@@ -703,7 +666,7 @@ export function AccountContent() {
                           <Button
                             variant="outline"
                             className={cn(
-                              "w-full justify-start text-left font-normal bg-background/50 border border-border focus:border-primary hover:bg-muted/50 transition-all duration-300 shadow-lg hover:shadow-xl text-foreground backdrop-blur-sm",
+                              "w-full justify-start text-left font-normal bg-background/50 border border-border focus:border-primary hover:bg-background/60 hover:border-primary/60 transition-all duration-300 text-foreground",
                               !watch("dateOfBirth") && "text-muted-foreground"
                             )}
                           >
@@ -728,7 +691,7 @@ export function AccountContent() {
                             )}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 bg-card/90 backdrop-blur-xl border border-border shadow-xl" align="start">
+                        <PopoverContent className="w-auto p-0 bg-background/90 backdrop-blur-xl border border-border shadow-xl" align="start">
                           <EnhancedCalendar
                             selected={(() => {
                               const dateValue = watch("dateOfBirth")
@@ -774,10 +737,10 @@ export function AccountContent() {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.4, delay: 0.1 * index }}
-                          className="p-4 rounded-xl bg-background/10 backdrop-blur-md border border-primary/20 hover:bg-background/20 hover:border-primary/30 transition-all duration-300 shadow-lg hover:shadow-xl"
+                          className="p-4 rounded-xl bg-background/10 border border-primary/20 hover:bg-background/30 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/20 hover:scale-[1.02] transition-all duration-300 cursor-pointer"
                         >
                           <div className="flex items-start gap-3">
-                            <div className="p-2 rounded-lg bg-gradient-to-r from-primary/30 to-accent/30 backdrop-blur-sm border border-primary/40">
+                            <div className="p-2 rounded-lg bg-gradient-to-r from-primary/30 to-accent/30 border border-primary/40 hover:from-primary/50 hover:to-accent/50 hover:border-primary/60 hover:shadow-md transition-all duration-300">
                               <item.icon className="h-4 w-4 text-primary" />
                             </div>
                             <div className="flex-1">
@@ -811,17 +774,15 @@ export function AccountContent() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
-            className="relative group"
           >
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/50 to-accent/50 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
-            <Card className="relative bg-card/40 backdrop-blur-xl border border-border shadow-2xl overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border">
-                <CardTitle className="text-card-foreground flex items-center gap-2">
+            <Card className="bg-background/40 backdrop-blur-xl border-2 border-primary/25 p-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
                   <Globe className="h-5 w-5 text-primary" />
                   Social & Professional Links
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 p-6">
+              <CardContent className="space-y-4">
                 {isEditMode ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {SOCIAL_LINKS.map((social, index) => (
@@ -833,7 +794,7 @@ export function AccountContent() {
                           {...register(social.url as keyof UserAccountForm)}
                           type="url"
                           placeholder={`Your ${social.platform} profile URL`}
-                          className="bg-background/50 border border-border focus:border-primary text-foreground placeholder:text-muted-foreground backdrop-blur-sm"
+                          className="bg-background/50 border border-border focus:border-primary hover:border-primary/60 text-foreground placeholder:text-muted-foreground hover:bg-background/60 transition-all duration-300"
                         />
                       </div>
                     ))}
@@ -850,10 +811,10 @@ export function AccountContent() {
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ duration: 0.5, delay: 0.1 * index }}
-                          className="flex items-center justify-between p-4 rounded-xl bg-background/10 backdrop-blur-md border border-primary/20 hover:bg-background/20 hover:border-primary/30 transition-all duration-300 shadow-lg hover:shadow-xl group/item"
+                          className="flex items-center justify-between p-4 rounded-xl bg-background/10 border border-primary/20 hover:bg-background/30 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/20 hover:scale-[1.02] transition-all duration-300 group/item cursor-pointer"
                         >
                           <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl bg-gradient-to-r from-primary/30 to-accent/30 backdrop-blur-sm border border-primary/40">
+                            <div className="p-3 rounded-xl bg-gradient-to-r from-primary/30 to-accent/30 border border-primary/40 hover:from-primary/50 hover:to-accent/50 hover:border-primary/60 hover:shadow-md transition-all duration-300">
                               <Icon className="h-5 w-5 text-primary" />
                             </div>
                             <div>
@@ -865,7 +826,7 @@ export function AccountContent() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-10 w-10 p-0 text-foreground hover:bg-muted/80 border border-border rounded-full group-hover/item:scale-110 transition-all duration-300 shadow-lg hover:shadow-xl"
+                              className="h-10 w-10 p-0 text-foreground hover:bg-primary/20 hover:border-primary/50 border border-border rounded-full group-hover/item:scale-110 hover:shadow-lg hover:shadow-primary/20 transition-all duration-300"
                               onClick={() => window.open(url, '_blank')}
                             >
                               <ExternalLink className="h-4 w-4" />
@@ -881,10 +842,10 @@ export function AccountContent() {
                       <motion.div
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center justify-between p-4 rounded-xl bg-background/10 backdrop-blur-md border border-primary/20 hover:bg-background/20 hover:border-primary/30 transition-all duration-300 shadow-lg hover:shadow-xl group/item"
+                        className="flex items-center justify-between p-4 rounded-xl bg-background/10 border border-primary/20 hover:bg-background/30 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/20 hover:scale-[1.02] transition-all duration-300 group/item cursor-pointer"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="p-3 rounded-xl bg-gradient-to-r from-primary/30 to-accent/30 backdrop-blur-sm border border-primary/40">
+                          <div className="p-3 rounded-xl bg-gradient-to-r from-primary/30 to-accent/30 border border-primary/40">
                             <Globe className="h-5 w-5 text-primary" />
                           </div>
                           <div>
@@ -895,7 +856,7 @@ export function AccountContent() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-10 w-10 p-0 text-foreground hover:bg-muted/80 border border-border rounded-full group-hover/item:scale-110 transition-all duration-300 shadow-lg hover:shadow-xl"
+                          className="h-10 w-10 p-0 text-foreground hover:bg-muted/80 border border-border rounded-full group-hover/item:scale-110 transition-all duration-300"
                           onClick={() => window.open(accountData.personalWebsiteUrl, '_blank')}
                         >
                           <ExternalLink className="h-4 w-4" />

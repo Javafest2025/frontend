@@ -588,19 +588,6 @@ export function ProjectsDashboard() {
 
                                             <CardContent className="relative z-10 flex-grow flex flex-col justify-between">
                                                 <div className="flex-grow">
-                                                    {/* Progress Bar */}
-                                                    <div className="mb-3">
-                                                        <div className="flex justify-between items-center mb-1">
-                                                            <span className="text-xs sm:text-sm font-medium">Progress</span>
-                                                            <span className="text-xs sm:text-sm text-muted-foreground">{project.progress}%</span>
-                                                        </div>
-                                                        <div className="w-full bg-secondary/50 rounded-full h-2">
-                                                            <div
-                                                                className="gradient-primary-to-accent h-2 rounded-full transition-all duration-1000 ease-out"
-                                                                style={{ width: `${project.progress}%` }}
-                                                            />
-                                                        </div>
-                                                    </div>
 
                                                     {/* Stats */}
                                                     <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3">
@@ -613,6 +600,20 @@ export function ProjectsDashboard() {
                                                             <span className="text-xs sm:text-sm text-muted-foreground">
                                                                 {formatLastActivity(project.updatedAt, project.createdAt)}
                                                             </span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Progress Bar */}
+                                                    <div className="mb-3">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <span className="text-xs sm:text-sm font-medium">Progress</span>
+                                                            <span className="text-xs sm:text-sm text-muted-foreground">{project.progress}%</span>
+                                                        </div>
+                                                        <div className="w-full bg-secondary/50 rounded-full h-2">
+                                                            <div
+                                                                className="gradient-primary-to-accent h-2 rounded-full transition-all duration-1000 ease-out"
+                                                                style={{ width: `${project.progress}%` }}
+                                                            />
                                                         </div>
                                                     </div>
 

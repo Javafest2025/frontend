@@ -6,6 +6,9 @@ import { ThemeProvider } from "@/lib/context/ThemeContext"
 import { LoadingProvider } from "@/contexts/LoadingContext"
 import { RouteTransition } from "@/components/ui/RouteTransition"
 
+// Import polyfills for server-side compatibility
+import "@/lib/polyfills/promise-withresolvers"
+
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
@@ -17,7 +20,7 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  readonly children: React.ReactNode
 }) {
   return (
     <html lang="en" suppressHydrationWarning>

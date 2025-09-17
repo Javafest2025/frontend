@@ -11,9 +11,9 @@ export const getApiBaseUrl = (): string => {
 
     switch (env.toLowerCase()) {
         case "docker":
-            return process.env.NEXT_PUBLIC_DOCKER_BACKEND_URL || "http://docker-core-app-1:8989";
+            return process.env.NEXT_PUBLIC_DOCKER_BACKEND_URL || "http://scholar-api-gateway:8989";
         case "prod":
-            return process.env.NEXT_PUBLIC_API_BASE_URL || "http://4.247.29.26:8989";
+            return process.env.NEXT_PUBLIC_API_BASE_URL || "http://70.153.18.56:8989";
         case "dev":
         default:
             return process.env.NEXT_PUBLIC_DEV_API_URL || "http://localhost:8989";
