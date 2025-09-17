@@ -63,6 +63,7 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
     const { toast } = useToast()
     const [projectId, setProjectId] = useState<string>("")
     const [readingList, setReadingList] = useState<ReadingListItem[]>([])
+    const [allReadingListItems, setAllReadingListItems] = useState<ReadingListItem[]>([]) // Store unfiltered data for accurate counts
     const [stats, setStats] = useState<ReadingListStats | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'in-progress' | 'completed' | 'skipped' | 'recommendations'>('all')
@@ -97,6 +98,7 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
             try {
                 await Promise.all([
                     loadReadingList(resolvedParams.id),
+                    loadAllReadingListItems(resolvedParams.id), // Load unfiltered data for accurate counts
                     loadReadingListStats(resolvedParams.id)
                 ])
             } catch (error) {
@@ -213,6 +215,38 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
         }
     }
 
+    // Load all reading list items (unfiltered) for accurate tab counts
+    const loadAllReadingListItems = async (projectId: string) => {
+        try {
+            console.log('🔍 Loading all reading list items for counts:', projectId)
+
+            // Make API call to get all reading list items without filters
+            const response = await readingListApi.getReadingList(projectId, {
+                // No status filter to get all items
+                priority: undefined,
+                difficulty: undefined,
+                relevance: undefined,
+                search: undefined,
+                sortBy: 'addedAt',
+                sortOrder: 'desc',
+                page: 1,
+                limit: 1000 // Get more items for accurate counts
+            })
+
+            console.log('📊 All reading list items loaded:', response.items.length, 'items')
+
+            // Enrich reading list items with paper details from library
+            const enrichedReadingList = await enrichReadingListWithPaperDetails(response.items, projectId)
+
+            setAllReadingListItems(enrichedReadingList)
+        } catch (error) {
+            console.error('❌ Error loading all reading list items:', error)
+            // Set empty array on error to prevent crashes
+            setAllReadingListItems([])
+            throw error
+        }
+    }
+
     const loadReadingListStats = async (projectId: string) => {
         try {
             // Make actual API call to get reading list stats
@@ -238,6 +272,8 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
     const reloadReadingList = useCallback(async () => {
         if (projectId) {
             await loadReadingList(projectId)
+            // Also reload unfiltered data for accurate counts
+            await loadAllReadingListItems(projectId)
         }
     }, [projectId, activeTab, searchQuery, sortBy, sortDirection, filterPriority, filterDifficulty, filterRelevance])
 
@@ -292,6 +328,7 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
 
             // Make actual API call to add paper to reading list
             await readingListApi.addToReadingList(projectId, paper.id, {
+                paperId: paper.id,
                 priority: 'MEDIUM',
                 difficulty: 'MEDIUM',
                 relevance: 'MEDIUM'
@@ -312,6 +349,9 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
 
             // Reload the reading list to show the new item
             await loadReadingList(projectId)
+
+            // Also reload unfiltered data for accurate counts
+            await loadAllReadingListItems(projectId)
 
             // Also reload stats to ensure consistency
             await loadReadingListStats(projectId)
@@ -334,6 +374,9 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
 
             // Reload the reading list to get updated data
             await loadReadingList(projectId)
+
+            // Also reload unfiltered data for accurate counts
+            await loadAllReadingListItems(projectId)
 
             toast({
                 title: "Success",
@@ -364,6 +407,9 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
 
             // Reload the reading list to get updated data
             await loadReadingList(projectId)
+
+            // Also reload unfiltered data for accurate counts
+            await loadAllReadingListItems(projectId)
         } catch (error) {
             console.error('Error updating progress:', error)
 
@@ -389,6 +435,9 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
 
             // Reload the reading list to get updated data
             await loadReadingList(projectId)
+
+            // Also reload unfiltered data for accurate counts
+            await loadAllReadingListItems(projectId)
 
             toast({
                 title: "Success",
@@ -709,14 +758,14 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
         }
     }
 
-    // Helper functions to safely get counts
+    // Helper functions to safely get counts using unfiltered data
     const getReadingListCount = () => {
-        return Array.isArray(readingList) ? readingList.length : 0
+        return Array.isArray(allReadingListItems) ? allReadingListItems.length : 0
     }
 
     const getStatusCount = (status: string) => {
-        if (!Array.isArray(readingList)) return 0
-        return readingList.filter(item => item.status === status).length
+        if (!Array.isArray(allReadingListItems)) return 0
+        return allReadingListItems.filter(item => item.status === status).length
     }
 
     const getItemsMissingPaperDetails = () => {
@@ -825,7 +874,7 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                     <div className="flex items-center justify-between relative z-10">
                                         <div>
                                             <p className="text-sm text-muted-foreground">Completion Rate</p>
-                                            <p className="text-2xl font-bold text-foreground">{stats?.completionRate || 0}%</p>
+                                            <p className="text-2xl font-bold text-foreground">{Math.round(stats?.completionRate || 0)}%</p>
                                         </div>
                                         <Target className="h-8 w-8 text-green-500" />
                                     </div>
