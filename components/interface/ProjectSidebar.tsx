@@ -14,7 +14,6 @@ import {
     Database,
     Zap,
 
-    Users,
     MessageSquare,
 
     FileText
@@ -78,13 +77,6 @@ const PROJECT_NAV_ITEMS = [
         description: "LaTeX document editor for research papers",
         loadingMessage: "Loading LaTeX editor..."
     },
-    {
-        name: "Collaboration",
-        href: "/collaboration",
-        icon: Users,
-        description: "Team collaboration and sharing",
-        loadingMessage: "Loading collaboration tools..."
-    }
 ]
 
 const PROJECT_BOTTOM_ITEMS: typeof PROJECT_NAV_ITEMS = []
@@ -148,6 +140,26 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
 
     const getProjectPath = (href: string) => `/interface/projects/${projectId}${href}`
 
+    // Get unique hover animation class for each icon
+    const getIconHoverAnimation = (iconName: string) => {
+        switch (iconName) {
+            case "Overview":
+                return "group-hover:animate-pulse group-hover:drop-shadow-[0_0_8px_hsl(var(--primary))]"
+            case "Collect Papers":
+                return "group-hover:animate-jelly"
+            case "Library":
+                return "group-hover:animate-spin-slow"
+            case "Reading List":
+                return "group-hover:animate-float"
+            case "Quick Notes":
+                return "group-hover:animate-wiggle"
+            case "Latex Editor":
+                return "group-hover:animate-tilt group-hover:drop-shadow-[0_0_8px_hsl(var(--primary))]"
+            default:
+                return "group-hover:scale-105"
+        }
+    }
+
     const SidebarItem = ({ item, isBottom = false }: { item: typeof PROJECT_NAV_ITEMS[0] | typeof PROJECT_BOTTOM_ITEMS[0], isBottom?: boolean }) => {
         const fullPath = getProjectPath(item.href)
         const isActive = pathname === fullPath
@@ -159,7 +171,7 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
                     "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border-2 w-full text-left",
                     "hover:bg-primary/10 hover:border-primary/50",
                     isActive
-                        ? "bg-gradient-to-r from-primary/20 to-purple-500/10 text-primary border-primary/50"
+                        ? "bg-gradient-to-r from-primary/20 to-accent/10 text-primary border-primary/50"
                         : "text-foreground/80 hover:text-foreground border-primary/20 bg-background/20",
                     collapsed && "justify-center px-2"
                 )}
@@ -201,21 +213,22 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
                 <div className={cn(
                     "relative p-1.5 rounded-lg transition-all duration-300",
                     isActive
-                        ? "bg-gradient-to-r from-primary/30 to-purple-500/20"
+                        ? "bg-gradient-to-r from-primary/30 to-accent/20"
                         : "group-hover:bg-primary/10"
                 )}>
                     <item.icon className={cn(
                         "h-4 w-4 transition-all duration-300",
                         isActive
                             ? "text-primary drop-shadow-glow"
-                            : "text-foreground/70 group-hover:text-primary"
+                            : "text-foreground/70 group-hover:text-primary",
+                        !isActive && getIconHoverAnimation(item.name)
                     )} />
                 </div>
                 {!collapsed && (
                     <span className="truncate font-medium">{item.name}</span>
                 )}
                 {isActive && !collapsed && (
-                    <div className="absolute right-3 w-2 h-2 bg-gradient-to-r from-primary to-purple-500 rounded-full shadow-lg shadow-primary/50" />
+                    <div className="absolute right-3 w-2 h-2 bg-gradient-to-r from-primary to-accent rounded-full shadow-lg shadow-primary/50" />
                 )}
             </button>
         )
@@ -242,17 +255,17 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
         )}
             style={{
                 boxShadow: `
-                    inset -2px 0 0 0 rgba(99, 102, 241, 0.4),
-                    4px 0 20px rgba(99, 102, 241, 0.2),
-                    8px 0 40px rgba(139, 92, 246, 0.1),
-                    0 0 60px rgba(99, 102, 241, 0.05),
-                    0 0 0 1px rgba(99, 102, 241, 0.1)
-                `
+                        inset -2px 0 0 0 hsl(var(--primary) / 0.4),
+                        4px 0 20px hsl(var(--primary) / 0.2),
+                        8px 0 40px hsl(var(--accent) / 0.1),
+                        0 0 60px hsl(var(--primary) / 0.05),
+                        0 0 0 1px hsl(var(--primary) / 0.1)
+                    `
             }}>
             {/* Background Effects */}
-            <div className="absolute inset-0 bg-gradient-to-b from-primary/3 via-background/30 to-purple-500/3" />
+            <div className="absolute inset-0 bg-gradient-to-b from-primary/3 via-background/30 to-accent/3" />
             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/8 to-transparent rounded-full blur-2xl animate-pulse" />
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-blue-500/8 to-transparent rounded-full blur-2xl animate-pulse" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-accent/8 to-transparent rounded-full blur-2xl animate-pulse" />
             <div className="absolute top-1/2 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-30" />
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/3 to-transparent animate-pulse duration-3000" />
 
@@ -263,10 +276,10 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
             )}
                 style={{
                     boxShadow: `
-                        0 2px 0 0 rgba(99, 102, 241, 0.4),
-                        0 4px 15px rgba(99, 102, 241, 0.15),
-                        0 8px 30px rgba(139, 92, 246, 0.08),
-                        0 0 0 1px rgba(99, 102, 241, 0.1)
+                        0 2px 0 0 hsl(var(--primary) / 0.4),
+                        0 4px 15px hsl(var(--primary) / 0.15),
+                        0 8px 30px hsl(var(--accent) / 0.08),
+                        0 0 0 1px hsl(var(--primary) / 0.1)
                     `
                 }}>
                 {!collapsed && (
@@ -393,10 +406,10 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
             <div className="p-3 border-t border-primary/30 relative z-10 mt-auto"
                 style={{
                     boxShadow: `
-                        0 -2px 0 0 rgba(99, 102, 241, 0.4),
-                        0 -4px 15px rgba(99, 102, 241, 0.15),
-                        0 -8px 30px rgba(139, 92, 246, 0.08),
-                        0 0 0 1px rgba(99, 102, 241, 0.1)
+                        0 -2px 0 0 hsl(var(--primary) / 0.4),
+                        0 -4px 15px hsl(var(--primary) / 0.15),
+                        0 -8px 30px hsl(var(--accent) / 0.08),
+                        0 0 0 1px hsl(var(--primary) / 0.1)
                     `
                 }}>
                 {collapsed ? (
@@ -408,26 +421,26 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
                             onClick={handleExitProject}
                             variant="outline"
                             size="sm"
-                            className="w-full px-2 bg-gradient-to-r from-primary/10 via-accent-2/10 to-accent-3/10 border-primary/20 text-foreground hover:bg-gradient-to-r hover:from-primary/20 hover:via-accent-2/20 hover:to-accent-3/20 hover:border-primary/40 hover:text-primary transition-all duration-300"
+                            className="w-full px-2 bg-gradient-to-r from-primary/10 via-accent/10 to-accent/10 border-primary/20 text-foreground hover:bg-gradient-to-r hover:from-primary/20 hover:via-accent/20 hover:to-accent/20 hover:border-primary/40 hover:text-primary transition-all duration-300"
                             style={{
                                 boxShadow: `
-                                        0 0 10px hsl(var(--accent-1) / 0.15),
-                                        0 0 20px hsl(var(--accent-2) / 0.08),
+                                        0 0 10px hsl(var(--primary) / 0.15),
+                                        0 0 20px hsl(var(--accent) / 0.08),
                                         inset 0 1px 0 rgba(255, 255, 255, 0.1)
                                     `
                             }}
                             onMouseEnter={(e) => {
                                 e.currentTarget.style.boxShadow = `
-                                        0 0 20px hsl(var(--accent-1) / 0.3),
-                                        0 0 40px hsl(var(--accent-2) / 0.15),
+                                        0 0 20px hsl(var(--primary) / 0.3),
+                                        0 0 40px hsl(var(--accent) / 0.15),
                                         inset 0 1px 0 rgba(255, 255, 255, 0.2),
-                                        0 4px 20px hsl(var(--accent-1) / 0.15)
+                                        0 4px 20px hsl(var(--primary) / 0.15)
                                     `
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.boxShadow = `
-                                        0 0 10px hsl(var(--accent-1) / 0.15),
-                                        0 0 20px hsl(var(--accent-2) / 0.08),
+                                        0 0 10px hsl(var(--primary) / 0.15),
+                                        0 0 20px hsl(var(--accent) / 0.08),
                                         inset 0 1px 0 rgba(255, 255, 255, 0.1)
                                     `
                             }}
@@ -440,26 +453,26 @@ export function ProjectSidebar({ projectId, collapsed, onToggle, className }: Pr
                         onClick={handleExitProject}
                         variant="outline"
                         size="default"
-                        className="w-full bg-gradient-to-r from-primary/10 via-accent-2/10 to-accent-3/10 border-primary/20 text-foreground hover:bg-gradient-to-r hover:from-primary/20 hover:via-accent-2/20 hover:to-accent-3/20 hover:border-primary/40 hover:text-primary transition-all duration-300"
+                        className="w-full bg-gradient-to-r from-primary/10 via-accent/10 to-accent/10 border-primary/20 text-foreground hover:bg-gradient-to-r hover:from-primary/20 hover:via-accent/20 hover:to-accent/20 hover:border-primary/40 hover:text-primary transition-all duration-300"
                         style={{
                             boxShadow: `
-                                    0 0 10px hsl(var(--accent-1) / 0.15),
-                                    0 0 20px hsl(var(--accent-2) / 0.08),
+                                    0 0 10px hsl(var(--primary) / 0.15),
+                                    0 0 20px hsl(var(--accent) / 0.08),
                                     inset 0 1px 0 rgba(255, 255, 255, 0.1)
                                 `
                         }}
                         onMouseEnter={(e) => {
                             e.currentTarget.style.boxShadow = `
-                                    0 0 20px hsl(var(--accent-1) / 0.3),
-                                    0 0 40px hsl(var(--accent-2) / 0.15),
+                                    0 0 20px hsl(var(--primary) / 0.3),
+                                    0 0 40px hsl(var(--accent) / 0.15),
                                     inset 0 1px 0 rgba(255, 255, 255, 0.2),
-                                    0 4px 20px hsl(var(--accent-1) / 0.15)
+                                    0 4px 20px hsl(var(--primary) / 0.15)
                                 `
                         }}
                         onMouseLeave={(e) => {
                             e.currentTarget.style.boxShadow = `
-                                    0 0 10px hsl(var(--accent-1) / 0.15),
-                                    0 0 20px hsl(var(--accent-2) / 0.08),
+                                    0 0 10px hsl(var(--primary) / 0.15),
+                                    0 0 20px hsl(var(--accent) / 0.08),
                                     inset 0 1px 0 rgba(255, 255, 255, 0.1)
                                 `
                         }}

@@ -33,7 +33,6 @@ import {
     Home,
     FileText,
     CheckSquare,
-    GraduationCap,
     Bot,
     Brain,
     MessageSquare,
@@ -87,9 +86,6 @@ const getBreadcrumbs = async (pathname: string): Promise<BreadcrumbItem[]> => {
         } else if (segment === 'todo') {
             label = 'ToDo'
             fullLabel = 'ToDo'
-        } else if (segment === 'call4paper') {
-            label = 'Call4Paper'
-            fullLabel = 'Call4Paper'
         } else if (segment === 'overview') {
             label = 'Overview'
             fullLabel = 'Overview'
@@ -141,9 +137,6 @@ const getBreadcrumbs = async (pathname: string): Promise<BreadcrumbItem[]> => {
         } else if (segment === 'authors') {
             label = 'Authors'
             fullLabel = 'Authors'
-        } else if (segment === 'papercall') {
-            label = 'Paper Call'
-            fullLabel = 'Paper Call'
         } else if (segment === 'dashboard') {
             label = 'Dashboard'
             fullLabel = 'Dashboard'
@@ -197,7 +190,7 @@ const getPageIcon = (pathname: string) => {
     if (pathname.includes('/account')) return User
     if (pathname.includes('/projects')) return FileText
     if (pathname.includes('/todo')) return CheckSquare
-    if (pathname.includes('/call4paper')) return GraduationCap
+    if (pathname.includes('/notifications')) return Bell
     return Home
 }
 

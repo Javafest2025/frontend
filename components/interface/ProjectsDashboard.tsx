@@ -10,8 +10,8 @@ import { Input } from "@/components/ui/input"
 import { EnhancedTooltip } from "@/components/ui/enhanced-tooltip"
 import { ProjectCreateDialog } from "@/components/interface/ProjectCreateDialog"
 import { ProjectEditDialog } from "@/components/interface/ProjectEditDialog"
-import { ShareProjectDialog } from "@/components/interface/ShareProjectDialog"
-import { projectsApi } from "@/lib/api/project-service"
+import { ProjectStatsPieChart } from "@/components/interface/ProjectStatsPieChart"
+import { projectsApi, readingListApi, notesApi } from "@/lib/api/project-service"
 import { libraryApi } from "@/lib/api/project-service/library"
 import { Project, ProjectStatus } from "@/types/project"
 import { useSharedProjects } from "@/hooks/useSharedProjects"
@@ -32,14 +32,13 @@ import {
     Zap,
     Edit,
     Loader2,
-    Share2,
+    Trash2,
     Archive,
     Layers,
     Play,
     Pause,
     CheckCircle2,
     Archive as ArchiveIcon,
-    Users2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -50,17 +49,20 @@ export function ProjectsDashboard() {
     const [searchQuery, setSearchQuery] = useState("")
     const [showCreateDialog, setShowCreateDialog] = useState(false)
     const [showEditDialog, setShowEditDialog] = useState(false)
-    const [showShareDialog, setShowShareDialog] = useState(false)
+    const [showStatsChart, setShowStatsChart] = useState(false)
+    const [selectedProjectForStats, setSelectedProjectForStats] = useState<Project | null>(null)
+    const [projectStats, setProjectStats] = useState<{
+        totalNotes: number
+        totalReadingList: number
+    } | null>(null)
     const [editingProject, setEditingProject] = useState<Project | null>(null)
-    const [sharingProject, setSharingProject] = useState<Project | null>(null)
     const [selectedStatus, setSelectedStatus] = useState<string>("all")
-    const [showOnlyShared, setShowOnlyShared] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [openingProjectId, setOpeningProjectId] = useState<string | null>(null)
 
     // Hook to track shared projects
-    const { isProjectShared, refreshSharedProjects, markProjectAsShared } = useSharedProjects(projects)
+    const { isProjectShared, refreshSharedProjects } = useSharedProjects(projects)
 
     // Load projects on component mount
     useEffect(() => {
@@ -159,9 +161,8 @@ export function ProjectsDashboard() {
             projectTopics.some(topic => topic.toLowerCase().includes(searchQuery.toLowerCase()))
 
         const matchesStatus = selectedStatus === "all" || normalizeStatus(project.status) === selectedStatus
-        const matchesShared = !showOnlyShared || isProjectShared(project.id)
 
-        return matchesSearch && matchesStatus && matchesShared
+        return matchesSearch && matchesStatus
     })
 
     const toggleStar = async (projectId: string) => {
@@ -194,9 +195,44 @@ export function ProjectsDashboard() {
         setShowEditDialog(true)
     }
 
-    const handleShareProject = (project: Project) => {
-        setSharingProject(project)
-        setShowShareDialog(true)
+
+    const handleDeleteProject = async (project: Project) => {
+        if (window.confirm(`Are you sure you want to delete "${project.name}"? This action cannot be undone and will delete all associated data including papers, notes, and reading lists.`)) {
+            try {
+                await projectsApi.deleteProject(project.id)
+                // Refresh the projects list
+                loadProjects()
+                console.log('Project deleted successfully')
+            } catch (error) {
+                console.error('Error deleting project:', error)
+                alert('Failed to delete project. Please try again.')
+            }
+        }
+    }
+
+    const handleShowProjectStats = async (project: Project) => {
+        setSelectedProjectForStats(project)
+
+        // Load project stats
+        try {
+            const [readingListStats, notes] = await Promise.all([
+                readingListApi.getReadingListStats(project.id).catch(() => ({ totalItems: 0 })),
+                notesApi.getNotes(project.id).catch(() => [])
+            ])
+
+            setProjectStats({
+                totalNotes: notes.length,
+                totalReadingList: readingListStats.totalItems
+            })
+        } catch (error) {
+            console.error('Error loading project stats:', error)
+            setProjectStats({
+                totalNotes: 0,
+                totalReadingList: 0
+            })
+        }
+
+        setShowStatsChart(true)
     }
 
     const getStatusIcon = (status: ProjectStatus) => {
@@ -346,10 +382,10 @@ export function ProjectsDashboard() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
                             {[
                                 { label: "Active", value: stats.activeProjects.toString(), icon: PlayCircle, color: "text-green-500", borderColor: "border-green-500/20", shimmerColor: "via-green-500/20", shadowColor: "hover:shadow-green-500/20" },
+                                { label: "Total", value: stats.totalProjects.toString(), icon: Layers, color: "text-orange-500", borderColor: "border-orange-500/20", shimmerColor: "via-orange-500/20", shadowColor: "hover:shadow-orange-500/20" },
                                 { label: "Papers", value: stats.totalPapers.toString(), icon: BookOpen, color: "text-blue-500", borderColor: "border-blue-500/20", shimmerColor: "via-blue-500/20", shadowColor: "hover:shadow-blue-500/20" },
                                 { label: "Tasks", value: stats.totalTasks.toString(), icon: Zap, color: "text-purple-500", borderColor: "border-purple-500/20", shimmerColor: "via-purple-500/20", shadowColor: "hover:shadow-purple-500/20" },
-                                { label: "Shared", value: stats.sharedProjects.toString(), icon: Users, color: "text-blue-500", borderColor: "border-blue-500/20", shimmerColor: "via-blue-500/20", shadowColor: "hover:shadow-blue-500/20" },
-                                { label: "Total", value: stats.totalProjects.toString(), icon: Database, color: "text-orange-500", borderColor: "border-orange-500/20", shimmerColor: "via-orange-500/20", shadowColor: "hover:shadow-orange-500/20" }
+                                { label: "Shared", value: stats.sharedProjects.toString(), icon: Users, color: "text-blue-500", borderColor: "border-blue-500/20", shimmerColor: "via-blue-500/20", shadowColor: "hover:shadow-blue-500/20" }
                             ].map((stat, index) => (
                                 <motion.div
                                     key={stat.label}
@@ -451,20 +487,6 @@ export function ProjectsDashboard() {
                                         </Button>
                                     )
                                 })}
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setShowOnlyShared(!showOnlyShared)}
-                                    className={cn(
-                                        showOnlyShared
-                                            ? "bg-purple-500/20 backdrop-blur-xl border-2 border-purple-400/50 text-purple-100 shadow-lg shadow-purple-500/25"
-                                            : "bg-background/80 backdrop-blur-xl border-2 border-purple-300/30 hover:bg-purple-500/10 hover:border-purple-400/50",
-                                        "text-xs sm:text-sm transition-all duration-200"
-                                    )}
-                                >
-                                    <Users2 className="mr-1 h-3 w-3 text-purple-400" />
-                                    Shared Only
-                                </Button>
                             </div>
                         </div>
                     </motion.div>
@@ -523,15 +545,15 @@ export function ProjectsDashboard() {
                                         whileHover={{ y: -5, scale: 1.02 }}
                                         className="group cursor-pointer"
                                     >
-                                        <Card className="relative overflow-hidden bg-background/80 backdrop-blur-xl border-2 border-primary/25 shadow-lg hover:shadow-primary/30 transition-all duration-500 group-hover:border-primary/40 h-[350px] sm:h-[380px] flex flex-col">
+                                        <Card className="relative overflow-hidden bg-background/80 backdrop-blur-xl border-2 border-primary/25 shadow-lg hover:shadow-primary/30 transition-all duration-500 group-hover:border-primary/40 h-[300px] sm:h-[320px] flex flex-col">
                                             {/* Card Background Effects */}
                                             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/10 to-transparent rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                                            <CardHeader className="relative z-10 pb-3">
+                                            <CardHeader className="relative z-10 pb-2">
                                                 <div className="flex items-start justify-between">
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
+                                                        <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-1.5">
                                                             {getStatusIcon(project.status)}
                                                             <Badge variant="status" className={`${getStatusColor(project.status)} text-xs`}>
                                                                 {getStatusLabel(project.status)}
@@ -577,7 +599,7 @@ export function ProjectsDashboard() {
                                                         </Button>
                                                     </div>
                                                 </div>
-                                                <CardDescription className="text-xs sm:text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors duration-300 overflow-hidden min-h-[3rem] sm:min-h-[3.5rem] max-h-[3rem] sm:max-h-[3.5rem] leading-5" style={{
+                                                <CardDescription className="text-xs sm:text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors duration-300 overflow-hidden min-h-[2.5rem] sm:min-h-[2.75rem] max-h-[2.5rem] sm:max-h-[2.75rem] leading-4" style={{
                                                     display: '-webkit-box',
                                                     WebkitLineClamp: 3,
                                                     WebkitBoxOrient: 'vertical' as const
@@ -590,7 +612,7 @@ export function ProjectsDashboard() {
                                                 <div className="flex-grow">
 
                                                     {/* Stats */}
-                                                    <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3">
+                                                    <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-2">
                                                         <div className="flex items-center gap-2">
                                                             <Database className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
                                                             <span className="text-xs sm:text-sm font-medium">{paperCounts[project.id] || 0} papers</span>
@@ -604,7 +626,7 @@ export function ProjectsDashboard() {
                                                     </div>
 
                                                     {/* Progress Bar */}
-                                                    <div className="mb-3">
+                                                    <div className="mb-2">
                                                         <div className="flex justify-between items-center mb-1">
                                                             <span className="text-xs sm:text-sm font-medium">Progress</span>
                                                             <span className="text-xs sm:text-sm text-muted-foreground">{project.progress}%</span>
@@ -618,7 +640,7 @@ export function ProjectsDashboard() {
                                                     </div>
 
                                                     {/* Tags */}
-                                                    <div className="flex flex-wrap gap-1 mb-3">
+                                                    <div className="flex flex-wrap gap-1 mb-2">
                                                         {parseProjectTags(project).slice(0, 3).map((tag) => (
                                                             <Badge
                                                                 key={tag}
@@ -666,8 +688,7 @@ export function ProjectsDashboard() {
                                                         className="group/analytics bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-blue-500/10 hover:border-blue-400/50 hover:scale-110 h-8 w-8 sm:h-9 sm:w-9 p-0 transition-all duration-200"
                                                         onClick={(e) => {
                                                             e.stopPropagation()
-                                                            // Analytics/insights for this project
-                                                            console.log("Show project analytics for", project.id)
+                                                            handleShowProjectStats(project)
                                                         }}
                                                     >
                                                         <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground group-hover/analytics:text-blue-500 group-hover/analytics:scale-110 transition-all duration-200" />
@@ -678,8 +699,8 @@ export function ProjectsDashboard() {
                                                         className="group/chat bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-green-500/10 hover:border-green-400/50 hover:scale-110 h-8 w-8 sm:h-9 sm:w-9 p-0 transition-all duration-200"
                                                         onClick={(e) => {
                                                             e.stopPropagation()
-                                                            // Open project chat
-                                                            console.log("Open chat for", project.id)
+                                                            // Navigate to project quick notes
+                                                            router.push(`/interface/projects/${project.id}/notes`)
                                                         }}
                                                     >
                                                         <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground group-hover/chat:text-green-500 group-hover/chat:scale-110 transition-all duration-200" />
@@ -687,13 +708,13 @@ export function ProjectsDashboard() {
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        className="group/share bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-purple-500/10 hover:border-purple-400/50 hover:scale-110 h-8 w-8 sm:h-9 sm:w-9 p-0 transition-all duration-200"
+                                                        className="group/delete bg-background/40 backdrop-blur-xl border-2 border-primary/30 hover:bg-red-500/10 hover:border-red-400/50 hover:scale-110 h-8 w-8 sm:h-9 sm:w-9 p-0 transition-all duration-200"
                                                         onClick={(e) => {
                                                             e.stopPropagation()
-                                                            handleShareProject(project)
+                                                            handleDeleteProject(project)
                                                         }}
                                                     >
-                                                        <Share2 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground group-hover/share:text-purple-500 group-hover/share:scale-110 transition-all duration-200" />
+                                                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground group-hover/delete:text-red-500 group-hover/delete:scale-110 transition-all duration-200" />
                                                     </Button>
                                                 </div>
                                             </CardContent>
@@ -746,19 +767,21 @@ export function ProjectsDashboard() {
                 onProjectUpdated={handleProjectUpdated}
             />
 
-            {/* Share Project Dialog */}
-            <ShareProjectDialog
-                isOpen={showShareDialog}
-                projectId={sharingProject?.id || ''}
-                projectName={sharingProject?.name || ''}
-                onClose={() => setShowShareDialog(false)}
-                onCollaboratorAdded={() => {
-                    // Mark the project as shared when a collaborator is added
-                    if (sharingProject) {
-                        markProjectAsShared(sharingProject.id)
-                    }
-                }}
-            />
+            {/* Project Statistics Pie Chart Dialog */}
+            {selectedProjectForStats && (
+                <ProjectStatsPieChart
+                    open={showStatsChart}
+                    onOpenChange={setShowStatsChart}
+                    projectName={selectedProjectForStats.name}
+                    stats={{
+                        totalPapers: paperCounts[selectedProjectForStats.id] || 0,
+                        totalNotes: projectStats?.totalNotes || 0,
+                        totalReadingList: projectStats?.totalReadingList || 0,
+                        totalDocuments: 0 // TODO: Get actual documents count
+                    }}
+                />
+            )}
+
         </div>
     )
 } 
