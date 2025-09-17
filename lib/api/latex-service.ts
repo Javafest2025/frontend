@@ -478,6 +478,22 @@ export const latexApi = {
     return response.json()
   },
 
+  async generateFinalReview(content: string): Promise<APIResponse<string>> {
+    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/final-review'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to generate final review: ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
   // Document Versioning
   async createDocumentVersion(documentId: string, content: string, commitMessage: string, createdBy?: string): Promise<APIResponse<any>> {
     const url = getProjectServiceUrl(`/api/documents/${documentId}/versions`)

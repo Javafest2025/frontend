@@ -409,6 +409,7 @@ export function TabContentArea({
           onRunCitationCheck={onRunCitationCheck}
           citationBusy={citationBusy}
           currentJob={currentJob}
+          editorContent={editorContent}
           className="flex-shrink-0"
         />
       )}

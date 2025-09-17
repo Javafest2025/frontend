@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Eye, Edit, LayoutPanelLeft, FileText, File, AlertTriangle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CitationCheckJob } from '@/types/citations';
+import { FinalReviewDialog } from './FinalReviewDialog';
 
 export type ViewMode = 'editor' | 'preview' | 'split';
 
@@ -23,6 +24,9 @@ interface ViewModeSelectorProps {
   // Web check toggle
   runWebCheck?: boolean;
   onRunWebCheckChange?: (value: boolean) => void;
+  
+  // Final review props
+  editorContent?: string;            // LaTeX content for final review
 }
 
 export function ViewModeSelector({
@@ -37,7 +41,8 @@ export function ViewModeSelector({
   citationBusy = false,
   currentJob,
   runWebCheck = true,
-  onRunWebCheckChange
+  onRunWebCheckChange,
+  editorContent = ''
 }: ViewModeSelectorProps) {
   
   const handleViewModeChange = (mode: ViewMode) => {
@@ -213,6 +218,9 @@ export function ViewModeSelector({
               }
             </div>
           </button>
+
+          {/* Final Review Button */}
+          <FinalReviewDialog content={editorContent} />
 
           {/* Web Check Toggle */}
           {onRunWebCheckChange && (
