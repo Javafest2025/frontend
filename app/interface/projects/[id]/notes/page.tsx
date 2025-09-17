@@ -30,6 +30,8 @@ import ReactMarkdown from 'react-markdown'
 import { notesApi, ImageUploadResponse, PaperSuggestion } from "@/lib/api/project-service"
 import { Note } from "@/types/project"
 import { getApiBaseUrl } from "@/lib/config/api-config"
+import { AIEditor } from "@/components/notes/AIEditor"
+import { TextShimmer } from '@/components/motion-primitives/text-shimmer'
 
 interface ProjectNotesPageProps {
     params: Promise<{
@@ -56,6 +58,8 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
     const [showPaperSuggestions, setShowPaperSuggestions] = useState(false)
     const [mentionQuery, setMentionQuery] = useState("")
     const [mentionPosition, setMentionPosition] = useState({ start: 0, end: 0 })
+    const [showAIEditor, setShowAIEditor] = useState(false)
+    const [aiEditorCursorPosition, setAiEditorCursorPosition] = useState(0)
     const { toast } = useToast()
 
     // Form states
@@ -109,6 +113,21 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
 
         return () => clearTimeout(timer)
     }, [searchQuery])
+
+    // Handle Ctrl+K for AI editor
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault()
+                if (isEditing || isCreating) {
+                    setShowAIEditor(true)
+                }
+            }
+        }
+
+        document.addEventListener('keydown', handleKeyDown)
+        return () => document.removeEventListener('keydown', handleKeyDown)
+    }, [isEditing, isCreating])
 
     const filteredNotes = useMemo(() => {
         const notesToFilter = showFavorites ? favoriteNotes : notes
@@ -316,6 +335,38 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
             setNoteTitle(selectedNote.title)
             setNoteContent(selectedNote.content)
         }
+    }
+
+    // AI Editor handlers
+    const handleAIContentAccept = (content: string) => {
+        // Insert the AI-generated content at the cursor position
+        const beforeCursor = noteContent.substring(0, aiEditorCursorPosition)
+        const afterCursor = noteContent.substring(aiEditorCursorPosition)
+        const newContent = beforeCursor + content + afterCursor
+        setNoteContent(newContent)
+
+        toast({
+            title: "Content Added",
+            description: "AI-generated content has been inserted into your note.",
+        })
+    }
+
+    const handleAIContentReject = () => {
+        toast({
+            title: "Content Rejected",
+            description: "AI-generated content was not added to your note.",
+        })
+    }
+
+    const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const newContent = e.target.value
+        const cursorPos = e.target.selectionStart || 0
+
+        setNoteContent(newContent)
+        setAiEditorCursorPosition(cursorPos)
+
+        // Check for @ mentions
+        handlePaperMention(newContent, cursorPos)
     }
 
     const handlePaperMention = async (content: string, cursorPos: number) => {
@@ -552,7 +603,6 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                                         code: ({ children }) => <code className="bg-muted/50 text-primary px-1 py-0.5 rounded text-sm font-mono">{children}</code>,
                                                         pre: ({ children }) => <pre className="bg-muted/50 border border-border rounded-lg p-4 overflow-x-auto mb-3">{children}</pre>,
                                                         blockquote: ({ children }) => <blockquote className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground mb-3">{children}</blockquote>,
-                                                        a: ({ children, href }) => <a href={href} className="text-primary hover:underline">{children}</a>,
                                                         img: ({ src, alt, ...props }) => {
                                                             // Handle relative URLs by making them absolute through the API gateway
                                                             let imageSrc = src
@@ -581,12 +631,12 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                                             if (href && href.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
                                                                 return (
                                                                     <button
-                                                                        onClick={() => {
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault()
                                                                             // Navigate to library page with paper highlight
                                                                             window.open(`/interface/projects/${projectId}/library?highlight=${href}`, '_blank')
                                                                         }}
                                                                         className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-400 bg-blue-400/10 border border-blue-400/20 rounded-md hover:bg-blue-400/20 hover:border-blue-400/30 transition-colors"
-                                                                        {...props}
                                                                     >
                                                                         📄 {children}
                                                                     </button>
@@ -704,20 +754,39 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                                             <div className="relative">
                                                 <Textarea
                                                     value={noteContent}
-                                                    onChange={(e) => {
-                                                        const newContent = e.target.value
-                                                        const cursorPos = e.target.selectionStart || 0
-
-                                                        setNoteContent(newContent)
-
-                                                        // Check for @ mentions
-                                                        handlePaperMention(newContent, cursorPos)
-                                                    }}
+                                                    onChange={handleTextareaChange}
                                                     onPaste={handleImagePaste}
-                                                    placeholder="Write your note here... (Markdown supported, paste images with Ctrl+V)"
-                                                    className="h-[calc(100vh-420px)] resize-none bg-background/40 border-border placeholder:text-muted-foreground font-mono pr-80"
+                                                    placeholder=""
+                                                    className="h-[calc(100vh-420px)] resize-none bg-background/40 border-border font-mono pr-80 relative overflow-hidden"
                                                     disabled={isSaving || isUploadingImage}
                                                 />
+
+                                                {/* Shimmer effect overlay */}
+                                                {!noteContent && (
+                                                    <div className="absolute top-4 left-4 pointer-events-none overflow-hidden">
+                                                        <TextShimmer
+                                                            className="font-mono text-sm text-muted-foreground drop-shadow-lg"
+                                                            duration={2}
+                                                            spread={4}
+                                                            style={{
+                                                                '--base-color': '#9ca3af',
+                                                                '--base-gradient-color': '#f9fafb',
+                                                                filter: `
+                                                                     drop-shadow(0 0 6px rgba(255, 255, 255, 0.8))
+                                                                     drop-shadow(0 0 12px rgba(255, 255, 255, 0.6))
+                                                                     drop-shadow(0 0 24px rgba(255, 255, 255, 0.4))
+                                                                 `,
+                                                                textShadow: `
+                                                                     0 0 8px rgba(255, 255, 255, 0.9),
+                                                                     0 0 16px rgba(255, 255, 255, 0.7),
+                                                                     0 0 32px rgba(255, 255, 255, 0.5)
+                                                                 `
+                                                            } as React.CSSProperties}
+                                                        >
+                                                            Write your note here... (Markdown supported, paste images with Ctrl+V, AI assistance with Ctrl+K, tag papers with @)
+                                                        </TextShimmer>
+                                                    </div>
+                                                )}
 
                                                 {/* Paper Suggestions Dropdown - Slides in from right */}
                                                 <AnimatePresence>
@@ -902,6 +971,17 @@ export default function ProjectNotesPage({ params }: ProjectNotesPageProps) {
                     </AnimatePresence>
                 </div>
             </div>
+
+            {/* AI Editor Modal */}
+            <AIEditor
+                isOpen={showAIEditor}
+                onClose={() => setShowAIEditor(false)}
+                onAccept={handleAIContentAccept}
+                onReject={handleAIContentReject}
+                projectId={projectId}
+                noteContext={noteContent}
+                cursorPosition={aiEditorCursorPosition}
+            />
         </div>
     )
 }

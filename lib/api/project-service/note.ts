@@ -28,6 +28,17 @@ export interface PaperSuggestion {
     displayText: string
 }
 
+export interface AIContentRequest {
+    prompt: string
+    context?: string
+}
+
+export interface AIContentResponse {
+    content: string
+    status: string
+    error?: string
+}
+
 // Helper function to handle API response
 const handleApiResponse = async <T>(response: Response): Promise<T> => {
     if (!response.ok) {
@@ -389,6 +400,38 @@ export const notesApi = {
             return data.data || []
         } catch (error) {
             console.error("Paper search error:", error)
+            throw error
+        }
+    },
+
+    async generateAIContent(projectId: string, request: AIContentRequest): Promise<AIContentResponse> {
+        try {
+            console.log("🤖 Generating AI content:", projectId, request.prompt)
+
+            const response = await authenticatedFetch(
+                getMicroserviceUrl("project-service", `/api/v1/projects/${projectId}/notes/ai/generate`),
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(request),
+                }
+            )
+
+            console.log("📊 AI content generation response status:", response.status, response.statusText)
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error("❌ AI content generation failed:", response.status, errorText)
+                throw new Error(`Failed to generate AI content: ${response.status} ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            console.log("✅ AI content generated:", data)
+            return data.data || { content: "", status: "error", error: "No content generated" }
+        } catch (error) {
+            console.error("AI content generation error:", error)
             throw error
         }
     },
