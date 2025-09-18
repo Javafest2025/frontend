@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { ShareProjectDialog } from "@/components/interface/ShareProjectDialog"
 import { ProjectEditDialog } from "@/components/interface/ProjectEditDialog"
 import {
     Sparkles,
@@ -23,26 +22,23 @@ import {
     BarChart3,
     Users,
     Edit3,
-    Share2,
     MessageSquare,
     ListTodo,
 } from "lucide-react"
-import { projectsApi, libraryApi } from "@/lib/api/project-service"
+import { projectsApi, libraryApi, readingListApi, notesApi } from "@/lib/api/project-service"
 import { accountApi } from "@/lib/api/user-service"
 import { Project } from "@/types/project"
 import { UserAccount } from "@/types/account"
 
 interface ProjectOverviewPageProps {
-    params: Promise<{
-        id: string
+    readonly params: Promise<{
+        readonly id: string
     }>
 }
 
 export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps) {
-    const [projectId, setProjectId] = useState<string>("")
     const [project, setProject] = useState<Project | null>(null)
     const [isLoading, setIsLoading] = useState(true)
-    const [showShareDialog, setShowShareDialog] = useState(false)
     const [showEditDialog, setShowEditDialog] = useState(false)
 
     // New state for accurate statistics
@@ -55,22 +51,20 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
     useEffect(() => {
         const loadData = async () => {
             const resolvedParams = await params
-            setProjectId(resolvedParams.id)
             try {
                 // Load all data in parallel
-                // TODO: Re-enable these API calls when backend is ready
-                const [projectData, libraryStatsData, accountData] = await Promise.all([
+                const [projectData, libraryStatsData, readingListStatsData, notesData, accountData] = await Promise.all([
                     projectsApi.getProject(resolvedParams.id),
                     libraryApi.getProjectLibraryStats(resolvedParams.id).catch(() => ({ totalPapers: 0 })),
-                    // projectsApi.getReadingListStats(resolvedParams.id, 'all').catch(() => ({ totalItems: 0 })), // Disabled - backend not ready
-                    // projectsApi.getNotes(resolvedParams.id).catch(() => []), // Disabled - backend not ready
+                    readingListApi.getReadingListStats(resolvedParams.id).catch(() => ({ totalItems: 0 })),
+                    notesApi.getNotes(resolvedParams.id).catch(() => []),
                     accountApi.getAccount()
                 ])
 
                 setProject(projectData)
                 setLibraryStats(libraryStatsData)
-                setReadingListStats({ totalItems: 0 }) // Fallback data
-                setNotesCount(0) // Fallback data
+                setReadingListStats(readingListStatsData)
+                setNotesCount(notesData.length)
                 setUserAccount(accountData)
             } catch (error) {
                 console.error('Error loading project:', error)
@@ -171,20 +165,6 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                             >
                                 <Edit3 className="mr-2 h-4 w-4" />
                                 Edit Project
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="bg-background/40 backdrop-blur-xl border-border hover:bg-accent transition-all duration-300"
-                                style={{
-                                    boxShadow: `
-                                        0 0 20px hsl(var(--primary) / 0.15),
-                                        inset 0 0 20px hsl(var(--primary) / 0.05)
-                                    `
-                                }}
-                                onClick={() => setShowShareDialog(true)}
-                            >
-                                <Share2 className="mr-2 h-4 w-4" />
-                                Share Project
                             </Button>
                         </div>
                     </div>
@@ -394,17 +374,6 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                 </div>
             </div>
 
-            {/* Share Project Dialog */}
-            <ShareProjectDialog
-                isOpen={showShareDialog}
-                projectId={projectId}
-                projectName={project?.name || ''}
-                onClose={() => setShowShareDialog(false)}
-                onCollaboratorAdded={() => {
-                    // Optionally refresh project data or show updated collaborator list
-                    console.log('Collaborator added successfully')
-                }}
-            />
 
             {/* Edit Project Dialog */}
             <ProjectEditDialog
@@ -413,6 +382,7 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                 onClose={() => setShowEditDialog(false)}
                 onProjectUpdated={handleProjectUpdated}
             />
+
         </div>
     )
 } 

@@ -31,8 +31,6 @@ import {
     FileText,
     Loader2,
     Flame,
-    Grid3X3,
-    List,
     Trash2,
     Play,
     RefreshCw,
@@ -63,11 +61,11 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
     const { toast } = useToast()
     const [projectId, setProjectId] = useState<string>("")
     const [readingList, setReadingList] = useState<ReadingListItem[]>([])
+    const [allReadingListItems, setAllReadingListItems] = useState<ReadingListItem[]>([]) // Store unfiltered data for accurate counts
     const [stats, setStats] = useState<ReadingListStats | null>(null)
     const [isLoading, setIsLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'in-progress' | 'completed' | 'skipped' | 'recommendations'>('all')
+    const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'in-progress' | 'completed' | 'skipped'>('all')
     const [searchQuery, setSearchQuery] = useState("")
-    const [sortBy, setSortBy] = useState<'date' | 'priority' | 'title' | 'rating' | 'difficulty'>('date')
     const [sortDirection] = useState<'asc' | 'desc'>('desc')
     const [filterPriority, setFilterPriority] = useState<string>("all")
     const [filterDifficulty, setFilterDifficulty] = useState<string>("all")
@@ -77,7 +75,6 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
     const [isLoadingLibrary, setIsLoadingLibrary] = useState(false)
     const [librarySearchQuery, setLibrarySearchQuery] = useState("")
     const [selectedItem] = useState<ReadingListItem | null>(null)
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
     const [showFilters, setShowFilters] = useState(false)
     const [showNoteDialog, setShowNoteDialog] = useState(false)
     const [noteItemId, setNoteItemId] = useState<string>("")
@@ -97,6 +94,7 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
             try {
                 await Promise.all([
                     loadReadingList(resolvedParams.id),
+                    loadAllReadingListItems(resolvedParams.id), // Load unfiltered data for accurate counts
                     loadReadingListStats(resolvedParams.id)
                 ])
             } catch (error) {
@@ -193,7 +191,7 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                 difficulty: filterDifficulty !== 'all' ? filterDifficulty.toUpperCase() as 'EASY' | 'MEDIUM' | 'HARD' | 'EXPERT' : undefined,
                 relevance: filterRelevance !== 'all' ? filterRelevance.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' : undefined,
                 search: searchQuery || undefined,
-                sortBy: sortBy as 'addedAt' | 'priority' | 'title' | 'rating' | 'difficulty',
+                sortBy: 'addedAt', // Default to date added
                 sortOrder: sortDirection,
                 page: 1,
                 limit: 100
@@ -209,6 +207,38 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
             console.error('❌ Error loading reading list:', error)
             // Set empty array on error to prevent crashes
             setReadingList([])
+            throw error
+        }
+    }
+
+    // Load all reading list items (unfiltered) for accurate tab counts
+    const loadAllReadingListItems = async (projectId: string) => {
+        try {
+            console.log('🔍 Loading all reading list items for counts:', projectId)
+
+            // Make API call to get all reading list items without filters
+            const response = await readingListApi.getReadingList(projectId, {
+                // No status filter to get all items
+                priority: undefined,
+                difficulty: undefined,
+                relevance: undefined,
+                search: undefined,
+                sortBy: 'addedAt',
+                sortOrder: 'desc',
+                page: 1,
+                limit: 1000 // Get more items for accurate counts
+            })
+
+            console.log('📊 All reading list items loaded:', response.items.length, 'items')
+
+            // Enrich reading list items with paper details from library
+            const enrichedReadingList = await enrichReadingListWithPaperDetails(response.items, projectId)
+
+            setAllReadingListItems(enrichedReadingList)
+        } catch (error) {
+            console.error('❌ Error loading all reading list items:', error)
+            // Set empty array on error to prevent crashes
+            setAllReadingListItems([])
             throw error
         }
     }
@@ -238,8 +268,10 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
     const reloadReadingList = useCallback(async () => {
         if (projectId) {
             await loadReadingList(projectId)
+            // Also reload unfiltered data for accurate counts
+            await loadAllReadingListItems(projectId)
         }
-    }, [projectId, activeTab, searchQuery, sortBy, sortDirection, filterPriority, filterDifficulty, filterRelevance])
+    }, [projectId, activeTab, searchQuery, sortDirection, filterPriority, filterDifficulty, filterRelevance])
 
     // Function to refresh paper details for items missing them
     const refreshPaperDetails = useCallback(async () => {
@@ -292,6 +324,7 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
 
             // Make actual API call to add paper to reading list
             await readingListApi.addToReadingList(projectId, paper.id, {
+                paperId: paper.id,
                 priority: 'MEDIUM',
                 difficulty: 'MEDIUM',
                 relevance: 'MEDIUM'
@@ -312,6 +345,9 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
 
             // Reload the reading list to show the new item
             await loadReadingList(projectId)
+
+            // Also reload unfiltered data for accurate counts
+            await loadAllReadingListItems(projectId)
 
             // Also reload stats to ensure consistency
             await loadReadingListStats(projectId)
@@ -334,6 +370,9 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
 
             // Reload the reading list to get updated data
             await loadReadingList(projectId)
+
+            // Also reload unfiltered data for accurate counts
+            await loadAllReadingListItems(projectId)
 
             toast({
                 title: "Success",
@@ -364,6 +403,9 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
 
             // Reload the reading list to get updated data
             await loadReadingList(projectId)
+
+            // Also reload unfiltered data for accurate counts
+            await loadAllReadingListItems(projectId)
         } catch (error) {
             console.error('Error updating progress:', error)
 
@@ -389,6 +431,9 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
 
             // Reload the reading list to get updated data
             await loadReadingList(projectId)
+
+            // Also reload unfiltered data for accurate counts
+            await loadAllReadingListItems(projectId)
 
             toast({
                 title: "Success",
@@ -536,40 +581,6 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
         }
     }
 
-    const handleLoadRecommendations = async () => {
-        try {
-            console.log('Loading reading list recommendations...')
-
-            // Make actual API call to get recommendations
-            const recommendations = await readingListApi.getReadingListRecommendations(projectId, {
-                limit: 10,
-                excludeRead: true
-            })
-
-            console.log('Recommendations loaded:', recommendations)
-
-            // For now, we'll add recommendations to the reading list
-            // In a more sophisticated implementation, you might want to show them separately
-            if (recommendations.length > 0) {
-                toast({
-                    title: "Success",
-                    description: `${recommendations.length} recommendations loaded!`,
-                })
-            } else {
-                toast({
-                    title: "Info",
-                    description: "No new recommendations available.",
-                })
-            }
-        } catch (error) {
-            console.error('Error loading recommendations:', error)
-            toast({
-                title: "Error",
-                description: "Failed to load recommendations. Please try again.",
-                variant: "destructive"
-            })
-        }
-    }
 
     const getPriorityColor = (priority: string) => {
         switch (priority) {
@@ -709,14 +720,14 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
         }
     }
 
-    // Helper functions to safely get counts
+    // Helper functions to safely get counts using unfiltered data
     const getReadingListCount = () => {
-        return Array.isArray(readingList) ? readingList.length : 0
+        return Array.isArray(allReadingListItems) ? allReadingListItems.length : 0
     }
 
     const getStatusCount = (status: string) => {
-        if (!Array.isArray(readingList)) return 0
-        return readingList.filter(item => item.status === status).length
+        if (!Array.isArray(allReadingListItems)) return 0
+        return allReadingListItems.filter(item => item.status === status).length
     }
 
     const getItemsMissingPaperDetails = () => {
@@ -771,7 +782,7 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                     Reading List
                                 </h1>
                                 <p className="text-muted-foreground mt-1">
-                                    Curated reading list and paper recommendations for your research
+                                    Curated reading list for your research
                                 </p>
                             </div>
                             <Button
@@ -825,7 +836,7 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                     <div className="flex items-center justify-between relative z-10">
                                         <div>
                                             <p className="text-sm text-muted-foreground">Completion Rate</p>
-                                            <p className="text-2xl font-bold text-foreground">{stats?.completionRate || 0}%</p>
+                                            <p className="text-2xl font-bold text-foreground">{Math.round(stats?.completionRate || 0)}%</p>
                                         </div>
                                         <Target className="h-8 w-8 text-green-500" />
                                     </div>
@@ -919,14 +930,6 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                                 <Filter className="mr-2 h-4 w-4" />
                                                 Filters
                                             </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                                                className="bg-background/40 border-border hover:bg-accent"
-                                            >
-                                                {viewMode === 'grid' ? <List className="h-4 w-4" /> : <Grid3X3 className="h-4 w-4" />}
-                                            </Button>
                                         </div>
                                     </div>
 
@@ -947,21 +950,8 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                                 initial={{ opacity: 0, height: 0 }}
                                                 animate={{ opacity: 1, height: 'auto' }}
                                                 exit={{ opacity: 0, height: 0 }}
-                                                className="grid grid-cols-1 md:grid-cols-4 gap-4"
+                                                className="grid grid-cols-1 md:grid-cols-3 gap-4"
                                             >
-                                                <Select value={sortBy} onValueChange={(value) => setSortBy(value as any)}>
-                                                    <SelectTrigger className="bg-background/40 border-border">
-                                                        <SelectValue placeholder="Sort by" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="priority">Priority</SelectItem>
-                                                        <SelectItem value="date">Date Added</SelectItem>
-                                                        <SelectItem value="title">Title</SelectItem>
-                                                        <SelectItem value="rating">Rating</SelectItem>
-                                                        <SelectItem value="difficulty">Difficulty</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-
                                                 <Select value={filterPriority} onValueChange={setFilterPriority}>
                                                     <SelectTrigger className="bg-background/40 border-border">
                                                         <SelectValue placeholder="Priority" />
@@ -1007,7 +997,7 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
 
                                 <CardContent className="pt-0">
                                     <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="w-full">
-                                        <TabsList className="grid w-full grid-cols-6 bg-background/40 border-border">
+                                        <TabsList className="grid w-full grid-cols-5 bg-background/40 border-border">
                                             <TabsTrigger value="all" className="data-[state=active]:bg-primary/20">
                                                 All ({getReadingListCount()})
                                             </TabsTrigger>
@@ -1026,9 +1016,6 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                             <TabsTrigger value="skipped" className="data-[state=active]:bg-primary/20 flex items-center gap-1.5">
                                                 <XCircle className="h-3 w-3" />
                                                 Skipped ({getStatusCount('SKIPPED')})
-                                            </TabsTrigger>
-                                            <TabsTrigger value="recommendations" className="data-[state=active]:bg-primary/20">
-                                                Recommendations
                                             </TabsTrigger>
                                         </TabsList>
 
@@ -1351,20 +1338,17 @@ export default function ProjectReadingListPage({ params }: ProjectReadingListPag
                                                 <div className="text-center py-12">
                                                     <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                                     <h3 className="text-lg font-medium text-muted-foreground mb-2">
-                                                        {activeTab === 'recommendations' ? 'No recommendations yet' : 'No papers in reading list'}
+                                                        No papers in reading list
                                                     </h3>
                                                     <p className="text-muted-foreground mb-4">
-                                                        {activeTab === 'recommendations'
-                                                            ? 'Get personalized paper recommendations based on your research interests'
-                                                            : 'Add papers from your library or get recommendations to start building your reading list'
-                                                        }
+                                                        Add papers from your library to start building your reading list
                                                     </p>
                                                     <Button
-                                                        onClick={activeTab === 'recommendations' ? handleLoadRecommendations : () => setIsAddingPaper(true)}
+                                                        onClick={() => setIsAddingPaper(true)}
                                                         className="gradient-primary-to-accent text-primary-foreground border-0"
                                                     >
                                                         <Plus className="mr-2 h-4 w-4" />
-                                                        {activeTab === 'recommendations' ? 'Get Recommendations' : 'Add First Paper'}
+                                                        Add First Paper
                                                     </Button>
                                                 </div>
                                             )}

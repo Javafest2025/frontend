@@ -21,7 +21,6 @@ import {
   Sparkles,
   LogOut,
   CheckSquare,
-  GraduationCap
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { Button } from "@/components/ui/button"
@@ -61,20 +60,13 @@ const NAV_ITEMS = [
     animationClass: "group-hover:scale-110 group-hover:rotate-12"
   },
   {
-    name: "Call4Papper",
-    href: "/interface/papercall",
-    icon: GraduationCap,
-    description: "Academic deadlines and research opportunities",
-    loadingMessage: "Loading academic notifications...",
+    name: "Notifications",
+    href: "/interface/notifications",
+    icon: Bell,
+    description: "System notifications and alerts",
+    loadingMessage: "Loading notifications...",
     animationClass: "group-hover:animate-bounce group-hover:scale-110"
   }
-  // {
-  //   name: "Notifications",
-  //   href: "/interface/notifications",
-  //   icon: Bell,
-  //   description: "System notifications and alerts",
-  //   loadingMessage: "Loading notifications..."
-  // }
 ]
 
 const SETTINGS_ITEMS = [
@@ -359,14 +351,14 @@ export function Sidebar({ collapsed, onToggle, className }: Props) {
         {/* Logout Button */}
         {collapsed ? (
           <EnhancedTooltip content="Logout: Sign out of your account" side="right">
-            <LogoutButton className="flex items-center justify-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border border-transparent hover:bg-red-500/10 hover:border-red-500/30 hover:shadow-lg hover:shadow-red-500/10 text-foreground/80 hover:text-red-500 bg-background/20">
+            <LogoutButton className="flex items-center justify-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border-2 w-full text-left hover:bg-red-500/10 hover:border-red-500/30 hover:shadow-lg hover:shadow-red-500/10 text-foreground/80 hover:text-red-500 bg-background/20 border-red-500/20">
               <div className="relative p-2 rounded-lg transition-all duration-300 group-hover:bg-red-500/10 group-hover:translate-x-1">
                 <LogOut className="h-5 w-5 text-foreground/70 group-hover:text-red-500 transition-all duration-300" />
               </div>
             </LogoutButton>
           </EnhancedTooltip>
         ) : (
-          <LogoutButton className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border border-transparent hover:bg-red-500/10 hover:border-red-500/30 hover:shadow-lg hover:shadow-red-500/10 text-foreground/80 hover:text-red-500 bg-background/20 w-full">
+          <LogoutButton className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border-2 w-full text-left hover:bg-red-500/10 hover:border-red-500/30 hover:shadow-lg hover:shadow-red-500/10 text-foreground/80 hover:text-red-500 bg-background/20 border-red-500/20">
             <div className="relative p-1.5 rounded-lg transition-all duration-300 group-hover:bg-red-500/10 group-hover:translate-x-1">
               <LogOut className="h-4 w-4 text-foreground/70 group-hover:text-red-500 transition-all duration-300" />
             </div>
