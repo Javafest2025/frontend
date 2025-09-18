@@ -11,6 +11,8 @@ import { EnhancedTooltip } from "@/components/ui/enhanced-tooltip"
 import { ProjectCreateDialog } from "@/components/interface/ProjectCreateDialog"
 import { ProjectEditDialog } from "@/components/interface/ProjectEditDialog"
 import { ProjectStatsPieChart } from "@/components/interface/ProjectStatsPieChart"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { useToast } from "@/hooks/use-toast"
 import { projectsApi, readingListApi, notesApi } from "@/lib/api/project-service"
 import { libraryApi } from "@/lib/api/project-service/library"
 import { Project, ProjectStatus } from "@/types/project"
@@ -44,6 +46,7 @@ import { cn } from "@/lib/utils"
 
 export function ProjectsDashboard() {
     const router = useRouter()
+    const { toast } = useToast()
     const [projects, setProjects] = useState<Project[]>([])
     const [paperCounts, setPaperCounts] = useState<Record<string, number>>({})
     const [searchQuery, setSearchQuery] = useState("")
@@ -60,6 +63,9 @@ export function ProjectsDashboard() {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [openingProjectId, setOpeningProjectId] = useState<string | null>(null)
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+    const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     // Hook to track shared projects
     const { isProjectShared, refreshSharedProjects } = useSharedProjects(projects)
@@ -196,17 +202,35 @@ export function ProjectsDashboard() {
     }
 
 
-    const handleDeleteProject = async (project: Project) => {
-        if (window.confirm(`Are you sure you want to delete "${project.name}"? This action cannot be undone and will delete all associated data including papers, notes, and reading lists.`)) {
-            try {
-                await projectsApi.deleteProject(project.id)
-                // Refresh the projects list
-                loadProjects()
-                console.log('Project deleted successfully')
-            } catch (error) {
-                console.error('Error deleting project:', error)
-                alert('Failed to delete project. Please try again.')
-            }
+    const handleDeleteProject = (project: Project) => {
+        setProjectToDelete(project)
+        setShowDeleteDialog(true)
+    }
+
+    const confirmDeleteProject = async () => {
+        if (!projectToDelete) return
+
+        try {
+            setIsDeleting(true)
+            await projectsApi.deleteProject(projectToDelete.id)
+            // Refresh the projects list
+            loadProjects()
+            console.log('Project deleted successfully')
+            toast({
+                title: "Project deleted",
+                description: `"${projectToDelete.name}" was permanently removed.`,
+            })
+            setShowDeleteDialog(false)
+            setProjectToDelete(null)
+        } catch (error) {
+            console.error('Error deleting project:', error)
+            toast({
+                title: "Delete failed",
+                description: error instanceof Error ? error.message : 'Failed to delete project. Please try again.',
+                variant: "destructive",
+            })
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -781,6 +805,15 @@ export function ProjectsDashboard() {
                     }}
                 />
             )}
+
+            {/* Delete Confirmation Dialog */}
+            <DeleteConfirmationDialog
+                open={showDeleteDialog}
+                onOpenChange={setShowDeleteDialog}
+                onConfirm={confirmDeleteProject}
+                projectName={projectToDelete?.name || ""}
+                isLoading={isDeleting}
+            />
 
         </div>
     )

@@ -28,9 +28,9 @@ import {
   Eye,
   EyeOff
 } from "lucide-react"
-import { notificationsApi } from "@/lib/api/notifications"
-import { Notification, NotificationSummary, AcademicNotification, GeneralNotification } from "@/types/notification"
-import { GENERAL_CATEGORIES, PRIORITY_CONFIG, MOCK_GENERAL_NOTIFICATIONS } from "@/constants/notifications"
+import { notificationsApi } from "@/lib/api/notification-service/notifications"
+import { Notification, NotificationSummary, ServiceNotification, SystemNotification } from "@/types/notification"
+import { SERVICE_CATEGORIES, SYSTEM_CATEGORIES, PRIORITY_CONFIG } from "@/constants/notifications"
 import { cn } from "@/lib/utils/cn"
 import { format, formatDistance } from "date-fns"
 
@@ -40,51 +40,34 @@ export function NotificationContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([])
   const [showUnreadOnly, setShowUnreadOnly] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Load notifications
   useEffect(() => {
     const loadNotifications = async () => {
       try {
-        // For now, using mock data - replace with API call when backend is ready
-        const mockData = MOCK_GENERAL_NOTIFICATIONS
+        console.log("🔔 Loading notifications from backend...")
+        const result = await notificationsApi.getNotifications()
+        console.log("✅ Notifications loaded:", result)
 
-        setNotifications(mockData)
-
-        // Calculate summary from mock data
-        const generalNotifications = mockData.filter(n => n.type === 'general')
-
-        const mockSummary: NotificationSummary = {
-          total: mockData.length,
-          unread: mockData.filter(n => n.status === 'unread').length,
-          by_type: {
-            academic: {
-              total: 0,
-              unread: 0,
-              urgent: 0
-            },
-            general: {
-              total: generalNotifications.length,
-              unread: generalNotifications.filter(n => n.status === 'unread').length,
-              urgent: generalNotifications.filter(n => n.priority === 'urgent').length
-            }
-          },
-          by_priority: {
-            urgent: mockData.filter(n => n.priority === 'urgent').length,
-            high: mockData.filter(n => n.priority === 'high').length,
-            medium: mockData.filter(n => n.priority === 'medium').length,
-            low: mockData.filter(n => n.priority === 'low').length
-          }
-        }
-
-        setSummary(mockSummary)
-
-        // Uncomment when API is ready:
-        // const result = await notificationsApi.getNotifications()
-        // setNotifications(result.notifications.filter(n => n.type === 'general'))
-        // setSummary(result.summary)
+        setNotifications(result.notifications)
+        setSummary(result.summary)
       } catch (error) {
-        console.error("Failed to load notifications:", error)
+        console.error("❌ Failed to load notifications:", error)
         toast.error("Failed to load notifications")
+
+        // Fallback to empty state
+        setNotifications([])
+        setSummary({
+          total: 0,
+          unread: 0,
+          by_type: {
+            service: { total: 0, unread: 0, urgent: 0 },
+            academic: { total: 0, unread: 0, urgent: 0 },
+            system: { total: 0, unread: 0, urgent: 0 }
+          },
+          by_priority: { urgent: 0, high: 0, medium: 0, low: 0 }
+        })
       } finally {
         setIsLoading(false)
       }
@@ -92,6 +75,21 @@ export function NotificationContent() {
 
     loadNotifications()
   }, [])
+
+  // Manual refresh
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true)
+      const result = await notificationsApi.getNotifications()
+      setNotifications(result.notifications)
+      setSummary(result.summary)
+      toast.success("Notifications refreshed")
+    } catch (e) {
+      toast.error("Failed to refresh notifications")
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   // Handle mark as read
   const handleMarkAsRead = async (notificationId: string) => {
@@ -107,21 +105,24 @@ export function NotificationContent() {
 
       // Update summary
       if (summary) {
-        setSummary(prev => ({
-          ...prev!,
-          unread: prev!.unread - 1,
-          by_type: {
-            ...prev!.by_type,
-            general: {
-              ...prev!.by_type.general,
-              unread: prev!.by_type.general.unread - 1
+        const notification = notifications.find(n => n.id === notificationId)
+        if (notification) {
+          setSummary(prev => ({
+            ...prev!,
+            unread: prev!.unread - 1,
+            by_type: {
+              ...prev!.by_type,
+              [notification.type]: {
+                ...prev!.by_type[notification.type],
+                unread: prev!.by_type[notification.type].unread - 1
+              }
             }
-          }
-        }))
+          }))
+        }
       }
 
-      // Make API call (uncomment when ready)
-      // await notificationsApi.markAsRead(notificationId)
+      // Make API call
+      await notificationsApi.markAsRead(notificationId)
 
       toast.success("Notification marked as read")
     } catch (error) {
@@ -146,8 +147,8 @@ export function NotificationContent() {
 
       setSelectedNotifications([])
 
-      // Make API call (uncomment when ready)
-      // await notificationsApi.markMultipleAsRead(selectedNotifications)
+      // Make API call
+      await notificationsApi.markMultipleAsRead(selectedNotifications)
 
       toast.success(`${selectedNotifications.length} notifications marked as read`)
     } catch (error) {
@@ -179,7 +180,22 @@ export function NotificationContent() {
 
   // Get notification icon and styling
   const getNotificationStyling = (notification: Notification) => {
-    const category = GENERAL_CATEGORIES[notification.category as keyof typeof GENERAL_CATEGORIES]
+    let category
+
+    if (notification.type === 'service') {
+      category = SERVICE_CATEGORIES[notification.category as keyof typeof SERVICE_CATEGORIES]
+    } else if (notification.type === 'system') {
+      category = SYSTEM_CATEGORIES[notification.category as keyof typeof SYSTEM_CATEGORIES]
+    } else {
+      // Fallback for unknown categories
+      category = {
+        label: notification.category,
+        icon: Bell,
+        color: "text-blue-500",
+        bgColor: "bg-blue-500/10"
+      }
+    }
+
     const priority = PRIORITY_CONFIG[notification.priority]
     return { category, priority }
   }
@@ -239,15 +255,15 @@ export function NotificationContent() {
             {summary && (
               <div className="flex items-center gap-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{summary.by_type.general.unread}</div>
+                  <div className="text-2xl font-bold text-primary">{summary.unread}</div>
                   <div className="text-xs text-muted-foreground">Unread</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-500">{summary.by_type.general.urgent}</div>
+                  <div className="text-2xl font-bold text-orange-500">{summary.by_priority.urgent}</div>
                   <div className="text-xs text-muted-foreground">Urgent</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-muted-foreground">{summary.by_type.general.total}</div>
+                  <div className="text-2xl font-bold text-muted-foreground">{summary.total}</div>
                   <div className="text-xs text-muted-foreground">Total</div>
                 </div>
               </div>
@@ -258,6 +274,20 @@ export function NotificationContent() {
           <div className="flex items-center justify-end mt-6">
 
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="relative"
+              >
+                {isRefreshing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Clock className="h-4 w-4 mr-2" />
+                )}
+                Refresh
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -324,10 +354,10 @@ export function NotificationContent() {
                   >
                     <Card
                       className={cn(
-                        "bg-background/40 backdrop-blur-xl border shadow-lg cursor-pointer transition-all hover:shadow-xl",
+                        "backdrop-blur-xl border cursor-pointer transition-all duration-300",
                         notification.status === 'unread'
-                          ? "border-primary/20 bg-primary/5"
-                          : "border-primary/10",
+                          ? "bg-background/40 border-primary/20 bg-primary/5 shadow-lg hover:shadow-xl hover:bg-primary/8"
+                          : "bg-background/20 border-muted/30 shadow-sm hover:shadow-md opacity-75 hover:opacity-85",
                         priority.borderColor,
                         isSelected && "ring-2 ring-primary/50"
                       )}
@@ -361,21 +391,33 @@ export function NotificationContent() {
 
                           {/* Notification Icon */}
                           <div className={cn(
-                            "flex items-center justify-center w-10 h-10 rounded-lg",
-                            category.bgColor
+                            "flex items-center justify-center w-10 h-10 rounded-lg transition-colors",
+                            notification.status === 'unread'
+                              ? category.bgColor
+                              : "bg-muted/20"
                           )}>
-                            <Icon className={cn("h-5 w-5", category.color)} />
+                            <Icon className={cn(
+                              "h-5 w-5 transition-colors",
+                              notification.status === 'unread'
+                                ? category.color
+                                : "text-muted-foreground/60"
+                            )} />
                           </div>
 
                           {/* Notification Content */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
-                                <h4 className="font-semibold text-foreground">
+                                <h4 className={cn(
+                                  "font-semibold transition-colors",
+                                  notification.status === 'unread'
+                                    ? "text-foreground"
+                                    : "text-muted-foreground/80"
+                                )}>
                                   {notification.title}
                                 </h4>
                                 {notification.status === 'unread' && (
-                                  <div className="w-2 h-2 bg-primary rounded-full" />
+                                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
                                 )}
                               </div>
 
@@ -392,12 +434,17 @@ export function NotificationContent() {
                               </div>
                             </div>
 
-                            <p className="text-muted-foreground text-sm mb-3">
+                            <p className={cn(
+                              "text-sm mb-3 transition-colors",
+                              notification.status === 'unread'
+                                ? "text-muted-foreground"
+                                : "text-muted-foreground/60"
+                            )}>
                               {notification.message}
                             </p>
 
-                            {/* General-specific info */}
-                            {(notification as GeneralNotification).user_action_required && (
+                            {/* System-specific info */}
+                            {notification.type === 'system' && (notification as SystemNotification).user_action_required && (
                               <div className="flex items-center gap-1 text-xs text-orange-500 mb-3">
                                 <AlertTriangle className="h-3 w-3" />
                                 Action Required

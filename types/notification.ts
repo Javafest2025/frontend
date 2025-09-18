@@ -1,4 +1,4 @@
-export type NotificationType = 'academic' | 'general'
+export type NotificationType = 'service' | 'academic' | 'system'
 
 export type NotificationPriority = 'low' | 'medium' | 'high' | 'urgent'
 
@@ -18,6 +18,15 @@ export interface BaseNotification {
   action_text?: string
 }
 
+// Service Notifications (from backend microservices)
+export interface ServiceNotification extends BaseNotification {
+  type: 'service'
+  category: 'welcome_email' | 'password_reset' | 'email_verification' | 'web_search_completed' | 'summarization_completed' | 'project_deleted' | 'gap_analysis_completed'
+  related_project_id?: string
+  related_paper_id?: string
+  metadata?: Record<string, any> // For storing additional service-specific data
+}
+
 // Academic/Research Notifications
 export interface AcademicNotification extends BaseNotification {
   type: 'academic'
@@ -29,16 +38,16 @@ export interface AcademicNotification extends BaseNotification {
   journal_name?: string
 }
 
-// General/System Notifications  
-export interface GeneralNotification extends BaseNotification {
-  type: 'general'
-  category: 'deadline_missed' | 'todo_overdue' | 'project_update' | 'collaboration_invite' | 'system_alert' | 'account_update' | 'data_sync' | 'backup_complete'
+// System Notifications (frontend generated)
+export interface SystemNotification extends BaseNotification {
+  type: 'system'
+  category: 'account_update' | 'settings_changed' | 'preferences_updated' | 'profile_updated' | 'data_sync' | 'backup_complete' | 'collaboration_invite' | 'deadline_missed' | 'todo_overdue'
   related_project_id?: string
   related_task_id?: string
   user_action_required?: boolean
 }
 
-export type Notification = AcademicNotification | GeneralNotification
+export type Notification = ServiceNotification | AcademicNotification | SystemNotification
 
 export interface NotificationFilters {
   type?: NotificationType
@@ -55,12 +64,17 @@ export interface NotificationSummary {
   total: number
   unread: number
   by_type: {
+    service: {
+      total: number
+      unread: number
+      urgent: number
+    }
     academic: {
       total: number
       unread: number
       urgent: number
     }
-    general: {
+    system: {
       total: number
       unread: number
       urgent: number
@@ -77,17 +91,27 @@ export interface NotificationSummary {
 export interface NotificationSettings {
   email_enabled: boolean
   push_enabled: boolean
+  service_notifications: {
+    welcome_messages: boolean
+    password_reset: boolean
+    email_verification: boolean
+    web_search_completed: boolean
+    summarization_completed: boolean
+    project_deleted: boolean
+    gap_analysis_completed: boolean
+  }
   academic_notifications: {
     conference_deadlines: boolean
     workshop_alerts: boolean
     journal_deadlines: boolean
     paper_updates: boolean
   }
-  general_notifications: {
+  system_notifications: {
+    account_updates: boolean
+    settings_changes: boolean
+    collaboration_invites: boolean
     deadline_reminders: boolean
     todo_alerts: boolean
-    project_updates: boolean
-    collaboration_invites: boolean
     system_alerts: boolean
   }
 } 
