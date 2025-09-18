@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
@@ -20,7 +19,6 @@ import {
     FileText,
     TrendingUp,
     Calendar,
-    X,
     AlertTriangle,
     Star,
     Award,
@@ -109,9 +107,6 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
             .slice(0, 2)
     }
 
-    const getRandomHIndex = () => {
-        return Math.floor(Math.random() * 21) + 10 // Random number between 10-30
-    }
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return "Unknown"
@@ -124,11 +119,12 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-6xl max-h-[85vh] bg-background/80 backdrop-blur-xl border border-border/50 shadow-2xl" hideCloseButton>
-                {/* Subtle glassy overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-background/20 to-background/10 rounded-lg" />
+            <DialogContent className="max-w-6xl max-h-[85vh] bg-background/60 backdrop-blur-2xl border-2 border-primary/40 shadow-2xl shadow-primary/20 ring-1 ring-primary/20">
+                {/* Enhanced glassy overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent rounded-lg" />
+                <div className="absolute inset-0 bg-gradient-to-tl from-blue-500/5 via-transparent to-purple-500/5 rounded-lg" />
 
-                <DialogHeader className="relative space-y-2 pb-3">
+                <DialogHeader className="relative space-y-2 pb-3 pr-12">
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
                             <div className="p-2 rounded-full bg-primary shadow-lg">
@@ -138,26 +134,18 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
                                 Author Profile
                             </DialogTitle>
                         </div>
-                        <div className="flex items-center gap-3">
-                            {author && (
+                        <div className="flex items-center gap-3 mr-2">
+                            {(author || loading) && (
                                 <Button
                                     onClick={handleSync}
-                                    disabled={syncing}
+                                    disabled={syncing || loading}
                                     size="sm"
                                     className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                                 >
-                                    <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
-                                    {syncing ? "Resyncing..." : "Resync Data"}
+                                    <RefreshCw className={cn("h-4 w-4", (syncing || loading) && "animate-spin")} />
+                                    {loading ? "Collecting author data..." : syncing ? "Resyncing..." : "Resync Data"}
                                 </Button>
                             )}
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onOpenChange(false)}
-                                className="h-10 w-10 rounded-full bg-muted/50 hover:bg-red-500/20 border border-border/50 hover:border-red-500/50 transition-all duration-300"
-                            >
-                                <X className="h-5 w-5 text-muted-foreground hover:text-red-500 transition-colors duration-300" />
-                            </Button>
                         </div>
                     </div>
                 </DialogHeader>
@@ -353,38 +341,34 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
 
                         {/* Metrics Grid with Stunning Cards */}
                         <div className="grid grid-cols-3 gap-3">
-                            {author.paperCount !== undefined && (
-                                <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300 group">
-                                    {/* Shimmer effect */}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                                    <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                    <CardContent className="relative p-3 text-center">
-                                        <div className="flex items-center justify-center gap-2 mb-1.5">
-                                            <FileText className="h-4 w-4 text-blue-500" />
-                                        </div>
-                                        <div className="text-xl font-bold text-blue-400">
-                                            {author.paperCount.toLocaleString()}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground font-medium">Papers</div>
-                                    </CardContent>
-                                </Card>
-                            )}
-                            {author.citationCount !== undefined && (
-                                <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300 group">
-                                    {/* Shimmer effect */}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                                    <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                    <CardContent className="relative p-3 text-center">
-                                        <div className="flex items-center justify-center gap-2 mb-1.5">
-                                            <Award className="h-4 w-4 text-emerald-500" />
-                                        </div>
-                                        <div className="text-xl font-bold text-emerald-400">
-                                            {author.citationCount.toLocaleString()}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground font-medium">Citations</div>
-                                    </CardContent>
-                                </Card>
-                            )}
+                            <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300 group">
+                                {/* Shimmer effect */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                <CardContent className="relative p-3 text-center">
+                                    <div className="flex items-center justify-center gap-2 mb-1.5">
+                                        <FileText className="h-4 w-4 text-blue-500" />
+                                    </div>
+                                    <div className="text-xl font-bold text-blue-400">
+                                        {author.paperCount !== undefined ? author.paperCount.toLocaleString() : "N/A"}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground font-medium">Papers</div>
+                                </CardContent>
+                            </Card>
+                            <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300 group">
+                                {/* Shimmer effect */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                <CardContent className="relative p-3 text-center">
+                                    <div className="flex items-center justify-center gap-2 mb-1.5">
+                                        <Award className="h-4 w-4 text-emerald-500" />
+                                    </div>
+                                    <div className="text-xl font-bold text-emerald-400">
+                                        {author.citationCount !== undefined ? author.citationCount.toLocaleString() : "N/A"}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground font-medium">Citations</div>
+                                </CardContent>
+                            </Card>
                             <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300 group">
                                 {/* Shimmer effect */}
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
@@ -395,13 +379,13 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
                                     </div>
                                     <div className="flex items-center justify-center gap-2">
                                         <div className="text-xl font-bold text-amber-400">
-                                            {author.hIndex !== undefined ? author.hIndex : getRandomHIndex()}
+                                            {author.hIndex ?? "N/A"}
                                         </div>
                                         {author.hIndex === undefined && (
                                             <button
                                                 onClick={() => setShowHIndexWarning(!showHIndexWarning)}
                                                 className="text-amber-500 hover:text-amber-400 transition-colors"
-                                                title="H-index might not be accurate"
+                                                title="H-index not available"
                                             >
                                                 <AlertTriangle className="h-2.5 w-2.5" />
                                             </button>
@@ -410,7 +394,7 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
                                     <div className="text-xs text-muted-foreground font-medium">H-Index</div>
                                     {showHIndexWarning && author.hIndex === undefined && (
                                         <div className="text-xs text-amber-500 mt-2 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-                                            H-index might not be accurate
+                                            H-index not available
                                         </div>
                                     )}
                                 </CardContent>
@@ -422,154 +406,174 @@ export function AuthorDialog({ authorName, open, onOpenChange }: AuthorDialogPro
                             {/* Left Column */}
                             <div className="space-y-2.5">
                                 {/* Research Areas */}
-                                {author.researchAreas && author.researchAreas.length > 0 && (
-                                    <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300">
-                                        <div className="absolute inset-0 bg-purple-500/5 opacity-0 hover:opacity-100 transition-opacity duration-300" />
-                                        <CardContent className="relative p-3">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <div className="p-1.5 rounded-lg bg-purple-500/20">
-                                                    <TrendingUp className="h-3.5 w-3.5 text-purple-500" />
+                                <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-[1.01] transition-all duration-300 group">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-purple-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                    <CardContent className="relative p-3">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="p-1.5 rounded-lg bg-purple-500/20">
+                                                <TrendingUp className="h-3.5 w-3.5 text-purple-500" />
+                                            </div>
+                                            <h3 className="font-semibold text-foreground text-sm">Research Areas</h3>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {author.researchAreas && author.researchAreas.length > 0 ? (
+                                                <>
+                                                    {author.researchAreas.slice(0, expandedSections.researchAreas ? undefined : 4).map((area) => (
+                                                        <Badge
+                                                            key={area}
+                                                            className="bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:border-purple-400/50 hover:bg-purple-500/30 hover:scale-105 hover:shadow-sm transition-all duration-300 cursor-pointer"
+                                                        >
+                                                            {area}
+                                                        </Badge>
+                                                    ))}
+                                                    {author.researchAreas.length > 4 && !expandedSections.researchAreas && (
+                                                        <button
+                                                            onClick={() => setExpandedSections(prev => ({ ...prev, researchAreas: true }))}
+                                                            className="bg-muted/50 text-muted-foreground border border-border/50 px-2 py-1 rounded-md text-xs hover:bg-muted transition-colors"
+                                                        >
+                                                            +{author.researchAreas.length - 4} more
+                                                        </button>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/30">
+                                                    N/A
                                                 </div>
-                                                <h3 className="font-semibold text-foreground text-sm">Research Areas</h3>
-                                            </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                {author.researchAreas.slice(0, expandedSections.researchAreas ? undefined : 4).map((area) => (
-                                                    <Badge
-                                                        key={area}
-                                                        className="bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:border-purple-400/50 transition-all duration-300"
-                                                    >
-                                                        {area}
-                                                    </Badge>
-                                                ))}
-                                                {author.researchAreas.length > 4 && !expandedSections.researchAreas && (
-                                                    <button
-                                                        onClick={() => setExpandedSections(prev => ({ ...prev, researchAreas: true }))}
-                                                        className="bg-muted/50 text-muted-foreground border border-border/50 px-2 py-1 rounded-md text-xs hover:bg-muted transition-colors"
-                                                    >
-                                                        +{author.researchAreas.length - 4} more
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                )}
+                                            )}
+                                        </div>
+                                    </CardContent>
+                                </Card>
 
                                 {/* Affiliations */}
-                                {author.allAffiliations && author.allAffiliations.length > 0 && (
-                                    <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300">
-                                        <div className="absolute inset-0 bg-teal-500/5 opacity-0 hover:opacity-100 transition-opacity duration-300" />
-                                        <CardContent className="relative p-3">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <div className="p-1.5 rounded-lg bg-teal-500/20">
-                                                    <Building className="h-3.5 w-3.5 text-teal-500" />
+                                <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-teal-500/40 hover:shadow-lg hover:shadow-teal-500/20 hover:scale-[1.01] transition-all duration-300 group">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-teal-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-teal-500/10 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                    <CardContent className="relative p-3">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="p-1.5 rounded-lg bg-teal-500/20">
+                                                <Building className="h-3.5 w-3.5 text-teal-500" />
+                                            </div>
+                                            <h3 className="font-semibold text-foreground text-sm">Affiliations</h3>
+                                        </div>
+                                        <div className="space-y-1.5 max-h-20 overflow-y-auto">
+                                            {author.allAffiliations && author.allAffiliations.length > 0 ? (
+                                                <>
+                                                    {author.allAffiliations.slice(0, expandedSections.affiliations ? undefined : 3).map((affiliation) => (
+                                                        <div key={affiliation} className="text-sm text-muted-foreground flex items-center gap-2">
+                                                            <div className="w-1 h-1 bg-teal-500 rounded-full" />
+                                                            {affiliation}
+                                                        </div>
+                                                    ))}
+                                                    {author.allAffiliations.length > 3 && !expandedSections.affiliations && (
+                                                        <button
+                                                            onClick={() => setExpandedSections(prev => ({ ...prev, affiliations: true }))}
+                                                            className="text-sm text-muted-foreground flex items-center gap-2 hover:text-foreground transition-colors"
+                                                        >
+                                                            <div className="w-1 h-1 bg-muted-foreground rounded-full" />
+                                                            +{author.allAffiliations.length - 3} more affiliations
+                                                        </button>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/30">
+                                                    N/A
                                                 </div>
-                                                <h3 className="font-semibold text-foreground text-sm">Affiliations</h3>
-                                            </div>
-                                            <div className="space-y-1.5 max-h-20 overflow-y-auto">
-                                                {author.allAffiliations.slice(0, expandedSections.affiliations ? undefined : 3).map((affiliation) => (
-                                                    <div key={affiliation} className="text-sm text-muted-foreground flex items-center gap-2">
-                                                        <div className="w-1 h-1 bg-teal-500 rounded-full" />
-                                                        {affiliation}
-                                                    </div>
-                                                ))}
-                                                {author.allAffiliations.length > 3 && !expandedSections.affiliations && (
-                                                    <button
-                                                        onClick={() => setExpandedSections(prev => ({ ...prev, affiliations: true }))}
-                                                        className="text-sm text-muted-foreground flex items-center gap-2 hover:text-foreground transition-colors"
-                                                    >
-                                                        <div className="w-1 h-1 bg-muted-foreground rounded-full" />
-                                                        +{author.allAffiliations.length - 3} more affiliations
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                )}
+                                            )}
+                                        </div>
+                                    </CardContent>
+                                </Card>
                             </div>
 
                             {/* Right Column */}
                             <div className="space-y-2.5">
-                                {/* Recent Publications */}
-                                {author.recentPublications && author.recentPublications.length > 0 && (
-                                    <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300">
-                                        <div className="absolute inset-0 bg-indigo-500/5 opacity-0 hover:opacity-100 transition-opacity duration-300" />
-                                        <CardContent className="relative p-3">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <div className="p-1.5 rounded-lg bg-indigo-500/20">
-                                                    <FileText className="h-3.5 w-3.5 text-indigo-500" />
-                                                </div>
-                                                <h3 className="font-semibold text-foreground text-sm">Recent Publications</h3>
-                                            </div>
-                                            <div className="space-y-2 max-h-28 overflow-y-auto">
-                                                {author.recentPublications.slice(0, expandedSections.publications ? undefined : 2).map((paper: any) => (
-                                                    <div key={`${paper.title}-${paper.year}`} className="p-3 rounded-lg bg-muted/30 border border-border/30 hover:border-border/50 transition-all duration-300">
-                                                        <div className="text-sm font-medium text-foreground line-clamp-2 mb-1">
-                                                            {paper.title || "Untitled Paper"}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                                            {paper.journal && (
-                                                                <span className="flex items-center gap-1">
-                                                                    <Globe className="h-3 w-3" />
-                                                                    {paper.journal}
-                                                                </span>
-                                                            )}
-                                                            {paper.year && (
-                                                                <span className="flex items-center gap-1">
-                                                                    <Calendar className="h-3 w-3" />
-                                                                    {paper.year}
-                                                                </span>
-                                                            )}
-                                                            {paper.citations && (
-                                                                <span className="flex items-center gap-1">
-                                                                    <Award className="h-3 w-3" />
-                                                                    {paper.citations} citations
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                {author.recentPublications.length > 2 && !expandedSections.publications && (
-                                                    <button
-                                                        onClick={() => setExpandedSections(prev => ({ ...prev, publications: true }))}
-                                                        className="text-sm text-muted-foreground flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-border/20 hover:bg-muted/30 transition-colors w-full"
-                                                    >
-                                                        <Sparkles className="h-3 w-3" />
-                                                        +{author.recentPublications.length - 2} more publications
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                )}
-
                                 {/* Publication Timeline */}
-                                {(author.firstPublicationYear || author.lastPublicationYear) && (
-                                    <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-border transition-all duration-300">
-                                        <div className="absolute inset-0 bg-orange-500/5 opacity-0 hover:opacity-100 transition-opacity duration-300" />
-                                        <CardContent className="relative p-3">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <div className="p-1.5 rounded-lg bg-orange-500/20">
-                                                    <Calendar className="h-3.5 w-3.5 text-orange-500" />
+                                <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-orange-500/40 hover:shadow-lg hover:shadow-orange-500/20 hover:scale-[1.01] transition-all duration-300 group">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-orange-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-orange-500/10 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                    <CardContent className="relative p-3">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="p-1.5 rounded-lg bg-orange-500/20">
+                                                <Calendar className="h-3.5 w-3.5 text-orange-500" />
+                                            </div>
+                                            <h3 className="font-semibold text-foreground text-sm">Publication Timeline</h3>
+                                        </div>
+                                        <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/30">
+                                            {(() => {
+                                                if (author.firstPublicationYear && author.lastPublicationYear) {
+                                                    return `${author.firstPublicationYear} - ${author.lastPublicationYear}`
+                                                }
+                                                if (author.firstPublicationYear) {
+                                                    return `Since ${author.firstPublicationYear}`
+                                                }
+                                                if (author.lastPublicationYear) {
+                                                    return `Until ${author.lastPublicationYear}`
+                                                }
+                                                return "N/A"
+                                            })()}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Recent Publications */}
+                                <Card className="relative overflow-hidden bg-card/50 border border-border/50 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/20 hover:scale-[1.01] transition-all duration-300 group">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-500/10 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                    <CardContent className="relative p-3">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="p-1.5 rounded-lg bg-indigo-500/20">
+                                                <FileText className="h-3.5 w-3.5 text-indigo-500" />
+                                            </div>
+                                            <h3 className="font-semibold text-foreground text-sm">Recent Publications</h3>
+                                        </div>
+                                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                                            {author.recentPublications && author.recentPublications.length > 0 ? (
+                                                <>
+                                                    {author.recentPublications.slice(0, expandedSections.publications ? undefined : 3).map((paper: any) => (
+                                                        <div key={`${paper.title}-${paper.year}`} className="p-3 rounded-lg bg-muted/30 border border-border/30 hover:border-border/50 hover:scale-[1.02] hover:shadow-lg transition-all duration-300 cursor-pointer">
+                                                            <div className="text-sm font-medium text-foreground line-clamp-2 mb-1">
+                                                                {paper.title || "Untitled Paper"}
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                                                {paper.journal && (
+                                                                    <span className="flex items-center gap-1">
+                                                                        <Globe className="h-3 w-3" />
+                                                                        {paper.journal}
+                                                                    </span>
+                                                                )}
+                                                                {paper.year && (
+                                                                    <span className="flex items-center gap-1">
+                                                                        <Calendar className="h-3 w-3" />
+                                                                        {paper.year}
+                                                                    </span>
+                                                                )}
+                                                                {paper.citations && (
+                                                                    <span className="flex items-center gap-1">
+                                                                        <Award className="h-3 w-3" />
+                                                                        {paper.citations} citations
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {author.recentPublications.length > 3 && !expandedSections.publications && (
+                                                        <button
+                                                            onClick={() => setExpandedSections(prev => ({ ...prev, publications: true }))}
+                                                            className="text-sm text-muted-foreground flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-border/20 hover:bg-muted/30 transition-colors w-full"
+                                                        >
+                                                            <Sparkles className="h-3 w-3" />
+                                                            +{author.recentPublications.length - 3} more publications
+                                                        </button>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/30">
+                                                    N/A
                                                 </div>
-                                                <h3 className="font-semibold text-foreground text-sm">Publication Timeline</h3>
-                                            </div>
-                                            <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/30">
-                                                {(() => {
-                                                    if (author.firstPublicationYear && author.lastPublicationYear) {
-                                                        return `${author.firstPublicationYear} - ${author.lastPublicationYear}`
-                                                    }
-                                                    if (author.firstPublicationYear) {
-                                                        return `Since ${author.firstPublicationYear}`
-                                                    }
-                                                    if (author.lastPublicationYear) {
-                                                        return `Until ${author.lastPublicationYear}`
-                                                    }
-                                                    return null
-                                                })()}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                )}
+                                            )}
+                                        </div>
+                                    </CardContent>
+                                </Card>
                             </div>
                         </div>
 
