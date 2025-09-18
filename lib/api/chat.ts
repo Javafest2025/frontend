@@ -1,8 +1,9 @@
 import type { APIResponse } from "@/types/project";
 import { getApiUrl } from "@/lib/config/api-config";
 import { authenticatedFetch } from "@/lib/api/user-service";
-// Import extraction service functions
-import { hasStructuredFacts, extractPaper } from "@/lib/api/extract";
+// Import extraction service functions from project-service
+import { hasStructuredFacts, getStructuredFacts } from "@/lib/api/paper-extraction";
+import { triggerExtractionForPaper } from "@/lib/api/project-service/extraction";
 
 /**
  * Chat API Request/Response Types - Must match backend DTOs exactly
@@ -320,7 +321,11 @@ export const checkPaperChatReadiness = async (paperId: string): Promise<{
     
     if (hasStructuredData.hasStructuredData) {
       return { isReady: true, needsExtraction: false };
+    } else if (hasStructuredData.statusValue === 'PROCESSING') {
+      // Extraction is already in progress, don't trigger again
+      return { isReady: false, needsExtraction: false };
     } else {
+      // Not extracted and not processing, needs extraction
       return { isReady: false, needsExtraction: true };
     }
   } catch (error) {
@@ -336,7 +341,7 @@ export const checkPaperChatReadiness = async (paperId: string): Promise<{
 export const extractPaperForChat = async (paperId: string): Promise<void> => {
   try {
     console.log(`🔄 Starting extraction for paper: ${paperId}`);
-    await extractPaper(paperId);
+    await triggerExtractionForPaper(paperId, true);
     console.log(`✅ Extraction initiated for paper: ${paperId}`);
   } catch (error) {
     console.error(`❌ Failed to extract paper ${paperId}:`, error);

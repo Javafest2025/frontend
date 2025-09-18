@@ -16,7 +16,7 @@ import {
     extractPaperForChat,
     type ChatSession 
 } from "@/lib/api/chat"
-import { getStructuredFacts } from "@/lib/api/extract"
+import { getStructuredFacts } from "@/lib/api/paper-extraction"
 
 type ChatContainerProps = {
     /**
@@ -206,19 +206,23 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
         // Use the format requested by the user (removed abstract)
         let message = "🎓 **Paper Analysis Complete!**\n\n"
         
-        if (paperData?.data?.title) {
-            message += `📄 **Title:** ${paperData.data.title}\n\n`
+        // Handle both paperData.title and paperData.data.title structures
+        const title = paperData?.title || paperData?.data?.title;
+        if (title && title !== "Extracted Paper" && title !== "Unknown Paper" && title !== "Error Loading Paper") {
+            message += `📄 **Title:** ${title}\n\n`
         } else {
-            message += `📄 **Title:** The Hitchhiker's Guide to Programming and Optimizing Cache Coherent Heterogeneous Systems: CXL, NVLink-C2C, and AMD Infinity Fabric\n\n`
+            message += `📄 **Title:** Unable to load paper title\n\n`
         }
         
-        if (paperData?.data?.authors && paperData.data.authors.length > 0) {
-            const authorNames = paperData.data.authors.map((author: any) => 
+        // Handle both paperData.authors and paperData.data.authors structures  
+        const authors = paperData?.authors || paperData?.data?.authors;
+        if (authors && authors.length > 0) {
+            const authorNames = authors.map((author: any) => 
                 typeof author === 'string' ? author : (author.name || author)
             ).join(", ")
             message += `👥 **Authors:** ${authorNames}\n\n`
         } else {
-            message += `👥 **Authors:** Zixuan Wang, Suyash Mahar, Luyi Li, and 9 more\n\n`
+            message += `👥 **Authors:** Unable to load author information\n\n`
         }
         
         message += "🤖 **I can help you with:**\n"
