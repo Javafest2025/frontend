@@ -33,9 +33,12 @@ interface PaperCardProps {
     onViewPdf?: (paper: Paper) => void
     onToggleFavorite?: (paper: Paper) => void
     isFavorited?: boolean
+    isHighlighted?: boolean
+    onHighlightClick?: () => void
 }
 
-export function PaperCard({ paper, index, onSelect, onViewPdf, onToggleFavorite, isFavorited = false }: PaperCardProps) {
+export function PaperCard({ paper, index, onSelect, onViewPdf, onToggleFavorite, isFavorited = false, isHighlighted = false, onHighlightClick }: PaperCardProps) {
+    console.log('📄 PaperCard rendered for paper:', paper.id, 'isHighlighted:', isHighlighted)
     const router = useRouter()
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null)
     const [thumbnailLoading, setThumbnailLoading] = useState(false)
@@ -109,9 +112,10 @@ export function PaperCard({ paper, index, onSelect, onViewPdf, onToggleFavorite,
 
     const formatDate = (dateString: string) => {
         try {
+            if (!dateString) return "Unknown"
             return new Date(dateString).getFullYear()
         } catch {
-            return dateString
+            return "Unknown"
         }
     }
 
@@ -148,12 +152,57 @@ The methodology employed in this study combines quantitative and qualitative app
             className="group"
         >
             <Card
-                className="bg-background/50 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg shadow-primary/5 hover:shadow-primary/10 group"
+                className={cn(
+                    "bg-background/50 backdrop-blur-xl border-2 transition-all duration-500 cursor-pointer overflow-hidden shadow-lg group",
+                    isHighlighted
+                        ? "border-amber-400/80 bg-gradient-to-br from-amber-50/20 to-yellow-50/20 shadow-amber-400/30"
+                        : "border-primary/20 hover:border-primary/40 hover:bg-primary/5 shadow-primary/5 hover:shadow-primary/10"
+                )}
                 style={{
-                    boxShadow: '0 0 20px hsl(var(--primary) / 0.05), inset 0 0 20px hsl(var(--primary) / 0.02)'
+                    boxShadow: isHighlighted
+                        ? '0 0 40px hsl(45 93% 47% / 0.4), 0 0 80px hsl(45 93% 47% / 0.2), inset 0 0 20px hsl(45 93% 47% / 0.1)'
+                        : '0 0 20px hsl(var(--primary) / 0.05), inset 0 0 20px hsl(var(--primary) / 0.02)'
                 }}
-                onClick={() => onSelect(paper)}
+                onClick={() => {
+                    if (isHighlighted && onHighlightClick) {
+                        onHighlightClick()
+                    }
+                    onSelect(paper)
+                }}
             >
+                {/* Elegant animated border for highlighted cards */}
+                {isHighlighted && (
+                    <motion.div
+                        className="absolute inset-0 rounded-lg"
+                        style={{
+                            background: 'linear-gradient(45deg, transparent, hsl(45 93% 47% / 0.3), transparent, hsl(45 93% 47% / 0.3), transparent)',
+                            backgroundSize: '200% 200%',
+                        }}
+                        animate={{
+                            backgroundPosition: ['0% 0%', '200% 200%']
+                        }}
+                        transition={{
+                            duration: 3,
+                            repeat: Infinity,
+                            ease: 'linear'
+                        }}
+                    />
+                )}
+
+                {/* Subtle inner glow for highlighted cards */}
+                {isHighlighted && (
+                    <motion.div
+                        className="absolute inset-1 rounded-lg bg-gradient-to-br from-amber-400/5 to-yellow-400/5"
+                        animate={{
+                            opacity: [0.3, 0.6, 0.3]
+                        }}
+                        transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            ease: 'easeInOut'
+                        }}
+                    />
+                )}
                 {/* Shimmer effect - only on hover */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
                 <CardContent className="p-0 relative z-10">
@@ -282,11 +331,16 @@ The methodology employed in this study combines quantitative and qualitative app
                                     <Quote className="h-4 w-4 text-purple-500" />
                                     <span>{paper.citationCount} citations</span>
                                 </div>
-                                {paper.venueName && (
+                                {paper.source && (
                                     <div className="flex items-center gap-2">
-                                        <BookOpen className="h-4 w-4 text-orange-500" />
-                                        <span className="line-clamp-1">{paper.venueName}</span>
+                                        <Building className="h-4 w-4 text-orange-500" />
+                                        <span className="line-clamp-1">{paper.source}</span>
                                     </div>
+                                )}
+                                {paper.source === "Uploaded" && (
+                                    <Badge variant="secondary" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20">
+                                        Uploaded
+                                    </Badge>
                                 )}
                                 {paper.doi && (
                                     <Badge variant="outline" className="text-xs border-primary/20">

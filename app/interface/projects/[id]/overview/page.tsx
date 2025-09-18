@@ -6,8 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Progress } from "@/components/ui/progress"
-import { ShareProjectDialog } from "@/components/interface/ShareProjectDialog"
 import { ProjectEditDialog } from "@/components/interface/ProjectEditDialog"
 import {
     Sparkles,
@@ -17,38 +15,30 @@ import {
     User,
     Tag,
     Globe,
-    TrendingUp,
     Clock,
     CheckCircle,
     RefreshCw,
     AlertCircle,
     BarChart3,
-    Database,
-    Brain,
     Users,
     Edit3,
-    Share2,
     MessageSquare,
     ListTodo,
-    FileText
 } from "lucide-react"
-import { projectsApi } from "@/lib/api/project-service"
-import { libraryApi } from "@/lib/api/project-service"
+import { projectsApi, libraryApi, readingListApi, notesApi } from "@/lib/api/project-service"
 import { accountApi } from "@/lib/api/user-service"
 import { Project } from "@/types/project"
 import { UserAccount } from "@/types/account"
 
 interface ProjectOverviewPageProps {
-    params: Promise<{
-        id: string
+    readonly params: Promise<{
+        readonly id: string
     }>
 }
 
 export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps) {
-    const [projectId, setProjectId] = useState<string>("")
     const [project, setProject] = useState<Project | null>(null)
     const [isLoading, setIsLoading] = useState(true)
-    const [showShareDialog, setShowShareDialog] = useState(false)
     const [showEditDialog, setShowEditDialog] = useState(false)
 
     // New state for accurate statistics
@@ -61,22 +51,20 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
     useEffect(() => {
         const loadData = async () => {
             const resolvedParams = await params
-            setProjectId(resolvedParams.id)
             try {
                 // Load all data in parallel
-                // TODO: Re-enable these API calls when backend is ready
-                const [projectData, libraryStatsData, accountData] = await Promise.all([
+                const [projectData, libraryStatsData, readingListStatsData, notesData, accountData] = await Promise.all([
                     projectsApi.getProject(resolvedParams.id),
                     libraryApi.getProjectLibraryStats(resolvedParams.id).catch(() => ({ totalPapers: 0 })),
-                    // projectsApi.getReadingListStats(resolvedParams.id, 'all').catch(() => ({ totalItems: 0 })), // Disabled - backend not ready
-                    // projectsApi.getNotes(resolvedParams.id).catch(() => []), // Disabled - backend not ready
+                    readingListApi.getReadingListStats(resolvedParams.id).catch(() => ({ totalItems: 0 })),
+                    notesApi.getNotes(resolvedParams.id).catch(() => []),
                     accountApi.getAccount()
                 ])
 
                 setProject(projectData)
                 setLibraryStats(libraryStatsData)
-                setReadingListStats({ totalItems: 0 }) // Fallback data
-                setNotesCount(0) // Fallback data
+                setReadingListStats(readingListStatsData)
+                setNotesCount(notesData.length)
                 setUserAccount(accountData)
             } catch (error) {
                 console.error('Error loading project:', error)
@@ -177,20 +165,6 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                             >
                                 <Edit3 className="mr-2 h-4 w-4" />
                                 Edit Project
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="bg-background/40 backdrop-blur-xl border-border hover:bg-accent transition-all duration-300"
-                                style={{
-                                    boxShadow: `
-                                        0 0 20px hsl(var(--primary) / 0.15),
-                                        inset 0 0 20px hsl(var(--primary) / 0.05)
-                                    `
-                                }}
-                                onClick={() => setShowShareDialog(true)}
-                            >
-                                <Share2 className="mr-2 h-4 w-4" />
-                                Share Project
                             </Button>
                         </div>
                     </div>
@@ -315,7 +289,7 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                                 {parseProjectTopics(project).length > 0 ? (
                                                     parseProjectTopics(project).map((topic, index) => (
                                                         <Badge
-                                                            key={index}
+                                                            key={`topic-${topic}-${index}`}
                                                             className="bg-green-500/10 text-green-500 border-green-500/20 px-3 py-1"
                                                         >
                                                             {topic}
@@ -378,16 +352,6 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                                 <div className="text-sm text-muted-foreground relative z-10">Reading List</div>
                                             </div>
                                         </div>
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm font-medium text-foreground">Progress</span>
-                                                <span className="text-sm text-muted-foreground">{project.progress || 0}%</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <TrendingUp className="h-4 w-4 text-green-500" />
-                                                <Progress value={project.progress || 0} className="flex-1" />
-                                            </div>
-                                        </div>
                                         <div className="text-center p-4 rounded-lg bg-background/40 backdrop-blur-xl border border-purple-500/20 relative overflow-hidden group transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20">
                                             {/* Shimmer effect for Notes - only on hover */}
                                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
@@ -396,9 +360,11 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                                             <div className="text-sm text-muted-foreground relative z-10">Notes</div>
                                         </div>
                                         <Separator />
-                                        <div className="text-center">
-                                            <div className="text-3xl font-bold text-gradient-primary">{project.progress || 0}%</div>
-                                            <div className="text-sm text-muted-foreground">Overall Progress</div>
+                                        <div className="text-center p-6 rounded-xl bg-background/40 backdrop-blur-xl border border-primary/20 relative overflow-hidden group transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20 hover:border-primary/40">
+                                            {/* Shimmer effect for Overall Progress - only on hover */}
+                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
+                                            <div className="text-4xl font-bold text-gradient-primary relative z-10">{project.progress || 0}%</div>
+                                            <div className="text-sm text-muted-foreground relative z-10">Overall Progress</div>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -408,17 +374,6 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                 </div>
             </div>
 
-            {/* Share Project Dialog */}
-            <ShareProjectDialog
-                isOpen={showShareDialog}
-                projectId={projectId}
-                projectName={project?.name || ''}
-                onClose={() => setShowShareDialog(false)}
-                onCollaboratorAdded={() => {
-                    // Optionally refresh project data or show updated collaborator list
-                    console.log('Collaborator added successfully')
-                }}
-            />
 
             {/* Edit Project Dialog */}
             <ProjectEditDialog
@@ -427,6 +382,7 @@ export default function ProjectOverviewPage({ params }: ProjectOverviewPageProps
                 onClose={() => setShowEditDialog(false)}
                 onProjectUpdated={handleProjectUpdated}
             />
+
         </div>
     )
 } 

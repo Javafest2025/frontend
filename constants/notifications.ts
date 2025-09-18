@@ -1,12 +1,12 @@
-import { AcademicNotification, GeneralNotification, NotificationPriority } from "@/types/notification"
-import { 
-  Calendar, 
-  Clock, 
-  AlertTriangle, 
-  CheckCircle, 
-  GraduationCap, 
-  FileText, 
-  Users, 
+import { AcademicNotification, SystemNotification, ServiceNotification, NotificationPriority } from "@/types/notification"
+import {
+  Calendar,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  GraduationCap,
+  FileText,
+  Users,
   Settings,
   Target,
   BookOpen,
@@ -15,8 +15,60 @@ import {
   Zap,
   Shield,
   Database,
-  RefreshCw
+  RefreshCw,
+  Search,
+  Brain,
+  Trash2,
+  UserCheck,
+  Key,
+  Heart
 } from "lucide-react"
+
+// Service notification categories (from backend microservices)
+export const SERVICE_CATEGORIES = {
+  welcome_email: {
+    label: "Welcome Messages",
+    icon: Heart,
+    color: "text-green-500",
+    bgColor: "bg-green-500/10"
+  },
+  password_reset: {
+    label: "Password Reset",
+    icon: Key,
+    color: "text-orange-500",
+    bgColor: "bg-orange-500/10"
+  },
+  email_verification: {
+    label: "Email Verification",
+    icon: UserCheck,
+    color: "text-blue-500",
+    bgColor: "bg-blue-500/10"
+  },
+  web_search_completed: {
+    label: "Web Search Completed",
+    icon: Search,
+    color: "text-blue-500",
+    bgColor: "bg-blue-500/10"
+  },
+  summarization_completed: {
+    label: "Summary Ready",
+    icon: Brain,
+    color: "text-purple-500",
+    bgColor: "bg-purple-500/10"
+  },
+  project_deleted: {
+    label: "Project Deleted",
+    icon: Trash2,
+    color: "text-red-500",
+    bgColor: "bg-red-500/10"
+  },
+  gap_analysis_completed: {
+    label: "Gap Analysis Complete",
+    icon: Target,
+    color: "text-indigo-500",
+    bgColor: "bg-indigo-500/10"
+  }
+}
 
 // Academic notification categories
 export const ACADEMIC_CATEGORIES = {
@@ -64,8 +116,8 @@ export const ACADEMIC_CATEGORIES = {
   }
 }
 
-// General notification categories
-export const GENERAL_CATEGORIES = {
+// System notification categories (frontend generated)
+export const SYSTEM_CATEGORIES = {
   deadline_missed: {
     label: "Missed Deadlines",
     icon: AlertTriangle,
@@ -211,10 +263,10 @@ export const MOCK_ACADEMIC_NOTIFICATIONS: AcademicNotification[] = [
   }
 ]
 
-export const MOCK_GENERAL_NOTIFICATIONS: GeneralNotification[] = [
+export const MOCK_SYSTEM_NOTIFICATIONS: SystemNotification[] = [
   {
     id: "5",
-    type: "general",
+    type: "system",
     category: "deadline_missed",
     title: "Project Deadline Missed",
     message: "The deadline for 'Quantum ML Research' project milestone was missed. Please update the project timeline.",
@@ -229,7 +281,7 @@ export const MOCK_GENERAL_NOTIFICATIONS: GeneralNotification[] = [
   },
   {
     id: "6",
-    type: "general",
+    type: "system",
     category: "todo_overdue",
     title: "3 Tasks Overdue",
     message: "You have 3 tasks that are past their due date: 'Literature Review', 'Data Analysis', and 'Draft Introduction'.",
@@ -243,7 +295,7 @@ export const MOCK_GENERAL_NOTIFICATIONS: GeneralNotification[] = [
   },
   {
     id: "7",
-    type: "general",
+    type: "system",
     category: "collaboration_invite",
     title: "Collaboration Invitation",
     message: "Dr. Sarah Chen has invited you to collaborate on the 'Neural Network Optimization' research project.",
@@ -258,8 +310,8 @@ export const MOCK_GENERAL_NOTIFICATIONS: GeneralNotification[] = [
   },
   {
     id: "8",
-    type: "general",
-    category: "system_alert",
+    type: "system",
+    category: "backup_complete",
     title: "Data Backup Completed",
     message: "Your weekly data backup has been completed successfully. All your research data and projects are safely backed up.",
     priority: "low",
@@ -270,8 +322,8 @@ export const MOCK_GENERAL_NOTIFICATIONS: GeneralNotification[] = [
   },
   {
     id: "9",
-    type: "general",
-    category: "project_update",
+    type: "system",
+    category: "account_update",
     title: "AI Agent Analysis Complete",
     message: "The AI agent has finished analyzing 15 new papers related to your 'Deep Learning Research' project.",
     priority: "medium",

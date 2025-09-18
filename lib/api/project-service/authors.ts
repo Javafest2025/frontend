@@ -89,7 +89,8 @@ const handleApiResponse = async <T>(response: Response): Promise<T> => {
     try {
         const jsonData = await response.json()
         apiResponse = jsonData
-    } catch (error) {
+    } catch (parseError) {
+        console.error("Failed to parse JSON response:", parseError)
         throw new Error("Invalid JSON response from server")
     }
 
@@ -148,9 +149,18 @@ export const authorsApi = {
             const userData = getUserData()
             const userId = userData?.id || "anonymous"
 
+            // Create AbortController with extended timeout for author fetching (2 minutes)
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 120000) // 120 seconds
+
             const response = await authenticatedFetch(
-                getMicroserviceUrl("project-service", `/api/v1/authors/fetch/${encodeURIComponent(name)}?strategy=comprehensive&userId=${encodeURIComponent(userId)}`)
+                getMicroserviceUrl("project-service", `/api/v1/authors/fetch/${encodeURIComponent(name)}?strategy=comprehensive&userId=${encodeURIComponent(userId)}`),
+                {
+                    signal: controller.signal
+                }
             )
+
+            clearTimeout(timeoutId)
 
             console.log("📊 Get author by name response status:", response.status, response.statusText)
 
@@ -165,6 +175,9 @@ export const authorsApi = {
             return data.data
         } catch (error) {
             console.error("Get author by name error:", error)
+            if (error instanceof Error && error.name === 'AbortError') {
+                throw new Error("Request timed out. Author data fetching is taking longer than expected. Please try again.")
+            }
             throw error instanceof Error
                 ? error
                 : new Error("Failed to get author")
@@ -260,18 +273,25 @@ export const authorsApi = {
     async resyncAuthor(name: string, strategy: string = "comprehensive"): Promise<Author> {
         try {
             console.log("🔄 Resyncing author:", name, "with strategy:", strategy)
-            
+
             // Get user data for the request
             const { getUserData } = await import("@/lib/api/user-service/auth")
             const userData = getUserData()
             const userId = userData?.id || "anonymous"
 
+            // Create AbortController with extended timeout for author resyncing (2 minutes)
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 120000) // 120 seconds
+
             const response = await authenticatedFetch(
                 getMicroserviceUrl("project-service", `/api/v1/authors/resync/${encodeURIComponent(name)}?strategy=${strategy}&userId=${encodeURIComponent(userId)}`),
                 {
                     method: "POST",
+                    signal: controller.signal
                 }
             )
+
+            clearTimeout(timeoutId)
 
             console.log("📊 Resync author response status:", response.status, response.statusText)
 
@@ -286,6 +306,9 @@ export const authorsApi = {
             return data.data
         } catch (error) {
             console.error("Resync author error:", error)
+            if (error instanceof Error && error.name === 'AbortError') {
+                throw new Error("Request timed out. Author resyncing is taking longer than expected. Please try again.")
+            }
             throw error instanceof Error
                 ? error
                 : new Error("Failed to resync author")

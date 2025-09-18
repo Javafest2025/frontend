@@ -33,7 +33,6 @@ import {
     Home,
     FileText,
     CheckSquare,
-    GraduationCap,
     Bot,
     Brain,
     MessageSquare,
@@ -45,6 +44,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { getUserData, isAuthenticated } from "@/lib/api/user-service/auth"
 import { accountApi } from "@/lib/api/user-service"
 import { scholarbotApi } from "@/lib/api/project-service/scholarbot"
+import { notificationsApi } from "@/lib/api/notification-service/notifications"
 import { UserAccount } from "@/types/account"
 import { cn } from "@/lib/utils/cn"
 import { EnhancedTooltip } from "@/components/ui/enhanced-tooltip"
@@ -87,9 +87,6 @@ const getBreadcrumbs = async (pathname: string): Promise<BreadcrumbItem[]> => {
         } else if (segment === 'todo') {
             label = 'ToDo'
             fullLabel = 'ToDo'
-        } else if (segment === 'call4paper') {
-            label = 'Call4Paper'
-            fullLabel = 'Call4Paper'
         } else if (segment === 'overview') {
             label = 'Overview'
             fullLabel = 'Overview'
@@ -141,9 +138,6 @@ const getBreadcrumbs = async (pathname: string): Promise<BreadcrumbItem[]> => {
         } else if (segment === 'authors') {
             label = 'Authors'
             fullLabel = 'Authors'
-        } else if (segment === 'papercall') {
-            label = 'Paper Call'
-            fullLabel = 'Paper Call'
         } else if (segment === 'dashboard') {
             label = 'Dashboard'
             fullLabel = 'Dashboard'
@@ -197,7 +191,7 @@ const getPageIcon = (pathname: string) => {
     if (pathname.includes('/account')) return User
     if (pathname.includes('/projects')) return FileText
     if (pathname.includes('/todo')) return CheckSquare
-    if (pathname.includes('/call4paper')) return GraduationCap
+    if (pathname.includes('/notifications')) return Bell
     return Home
 }
 
@@ -209,7 +203,7 @@ export function Header() {
 
     const [searchQuery, setSearchQuery] = useState("")
     const [isSearchFocused, setIsSearchFocused] = useState(false)
-    const [notifications] = useState(3) // Mock notification count
+    const [notificationCount, setNotificationCount] = useState(0)
     const [accountData, setAccountData] = useState<UserAccount | null>(null)
     const [showScholarBot, setShowScholarBot] = useState(false)
     const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([])
@@ -270,7 +264,7 @@ export function Header() {
         }
     }, [isDragging])
 
-    // Fetch account data to get profile picture
+    // Fetch account data and notification count
     useEffect(() => {
         const loadAccountData = async () => {
             try {
@@ -281,7 +275,21 @@ export function Header() {
             }
         }
 
+        const loadNotificationCount = async () => {
+            try {
+                const count = await notificationsApi.getNotificationCount()
+                setNotificationCount(count)
+            } catch (error) {
+                console.error("Failed to load notification count:", error)
+            }
+        }
+
         loadAccountData()
+        loadNotificationCount()
+
+        // Refresh notification count every 30 seconds
+        const interval = setInterval(loadNotificationCount, 30000)
+        return () => clearInterval(interval)
     }, [])
 
     const PageIcon = getPageIcon(pathname)
@@ -653,15 +661,14 @@ export function Header() {
                         </DropdownMenu>
 
                         {/* Notifications */}
-                        <DropdownMenu>
-                            <EnhancedTooltip content={`Notifications (${notifications} new)`}>
-                                <DropdownMenuTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-9 w-9 p-0 relative transition-all duration-300 shadow-lg hover:shadow-xl group"
-                                        style={{
-                                            background: `
+                        <EnhancedTooltip content={`Notifications${notificationCount > 0 ? ` (${notificationCount} new)` : ''}`}>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => router.push('/interface/notifications')}
+                                className="h-9 w-9 p-0 relative transition-all duration-300 shadow-lg hover:shadow-xl group"
+                                style={{
+                                    background: `
                                                 conic-gradient(
                                                     from 45deg at 50% 50%,
                                                     hsl(var(--accent) / 0.4) 0deg,
@@ -671,15 +678,15 @@ export function Header() {
                                                     hsl(var(--accent) / 0.4) 360deg
                                                 )
                                             `,
-                                            border: `1px solid hsl(var(--accent) / 0.4)`,
-                                            boxShadow: `
+                                    border: `1px solid hsl(var(--accent) / 0.4)`,
+                                    boxShadow: `
                                                 0 0 15px hsl(var(--accent) / 0.2),
                                                 0 0 30px hsl(var(--accent) / 0.1),
                                                 0 0 0 1px hsl(var(--accent) / 0.3)
                                             `
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.background = `
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = `
                                                 conic-gradient(
                                                     from 45deg at 50% 50%,
                                                     hsl(var(--accent) / 0.6) 0deg,
@@ -689,15 +696,15 @@ export function Header() {
                                                     hsl(var(--accent) / 0.6) 360deg
                                                 )
                                             `;
-                                            e.currentTarget.style.border = `1px solid hsl(var(--accent) / 0.6)`;
-                                            e.currentTarget.style.boxShadow = `
+                                    e.currentTarget.style.border = `1px solid hsl(var(--accent) / 0.6)`;
+                                    e.currentTarget.style.boxShadow = `
                                                 0 0 25px hsl(var(--accent) / 0.3),
                                                 0 0 50px hsl(var(--accent) / 0.2),
                                                 0 0 0 1px hsl(var(--accent) / 0.5)
                                             `;
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.background = `
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = `
                                                 conic-gradient(
                                                     from 45deg at 50% 50%,
                                                     hsl(var(--accent) / 0.4) 0deg,
@@ -707,35 +714,24 @@ export function Header() {
                                                     hsl(var(--accent) / 0.4) 360deg
                                                 )
                                             `;
-                                            e.currentTarget.style.border = `1px solid hsl(var(--accent) / 0.4)`;
-                                            e.currentTarget.style.boxShadow = `
+                                    e.currentTarget.style.border = `1px solid hsl(var(--accent) / 0.4)`;
+                                    e.currentTarget.style.boxShadow = `
                                                 0 0 15px hsl(var(--accent) / 0.2),
                                                 0 0 30px hsl(var(--accent) / 0.1),
                                                 0 0 0 1px hsl(var(--accent) / 0.3)
                                             `;
-                                        }}
+                                }}
+                            >
+                                <Bell className="h-4 w-4 text-accent-foreground/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] group-hover:text-accent-foreground group-hover:animate-bell-vibrate transition-colors duration-300" />
+                                {notificationCount > 0 && (
+                                    <Badge
+                                        className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-gradient-to-r from-red-500 to-pink-500 text-white border border-red-400/50 shadow-lg"
                                     >
-                                        <Bell className="h-4 w-4 text-accent-foreground/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] group-hover:text-accent-foreground group-hover:animate-bell-vibrate transition-colors duration-300" />
-                                        {notifications > 0 && (
-                                            <Badge
-                                                className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-gradient-to-r from-red-500 to-pink-500 text-white border border-red-400/50 shadow-lg"
-                                            >
-                                                {notifications > 9 ? '9+' : notifications}
-                                            </Badge>
-                                        )}
-                                    </Button>
-                                </DropdownMenuTrigger>
-                            </EnhancedTooltip>
-                            <DropdownMenuContent align="end" className="w-80 bg-card/90 backdrop-blur-xl border border-border shadow-xl">
-                                <DropdownMenuLabel className="text-foreground">Notifications</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <div className="p-4 text-center text-muted-foreground">
-                                    <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                    <p className="text-sm">No new notifications</p>
-                                    <p className="text-xs mt-1">You're all caught up!</p>
-                                </div>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                        {notificationCount > 9 ? '9+' : notificationCount}
+                                    </Badge>
+                                )}
+                            </Button>
+                        </EnhancedTooltip>
 
                         {/* ScholarBot Button */}
                         <EnhancedTooltip content="Chat with ScholarBot - AI Research Assistant">

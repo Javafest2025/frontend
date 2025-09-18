@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
 import {
     Select,
     SelectContent,
@@ -22,39 +22,23 @@ import {
     Calendar,
     Database,
     RefreshCw,
-    ArrowUp,
-    ArrowDown,
     SortAsc,
     SortDesc,
-    Hash,
     Quote,
     ChevronRight,
     ChevronUp,
     FileText,
-    Eye,
-    ExternalLink,
-    CheckCircle,
-    Clock,
     AlertCircle,
-    MoreVertical,
     Grid3X3,
-    List,
-    Settings2,
-    Tag,
-    Users,
-    TrendingUp,
-    BarChart3
+    List
 } from "lucide-react"
 import { cn, isValidUUID } from "@/lib/utils"
 import { libraryApi } from "@/lib/api/project-service"
 import { PaperCard } from "@/components/library/PaperCard"
 import { StreamingPaperCard } from "@/components/library/StreamingPaperCard"
 import { PaperDetailModal } from "@/components/library/PaperDetailModal"
-import { SearchConfigDialog } from "@/components/library/SearchConfigDialog"
-import { PDFUploadDialog } from "@/components/library/PDFUploadDialog"
-import { B2DownloadTest } from "@/components/test/B2DownloadTest"
 import { PdfViewerModal } from "@/components/library/PdfViewerModal"
-import type { Paper, WebSearchRequest } from "@/types/websearch"
+import type { Paper } from "@/types/websearch"
 
 
 interface ProjectLibraryPageProps {
@@ -64,17 +48,14 @@ interface ProjectLibraryPageProps {
 }
 
 export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) {
+    const searchParams = useSearchParams()
+    const router = useRouter()
+    const pathname = usePathname()
+
     const [projectId, setProjectId] = useState<string>("")
     const [allPapers, setAllPapers] = useState<Paper[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const [searchQuery, setSearchQuery] = useState("")
-    const [sortBy, setSortBy] = useState<'date' | 'citations' | 'title'>('date')
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
-    const [filterSource, setFilterSource] = useState<string>("all")
-    const [filterOpenAccess, setFilterOpenAccess] = useState<string>("all")
     const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null)
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-    const [showFilters, setShowFilters] = useState(false)
     const [showPdfViewer, setShowPdfViewer] = useState(false)
     const [pdfViewerPaper, setPdfViewerPaper] = useState<Paper | null>(null)
     const [showScrollTop, setShowScrollTop] = useState(false)
@@ -83,7 +64,116 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
     const [isLoadingLibrary, setIsLoadingLibrary] = useState(false)
     const [libraryError, setLibraryError] = useState<string | null>(null)
     const [favoritePapers, setFavoritePapers] = useState<Set<string>>(new Set())
-    const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
+    const [highlightedPaperId, setHighlightedPaperId] = useState<string | null>(null)
+
+    // URL-based state management for filters
+    const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || "")
+    const [sortBy, setSortBy] = useState<'date' | 'citations' | 'title'>((searchParams.get('sortBy') as 'date' | 'citations' | 'title') || 'date')
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>((searchParams.get('sortDirection') as 'asc' | 'desc') || 'desc')
+    const [filterSource, setFilterSource] = useState<string>(searchParams.get('source') || "all")
+    const [filterOpenAccess, setFilterOpenAccess] = useState<string>(searchParams.get('openAccess') || "all")
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>((searchParams.get('view') as 'grid' | 'list') || 'grid')
+    const [showFilters, setShowFilters] = useState(false)
+    const [showFavoritesOnly, setShowFavoritesOnly] = useState(searchParams.get('favorites') === 'true')
+
+    // Function to update URL parameters
+    const updateURLParams = (updates: Record<string, string | null>) => {
+        const current = new URLSearchParams(searchParams.toString())
+
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value === null || value === '' || value === 'all' || value === 'false') {
+                current.delete(key)
+            } else {
+                current.set(key, value)
+            }
+        })
+
+        const newURL = `${pathname}?${current.toString()}`
+        router.replace(newURL, { scroll: false })
+    }
+
+    // Wrapper functions that update both state and URL
+    const handleSearchQueryChange = (value: string) => {
+        setSearchQuery(value)
+        updateURLParams({ search: value })
+    }
+
+    const handleSortByChange = (value: 'date' | 'citations' | 'title') => {
+        setSortBy(value)
+        updateURLParams({ sortBy: value })
+    }
+
+    const handleSortDirectionChange = (value: 'asc' | 'desc') => {
+        setSortDirection(value)
+        updateURLParams({ sortDirection: value })
+    }
+
+    const handleFilterSourceChange = (value: string) => {
+        setFilterSource(value)
+        updateURLParams({ source: value })
+    }
+
+    const handleFilterOpenAccessChange = (value: string) => {
+        setFilterOpenAccess(value)
+        updateURLParams({ openAccess: value })
+    }
+
+    const handleViewModeChange = (value: 'grid' | 'list') => {
+        setViewMode(value)
+        updateURLParams({ view: value })
+    }
+
+    const handleShowFavoritesOnlyChange = (value: boolean) => {
+        setShowFavoritesOnly(value)
+        updateURLParams({ favorites: value ? 'true' : null })
+    }
+
+    const handleClearFilters = () => {
+        setSearchQuery("")
+        setFilterSource("all")
+        setFilterOpenAccess("all")
+        updateURLParams({
+            search: null,
+            source: null,
+            openAccess: null
+        })
+    }
+
+    // Sync state with URL parameters on mount or URL change
+    useEffect(() => {
+        const search = searchParams.get('search') || ""
+        const sortByParam = (searchParams.get('sortBy') as 'date' | 'citations' | 'title') || 'date'
+        const sortDirectionParam = (searchParams.get('sortDirection') as 'asc' | 'desc') || 'desc'
+        const sourceParam = searchParams.get('source') || "all"
+        const openAccessParam = searchParams.get('openAccess') || "all"
+        const viewParam = (searchParams.get('view') as 'grid' | 'list') || 'grid'
+        const favoritesParam = searchParams.get('favorites') === 'true'
+
+        setSearchQuery(search)
+        setSortBy(sortByParam)
+        setSortDirection(sortDirectionParam)
+        setFilterSource(sourceParam)
+        setFilterOpenAccess(openAccessParam)
+        setViewMode(viewParam)
+        setShowFavoritesOnly(favoritesParam)
+    }, [searchParams])
+
+    // Debug log for highlightedPaperId changes
+    useEffect(() => {
+        console.log('🔄 highlightedPaperId state changed to:', highlightedPaperId)
+    }, [highlightedPaperId])
+
+    // Handle URL highlight parameter
+    useEffect(() => {
+        const highlightParam = searchParams.get('highlight')
+        console.log('🔍 Highlight parameter from URL:', highlightParam)
+        if (highlightParam && isValidUUID(highlightParam)) {
+            console.log('✅ Setting highlighted paper ID:', highlightParam)
+            setHighlightedPaperId(highlightParam)
+        } else {
+            console.log('❌ Invalid or missing highlight parameter')
+        }
+    }, [searchParams])
 
     // Load project ID and papers
     useEffect(() => {
@@ -219,7 +309,8 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
 
             const matchesOpenAccess = filterOpenAccess === "all" ||
                 (filterOpenAccess === "open" && paper.isOpenAccess) ||
-                (filterOpenAccess === "closed" && !paper.isOpenAccess)
+                (filterOpenAccess === "closed" && !paper.isOpenAccess) ||
+                (filterOpenAccess === "uploaded" && paper.source === "Uploaded")
 
             const matchesFavorites = !showFavoritesOnly || favoritePapers.has(paper.id)
 
@@ -352,7 +443,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                     <Input
                                         placeholder="Search papers by title, authors, or abstract..."
                                         value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onChange={(e) => handleSearchQueryChange(e.target.value)}
                                         className="pl-10 bg-background/40 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 focus:border-primary/60 transition-all duration-300"
                                         style={{ boxShadow: '0 0 6px rgba(99, 102, 241, 0.06), 0 0 12px rgba(139, 92, 246, 0.03)' }}
                                     />
@@ -374,7 +465,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
 
                                     <div className="flex items-center gap-2">
                                         <label className="text-sm font-medium text-muted-foreground">Sort by:</label>
-                                        <Select value={sortBy} onValueChange={(value) => setSortBy(value as any)}>
+                                        <Select value={sortBy} onValueChange={(value) => handleSortByChange(value as any)}>
                                             <SelectTrigger className="w-32 bg-background/40 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 transition-all duration-300" style={{ boxShadow: '0 0 6px rgba(99, 102, 241, 0.06)' }}>
                                                 <SelectValue />
                                             </SelectTrigger>
@@ -402,7 +493,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+                                            onClick={() => handleSortDirectionChange(sortDirection === 'asc' ? 'desc' : 'asc')}
                                             className={cn(
                                                 "bg-background/40 backdrop-blur-xl border-2 transition-all duration-300 hover:scale-105",
                                                 sortDirection === 'asc'
@@ -428,7 +519,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => setViewMode('grid')}
+                                            onClick={() => handleViewModeChange('grid')}
                                             className={cn(
                                                 "bg-background/40 backdrop-blur-xl border-2 transition-all duration-300 hover:scale-105",
                                                 viewMode === 'grid'
@@ -446,7 +537,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => setViewMode('list')}
+                                            onClick={() => handleViewModeChange('list')}
                                             className={cn(
                                                 "bg-background/40 backdrop-blur-xl border-2 transition-all duration-300 hover:scale-105",
                                                 viewMode === 'list'
@@ -477,7 +568,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                             <div className="p-4 bg-background/20 backdrop-blur-xl rounded-lg border border-primary/20 grid grid-cols-1 md:grid-cols-3 gap-4">
                                                 <div>
                                                     <label className="text-sm font-medium mb-2 block">Source</label>
-                                                    <Select value={filterSource} onValueChange={setFilterSource}>
+                                                    <Select value={filterSource} onValueChange={handleFilterSourceChange}>
                                                         <SelectTrigger className="bg-background/40 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 transition-all duration-300" style={{ boxShadow: '0 0 6px rgba(99, 102, 241, 0.06), 0 0 12px rgba(139, 92, 246, 0.03)' }}>
                                                             <SelectValue />
                                                         </SelectTrigger>
@@ -492,7 +583,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
 
                                                 <div>
                                                     <label className="text-sm font-medium mb-2 block">Access</label>
-                                                    <Select value={filterOpenAccess} onValueChange={setFilterOpenAccess}>
+                                                    <Select value={filterOpenAccess} onValueChange={handleFilterOpenAccessChange}>
                                                         <SelectTrigger className="bg-background/40 backdrop-blur-xl border-2 border-primary/20 hover:border-primary/40 transition-all duration-300" style={{ boxShadow: '0 0 6px rgba(99, 102, 241, 0.06), 0 0 12px rgba(139, 92, 246, 0.03)' }}>
                                                             <SelectValue />
                                                         </SelectTrigger>
@@ -500,6 +591,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                                             <SelectItem value="all">All Papers</SelectItem>
                                                             <SelectItem value="open">Open Access</SelectItem>
                                                             <SelectItem value="closed">Closed Access</SelectItem>
+                                                            <SelectItem value="uploaded">Uploaded</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
@@ -509,7 +601,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                                                        onClick={() => handleShowFavoritesOnlyChange(!showFavoritesOnly)}
                                                         className={cn(
                                                             "w-full bg-background/40 backdrop-blur-xl border-2 transition-all duration-300",
                                                             showFavoritesOnly
@@ -544,32 +636,48 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                         {viewMode === 'grid' ? (
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6">
                                                 <AnimatePresence mode="popLayout">
-                                                    {filteredAndSortedPapers.map((paper, index) => (
-                                                        <StreamingPaperCard
-                                                            key={`${paper.id}-${sortBy}-${sortDirection}`}
-                                                            paper={paper}
-                                                            index={index}
-                                                            onSelect={handlePaperSelect}
-                                                            onViewPdf={handleViewPdf}
-                                                            streamDelay={0}
-                                                        />
-                                                    ))}
+                                                    {filteredAndSortedPapers.map((paper, index) => {
+                                                        const isHighlighted = highlightedPaperId === paper.id
+                                                        if (isHighlighted) {
+                                                            console.log('🎯 Found highlighted paper in grid:', paper.id, 'highlightedPaperId:', highlightedPaperId)
+                                                        }
+                                                        return (
+                                                            <StreamingPaperCard
+                                                                key={`${paper.id}-${sortBy}-${sortDirection}`}
+                                                                paper={paper}
+                                                                index={index}
+                                                                onSelect={handlePaperSelect}
+                                                                onViewPdf={handleViewPdf}
+                                                                isHighlighted={isHighlighted}
+                                                                onHighlightClick={() => setHighlightedPaperId(null)}
+                                                                streamDelay={0}
+                                                            />
+                                                        )
+                                                    })}
                                                 </AnimatePresence>
                                             </div>
                                         ) : (
                                             <div className="space-y-3 pb-6">
                                                 <AnimatePresence mode="popLayout">
-                                                    {filteredAndSortedPapers.map((paper, index) => (
-                                                        <PaperCard
-                                                            key={`${paper.id}-${sortBy}-${sortDirection}`}
-                                                            paper={paper}
-                                                            index={index}
-                                                            onSelect={handlePaperSelect}
-                                                            onViewPdf={handleViewPdf}
-                                                            onToggleFavorite={handleToggleFavorite}
-                                                            isFavorited={favoritePapers.has(paper.id)}
-                                                        />
-                                                    ))}
+                                                    {filteredAndSortedPapers.map((paper, index) => {
+                                                        const isHighlighted = highlightedPaperId === paper.id
+                                                        if (isHighlighted) {
+                                                            console.log('🎯 Found highlighted paper in list:', paper.id, 'highlightedPaperId:', highlightedPaperId)
+                                                        }
+                                                        return (
+                                                            <PaperCard
+                                                                key={`${paper.id}-${sortBy}-${sortDirection}`}
+                                                                paper={paper}
+                                                                index={index}
+                                                                onSelect={handlePaperSelect}
+                                                                onViewPdf={handleViewPdf}
+                                                                isHighlighted={isHighlighted}
+                                                                onHighlightClick={() => setHighlightedPaperId(null)}
+                                                                onToggleFavorite={handleToggleFavorite}
+                                                                isFavorited={favoritePapers.has(paper.id)}
+                                                            />
+                                                        )
+                                                    })}
                                                 </AnimatePresence>
                                             </div>
                                         )}
@@ -591,11 +699,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                     <h3 className="text-lg font-medium text-muted-foreground mb-2">No papers match your filters</h3>
                                     <p className="text-muted-foreground mb-4">Try adjusting your search terms or filters to find more papers.</p>
                                     <Button
-                                        onClick={() => {
-                                            setSearchQuery("")
-                                            setFilterSource("all")
-                                            setFilterOpenAccess("all")
-                                        }}
+                                        onClick={handleClearFilters}
                                         variant="outline"
                                     >
                                         Clear Filters
