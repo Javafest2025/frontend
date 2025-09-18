@@ -7,15 +7,18 @@ import { Button } from "@/components/ui/button"
 import { Plus, Cloud, Clock, MoreHorizontal, X, Loader2, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import type { Message } from "@/types/chat"
-import { 
-    createChatSession, 
-    continueChatSession, 
+import {
+    createChatSession,
+    continueChatSession,
     getChatSessions,
     getChatSessionHistory,
-    checkPaperChatReadiness, 
-    extractPaperForChat,
-    type ChatSession 
+    type ChatSession
 } from "@/lib/api/chat"
+import {
+    isPaperExtracted,
+    triggerExtractionForPaper,
+    getExtractionStatus
+} from "@/lib/api/project-service/extraction"
 import { getStructuredFacts } from "@/lib/api/paper-extraction"
 
 type ChatContainerProps = {
@@ -36,13 +39,13 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
     const [chatName, setChatName] = useState("New Chat")
     const [isEditingName, setIsEditingName] = useState(false)
     const [showSidebar, setShowSidebar] = useState(false)
-    
+
     // Session-based chat state
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
     const [isLoadingSessions, setIsLoadingSessions] = useState(false)
     const [isLoadingSession, setIsLoadingSession] = useState(false)
-    
+
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     // New state for chat readiness
@@ -97,29 +100,29 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
         try {
             setIsLoadingSessions(true)
             const sessions = await getChatSessions(paperId)
-            
+
             // Sort sessions: latest first, invalid ones at the end
             const sortedSessions = sessions.sort((a, b) => {
                 // Check if sessions have valid dates
                 const aHasValidDate = a.lastMessageAt && a.lastMessageAt !== "Invalid Date"
                 const bHasValidDate = b.lastMessageAt && b.lastMessageAt !== "Invalid Date"
-                
+
                 // Invalid sessions go to the end
                 if (!aHasValidDate && bHasValidDate) return 1
                 if (aHasValidDate && !bHasValidDate) return -1
                 if (!aHasValidDate && !bHasValidDate) return 0
-                
+
                 // For valid sessions, sort by lastMessageAt (latest first)
                 const aTime = new Date(a.lastMessageAt).getTime()
                 const bTime = new Date(b.lastMessageAt).getTime()
-                
+
                 // If lastMessageAt is invalid, fall back to createdAt
                 const aFallback = isNaN(aTime) ? new Date(a.createdAt).getTime() : aTime
                 const bFallback = isNaN(bTime) ? new Date(b.createdAt).getTime() : bTime
-                
+
                 return bFallback - aFallback // Latest first (descending order)
             })
-            
+
             setChatSessions(sortedSessions)
         } catch (error) {
             console.error("Failed to load chat sessions:", error)
@@ -134,7 +137,7 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
         try {
             setIsLoadingSession(true)
             const sessionHistory = await getChatSessionHistory(paperId, sessionId)
-            
+
             // Convert to Message format
             const convertedMessages: Message[] = sessionHistory.messages.map(msg => ({
                 id: msg.id,
@@ -147,7 +150,7 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
             setCurrentSessionId(sessionId)
             setChatName(sessionHistory.title)
             setHasInitialMessage(true) // Prevent initial message when loading existing session
-            
+
         } catch (error) {
             console.error("Failed to load chat session:", error)
         } finally {
@@ -163,14 +166,14 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
             const paperData = await getStructuredFacts(paperId)
             console.log("📊 Paper data received:", paperData)
             setPaperInfo(paperData)
-            
+
             // Create initial welcome message for new chats
             console.log("🔍 Checking welcome message conditions:", {
                 currentSessionId,
                 messagesLength: messages.length,
                 hasInitialMessage
             })
-            
+
             // More lenient conditions - create welcome message if no session and no initial message yet
             if (!currentSessionId && !hasInitialMessage) {
                 console.log("✨ Creating welcome message...")
@@ -205,7 +208,7 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
     const generateWelcomeMessage = (paperData: any) => {
         // Use the format requested by the user (removed abstract)
         let message = "🎓 **Paper Analysis Complete!**\n\n"
-        
+
         // Handle both paperData.title and paperData.data.title structures
         const title = paperData?.title || paperData?.data?.title;
         if (title && title !== "Extracted Paper" && title !== "Unknown Paper" && title !== "Error Loading Paper") {
@@ -213,18 +216,18 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
         } else {
             message += `📄 **Title:** Unable to load paper title\n\n`
         }
-        
+
         // Handle both paperData.authors and paperData.data.authors structures  
         const authors = paperData?.authors || paperData?.data?.authors;
         if (authors && authors.length > 0) {
-            const authorNames = authors.map((author: any) => 
+            const authorNames = authors.map((author: any) =>
                 typeof author === 'string' ? author : (author.name || author)
             ).join(", ")
             message += `👥 **Authors:** ${authorNames}\n\n`
         } else {
             message += `👥 **Authors:** Unable to load author information\n\n`
         }
-        
+
         message += "🤖 **I can help you with:**\n"
         message += "• Understanding the methodology and approach\n"
         message += "• Explaining key findings and results\n"
@@ -232,7 +235,7 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
         message += "• Comparing with related work\n"
         message += "• Answering specific questions about any section\n\n"
         message += "💬 **What would you like to explore first?**"
-        
+
         console.log("📝 Generated welcome message:", message)
         return message
     }
@@ -252,11 +255,11 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
             setCurrentSessionId(null)
             setIsEditingName(false)
             setHasInitialMessage(false)
-            
+
             // Load paper info and create welcome message immediately
             console.log("📄 Loading paper info for welcome message...")
             await loadPaperInfo()
-            
+
             console.log("✅ New chat state cleared successfully")
         } catch (error) {
             console.error("❌ Failed to start new chat:", error)
@@ -270,11 +273,11 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
             setIsChatReady(null)
             setExtractionError(null)
 
-            console.log("🔍 Checking chat readiness for paperId:", paperId)
-            const readiness = await checkPaperChatReadiness(paperId)
+            console.log("🔍 Checking if paper is extracted for paperId:", paperId)
+            const extracted = await isPaperExtracted(paperId)
 
-            if (readiness.isReady) {
-                console.log("✅ Chat is ready, current state:", {
+            if (extracted) {
+                console.log("✅ Paper is extracted, chat is ready. Current state:", {
                     messagesLength: messages.length,
                     currentSessionId,
                     hasInitialMessage
@@ -285,13 +288,13 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                     console.log("📝 Loading welcome message...")
                     await loadPaperInfo()
                 }
-            } else if (readiness.needsExtraction) {
-                console.log("⚠️ Paper needs extraction")
+            } else {
+                console.log("⚠️ Paper is not extracted, starting extraction process")
                 // Start extraction process
                 await startExtraction()
             }
         } catch (error) {
-            console.error("Error checking chat readiness:", error)
+            console.error("Error checking if paper is extracted:", error)
             setExtractionError("Failed to check if paper is ready for chat")
         }
     }
@@ -304,17 +307,76 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
             setExtractionCountdown(60)
             setExtractionError(null)
 
-            // Start extraction in background
-            extractPaperForChat(paperId).catch(error => {
-                console.error("Extraction failed:", error)
-                setExtractionError("Failed to extract paper. Please try again.")
-                setIsExtracting(false)
-            })
+            console.log("🚀 Starting extraction for paper:", paperId)
+
+            // Trigger extraction with default options
+            const extractionResponse = await triggerExtractionForPaper(paperId, true)
+            console.log("✅ Extraction triggered:", extractionResponse)
+
+            // Start polling for completion
+            pollExtractionStatus()
         } catch (error) {
             console.error("Error starting extraction:", error)
             setExtractionError("Failed to start paper extraction")
             setIsExtracting(false)
         }
+    }
+
+    const pollExtractionStatus = async () => {
+        if (!paperId) return
+
+        const pollInterval = 2000 // Poll every 2 seconds
+        const maxPolls = 30 // Maximum 30 polls (60 seconds total)
+        let pollCount = 0
+
+        const poll = async () => {
+            try {
+                pollCount++
+                console.log(`🔍 Polling extraction status (${pollCount}/${maxPolls}) for paper:`, paperId)
+
+                const status = await getExtractionStatus(paperId)
+                console.log("📊 Extraction status:", status)
+
+                if (status.status === "COMPLETED" || status.status === "SUCCESS") {
+                    console.log("✅ Extraction completed successfully!")
+                    setIsExtracting(false)
+                    setIsChatReady(true)
+                    setExtractionCountdown(0)
+
+                    // Load initial welcome message if no messages and no current session
+                    if (messages.length === 0 && !currentSessionId && !hasInitialMessage) {
+                        console.log("📝 Loading welcome message after extraction...")
+                        await loadPaperInfo()
+                    }
+                    return
+                } else if (status.status === "FAILED" || status.status === "ERROR") {
+                    console.error("❌ Extraction failed:", status.error)
+                    setExtractionError(status.error || "Extraction failed. Please try again.")
+                    setIsExtracting(false)
+                    return
+                } else if (pollCount >= maxPolls) {
+                    console.warn("⏰ Extraction polling timeout")
+                    setExtractionError("Extraction is taking longer than expected. Please try again later.")
+                    setIsExtracting(false)
+                    return
+                }
+
+                // Continue polling
+                setTimeout(poll, pollInterval)
+            } catch (error) {
+                console.error("Error polling extraction status:", error)
+                if (pollCount >= maxPolls) {
+                    setExtractionError("Failed to check extraction status. Please try again.")
+                    setIsExtracting(false)
+                } else {
+                    // Retry polling on error
+                    setTimeout(poll, pollInterval)
+                }
+            }
+        }
+
+        // Start polling
+        poll()
     }
 
     const handleSend = async (message: string, context?: string[]) => {
@@ -352,16 +414,16 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                     undefined, // Let AI generate title
                     externalContexts.join('\n') || undefined
                 )
-                
+
                 // Set the session ID and update chat name with AI-generated title
                 setCurrentSessionId(response.sessionId)
-                
+
                 // Update chat name in real-time with AI-generated title
                 if (response.title && response.title.trim() !== '') {
                     setChatName(response.title)
                     console.log("✨ Updated chat title to:", response.title)
                 }
-                
+
                 if (messages.length === 0) {
                     // This is the first message, reload sessions to get updated title in sidebar
                     setTimeout(() => loadChatSessions(), 1000)
@@ -437,9 +499,9 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                             <div className="p-3">
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="text-sm font-medium text-muted-foreground">Past Chats</h3>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="sm" 
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
                                         className="h-6 text-xs"
                                         onClick={loadChatSessions}
                                         disabled={isLoadingSessions}
@@ -516,9 +578,9 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
+                        <Button
+                            variant="ghost"
+                            size="icon"
                             className="h-8 w-8"
                             onClick={startNewChat}
                             disabled={isLoadingSessions}
