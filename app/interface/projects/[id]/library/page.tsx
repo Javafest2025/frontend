@@ -309,7 +309,8 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
 
             const matchesOpenAccess = filterOpenAccess === "all" ||
                 (filterOpenAccess === "open" && paper.isOpenAccess) ||
-                (filterOpenAccess === "closed" && !paper.isOpenAccess)
+                (filterOpenAccess === "closed" && !paper.isOpenAccess) ||
+                (filterOpenAccess === "uploaded" && paper.source === "Uploaded")
 
             const matchesFavorites = !showFavoritesOnly || favoritePapers.has(paper.id)
 
@@ -590,6 +591,7 @@ export default function ProjectLibraryPage({ params }: ProjectLibraryPageProps) 
                                                             <SelectItem value="all">All Papers</SelectItem>
                                                             <SelectItem value="open">Open Access</SelectItem>
                                                             <SelectItem value="closed">Closed Access</SelectItem>
+                                                            <SelectItem value="uploaded">Uploaded</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                 </div>

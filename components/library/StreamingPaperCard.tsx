@@ -73,6 +73,7 @@ export function StreamingPaperCard({
 
     const formatDate = (dateString: string): string => {
         try {
+            if (!dateString) return "Unknown"
             const date = new Date(dateString)
             return date.getFullYear().toString()
         } catch {
@@ -80,10 +81,11 @@ export function StreamingPaperCard({
         }
     }
 
-    const getVenueDisplay = (paper: Paper): string => {
+    const getSourceDisplay = (paper: Paper): string => {
+        if (paper.source) return paper.source
         if (paper.venueName) return paper.venueName
         if (paper.publisher) return paper.publisher
-        return "Unknown Venue"
+        return "Unknown Source"
     }
 
     const handleCardClick = () => {
@@ -281,7 +283,7 @@ export function StreamingPaperCard({
                             </span>
                         </motion.div>
 
-                        {/* Venue and Date */}
+                        {/* Source and Date */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: isMetadataLoaded ? 1 : 0.3 }}
@@ -289,7 +291,7 @@ export function StreamingPaperCard({
                             className="flex items-center gap-2 text-xs text-muted-foreground"
                         >
                             <BookOpen className="h-3 w-3 text-orange-500" />
-                            <span className="truncate">{getVenueDisplay(paper)}</span>
+                            <span className="truncate">{getSourceDisplay(paper)}</span>
                             <Calendar className="h-3 w-3 ml-1 text-green-500" />
                             <span>{formatDate(paper.publicationDate)}</span>
                         </motion.div>
@@ -302,13 +304,17 @@ export function StreamingPaperCard({
                             className="flex items-center justify-between mt-auto"
                         >
                             <div className="flex items-center gap-2 flex-shrink-0">
-                                {paper.isOpenAccess && (
+                                {paper.source === "Uploaded" ? (
+                                    <Badge variant="secondary" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 whitespace-nowrap">
+                                        Uploaded
+                                    </Badge>
+                                ) : paper.isOpenAccess ? (
                                     <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600 border-green-500/20 whitespace-nowrap">
                                         Open Access
                                     </Badge>
-                                )}
+                                ) : null}
                                 <Badge variant="outline" className="text-xs border-primary/20 whitespace-nowrap">
-                                    {paper.citationCount} citations
+                                    {paper.citationCount || 0} citations
                                 </Badge>
                             </div>
 
