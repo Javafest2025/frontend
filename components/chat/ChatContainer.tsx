@@ -17,6 +17,15 @@ import {
     type ChatSession 
 } from "@/lib/api/chat"
 import { getStructuredFacts } from "@/lib/api/paper-extraction"
+import { 
+    triggerExtraction, 
+    getExtractionStatus, 
+    isPaperExtracted,
+    getExtractionStatusOnly,
+    getExtractedFigures,
+    getExtractedTables,
+    type ExtractionRequest 
+} from "@/lib/api/project-service/extraction"
 
 type ChatContainerProps = {
     /**
@@ -48,10 +57,15 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
     // New state for chat readiness
     const [isChatReady, setIsChatReady] = useState<boolean | null>(null)
     const [isExtracting, setIsExtracting] = useState(false)
-    const [extractionCountdown, setExtractionCountdown] = useState(60)
     const [extractionError, setExtractionError] = useState<string | null>(null)
     const [paperInfo, setPaperInfo] = useState<any>(null)
     const [hasInitialMessage, setHasInitialMessage] = useState(false)
+    
+    // Enhanced extraction state
+    const [extractionProgress, setExtractionProgress] = useState(0)
+    const [extractionStage, setExtractionStage] = useState<string>("")
+    const [extractedFiguresCount, setExtractedFiguresCount] = useState(0)
+    const [extractedTablesCount, setExtractedTablesCount] = useState(0)
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -68,28 +82,6 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
             loadChatSessions()
         }
     }, [paperId])
-
-    // Handle extraction countdown
-    useEffect(() => {
-        let interval: NodeJS.Timeout | null = null
-
-        if (isExtracting && extractionCountdown > 0) {
-            interval = setInterval(() => {
-                setExtractionCountdown(prev => {
-                    if (prev <= 1) {
-                        setIsExtracting(false)
-                        setIsChatReady(true)
-                        return 0
-                    }
-                    return prev - 1
-                })
-            }, 1000)
-        }
-
-        return () => {
-            if (interval) clearInterval(interval)
-        }
-    }, [isExtracting, extractionCountdown])
 
     const loadChatSessions = async () => {
         if (!paperId) return
@@ -271,24 +263,52 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
             setExtractionError(null)
 
             console.log("🔍 Checking chat readiness for paperId:", paperId)
-            const readiness = await checkPaperChatReadiness(paperId)
-
-            if (readiness.isReady) {
-                console.log("✅ Chat is ready, current state:", {
-                    messagesLength: messages.length,
-                    currentSessionId,
-                    hasInitialMessage
-                })
+            
+            // First check if paper is already extracted using the detailed API
+            const isExtracted = await isPaperExtracted(paperId)
+            
+            if (isExtracted) {
+                console.log("✅ Paper is already extracted, chat is ready")
                 setIsChatReady(true)
                 // Load initial welcome message if no messages and no current session
                 if (messages.length === 0 && !currentSessionId && !hasInitialMessage) {
                     console.log("📝 Loading welcome message...")
                     await loadPaperInfo()
                 }
-            } else if (readiness.needsExtraction) {
-                console.log("⚠️ Paper needs extraction")
-                // Start extraction process
-                await startExtraction()
+            } else {
+                // Check if extraction is already in progress
+                try {
+                    const extractionStatus = await getExtractionStatusOnly(paperId)
+                    console.log("📊 Current extraction status:", extractionStatus)
+                    
+                    if (extractionStatus === 'PROCESSING' || extractionStatus === 'PENDING') {
+                        console.log("🔄 Extraction already in progress")
+                        setIsExtracting(true)
+                        setIsChatReady(false)
+                        // Start monitoring the existing extraction
+                        setTimeout(async () => {
+                            await checkChatReadiness()
+                        }, 5000)
+                    } else {
+                        console.log("⚠️ Paper needs extraction")
+                        setIsChatReady(false)
+                        // Start extraction process
+                        await startExtraction()
+                    }
+                } catch (statusError) {
+                    console.warn("Could not get extraction status, falling back to basic check:", statusError)
+                    // Fallback to original readiness check
+                    const readiness = await checkPaperChatReadiness(paperId)
+                    
+                    if (readiness.isReady) {
+                        setIsChatReady(true)
+                        if (messages.length === 0 && !currentSessionId && !hasInitialMessage) {
+                            await loadPaperInfo()
+                        }
+                    } else if (readiness.needsExtraction) {
+                        await startExtraction()
+                    }
+                }
             }
         } catch (error) {
             console.error("Error checking chat readiness:", error)
@@ -301,18 +321,101 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
 
         try {
             setIsExtracting(true)
-            setExtractionCountdown(60)
             setExtractionError(null)
 
-            // Start extraction in background
-            extractPaperForChat(paperId).catch(error => {
-                console.error("Extraction failed:", error)
-                setExtractionError("Failed to extract paper. Please try again.")
-                setIsExtracting(false)
-            })
+            // Use more comprehensive extraction with detailed options
+            const extractionRequest: ExtractionRequest = {
+                paperId,
+                extractText: true,
+                extractFigures: true,
+                extractTables: true,
+                extractEquations: true,
+                extractReferences: true,
+                useOcr: true,
+                detectEntities: true,
+                asyncProcessing: true
+            }
+
+            // Start extraction with detailed monitoring
+            const extractionResponse = await triggerExtraction(extractionRequest)
+            console.log("🔄 Extraction started:", extractionResponse)
+
+            // Monitor extraction progress
+            const monitorExtraction = async () => {
+                try {
+                    const status = await getExtractionStatus(paperId)
+                    console.log("📊 Extraction status:", status)
+                    
+                    // Update progress and stage
+                    if (status.progress !== undefined) {
+                        setExtractionProgress(status.progress)
+                    }
+                    
+                    // Set extraction stage based on status
+                    setExtractionStage(status.status || "Processing...")
+                    
+                    if (status.status === 'COMPLETED') {
+                        setIsExtracting(false)
+                        setIsChatReady(true)
+                        setExtractionProgress(100)
+                        setExtractionStage("Completed")
+                        
+                        // Get extracted figures and tables count
+                        try {
+                            const [figures, tables] = await Promise.all([
+                                getExtractedFigures(paperId),
+                                getExtractedTables(paperId)
+                            ])
+                            setExtractedFiguresCount(figures.length)
+                            setExtractedTablesCount(tables.length)
+                            console.log(`✅ Extraction completed: ${figures.length} figures, ${tables.length} tables`)
+                        } catch (figureTableError) {
+                            console.warn("Could not get figures/tables count:", figureTableError)
+                        }
+                        
+                        console.log("✅ Extraction completed successfully")
+                        
+                        // For new chats (no current session), always create welcome message
+                        if (!currentSessionId) {
+                            console.log("🎉 Creating welcome message for new chat after extraction")
+                            await loadPaperInfo() // This will create the welcome message
+                        }
+                    } else if (status.status === 'FAILED' || status.error) {
+                        setExtractionError(status.error || "Extraction failed")
+                        setIsExtracting(false)
+                        setExtractionStage("Failed")
+                    } else {
+                        // Continue monitoring if still in progress
+                        setTimeout(monitorExtraction, 3000) // Check every 3 seconds
+                    }
+                } catch (error) {
+                    console.error("Error monitoring extraction:", error)
+                    // Fallback to simple check
+                    setTimeout(async () => {
+                        try {
+                            const isExtracted = await isPaperExtracted(paperId)
+                            if (isExtracted) {
+                                setIsExtracting(false)
+                                setIsChatReady(true)
+                                await loadPaperInfo()
+                            } else {
+                                setTimeout(monitorExtraction, 5000)
+                            }
+                        } catch (fallbackError) {
+                            console.error("Fallback extraction check failed:", fallbackError)
+                            setExtractionError("Failed to monitor extraction progress")
+                            setIsExtracting(false)
+                        }
+                    }, 5000)
+                }
+            }
+
+            // Start monitoring
+            setTimeout(monitorExtraction, 2000) // Initial delay
+
         } catch (error) {
             console.error("Error starting extraction:", error)
-            setExtractionError("Failed to start paper extraction")
+            setExtractionError(`Failed to start paper extraction: ${error instanceof Error ? error.message : 'Unknown error'}`)
             setIsExtracting(false)
         }
     }
@@ -563,14 +666,8 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                             <div className="text-lg font-medium">Getting chatbot ready...</div>
                                         </div>
-                                        <div className="text-sm text-muted-foreground mb-4">
+                                        <div className="text-sm text-muted-foreground">
                                             Extracting paper content for AI analysis
-                                        </div>
-                                        <div className="text-2xl font-bold text-primary">
-                                            {extractionCountdown}s
-                                        </div>
-                                        <div className="text-xs text-muted-foreground mt-2">
-                                            This may take up to 60 seconds
                                         </div>
                                     </div>
                                 ) : extractionError ? (
