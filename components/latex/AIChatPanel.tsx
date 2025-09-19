@@ -446,6 +446,15 @@ export function AIChatPanel({
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return
 
+    // Guard against race conditions as suggested
+    if (!documentId || !chatSession?.id || isLoadingSession) {
+      console.log('Waiting for chat session to be ready...', { documentId, chatSessionId: chatSession?.id, isLoadingSession })
+      return
+    }
+
+    // Debug logging to verify IDs
+    console.log('POSTing with documentId=', documentId, ' chatSessionId=', chatSession?.id)
+
     setInputValue('')
     setIsLoading(true)
     setPendingAiRequest?.(true)
@@ -470,12 +479,10 @@ export function AIChatPanel({
       // Use backend to persist the user message and generate the AI response in one call
       if (documentId) {
         const response = await latexApi.sendChatMessage(documentId, {
-          messageType: 'USER',
           content: inputValue,
           selectionRangeFrom: selectedText?.from,
           selectionRangeTo: selectedText?.to,
           cursorPosition: cursorPosition,
-          // Provide full context so backend can produce better suggestions
           selectedText: selectedText?.text || '',
           fullDocument: content || '',
           userRequest: inputValue
@@ -1362,7 +1369,7 @@ export function AIChatPanel({
             </div>
             <button
               onClick={handleSendMessage}
-              disabled={isLoading || !inputValue.trim()}
+              disabled={isLoading || !inputValue.trim() || isLoadingSession || !chatSession?.id}
               className="h-11 w-11 shrink-0 rounded-xl text-white disabled:opacity-50
                          bg-gradient-to-r from-rose-400 to-orange-400
                          hover:from-rose-500 hover:to-orange-500 focus:outline-none
