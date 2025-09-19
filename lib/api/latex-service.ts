@@ -7,24 +7,8 @@ import type {
   StartCitationCheckResponse,
   UpdateCitationIssueRequest 
 } from '@/types/citations'
-
-// Helper function to determine API base
-function getApiBase() {
-  if (typeof window === 'undefined') return process.env.NEXT_PUBLIC_USE_PROXY === 'true'
-    ? `http://localhost`    // SSR fallback if needed
-    : `http://localhost:8989`;
-
-  return process.env.NEXT_PUBLIC_USE_PROXY === 'true'
-    ? `${window.location.origin}/api`
-    : 'http://localhost:8989';
-}
-
-// Use only for project-service calls
-export function getProjectServiceUrl(path: string) {
-  const base = getApiBase();
-  // NOTE: do NOT double-prefix /api; project-service already has its root prefix
-  return `${base}/project-service${path}`;
-}
+import { getMicroserviceUrl } from '@/lib/config/api-config'
+import { authenticatedFetch } from '@/lib/api/user-service'
 
 // Helper functions for citation API
 export async function sha256Hex(input: string): Promise<string> {
@@ -50,8 +34,6 @@ const normalizeSummary = (raw: any, issues: any[] = []): CitationSummary => {
     finishedAt: raw.finishedAt
   };
 };
-
-// Convert backend CitationIssueDto to frontend CitationIssue format
 
 // Convert backend CitationIssueDto to frontend CitationIssue format
 const convertBackendIssuesToFrontend = (backendIssues: any[]): CitationIssue[] => {
@@ -128,7 +110,7 @@ export interface AIChatRequest {
 export const latexApi = {
   // Document management
   async createDocument(request: CreateDocumentRequest): Promise<APIResponse<DocumentResponse>> {
-    const response = await fetch(getProjectServiceUrl('/api/documents'), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', '/api/documents'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -144,7 +126,7 @@ export const latexApi = {
   },
 
   async createDocumentWithName(projectId: string, fileName: string): Promise<APIResponse<DocumentResponse>> {
-    const response = await fetch(getProjectServiceUrl(`/api/documents/create-with-name?projectId=${projectId}&fileName=${fileName}`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/documents/create-with-name?projectId=${projectId}&fileName=${fileName}`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -159,10 +141,10 @@ export const latexApi = {
   },
 
   async getDocumentsByProjectId(projectId: string): Promise<APIResponse<DocumentResponse[]>> {
-    const url = getProjectServiceUrl(`/api/documents/project/${projectId}`)
+    const url = getMicroserviceUrl('project-service', `/api/documents/project/${projectId}`)
     console.log('Calling API URL:', url)
     
-    const response = await fetch(url, {
+    const response = await authenticatedFetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -182,7 +164,7 @@ export const latexApi = {
   },
 
   async getDocumentById(documentId: string): Promise<APIResponse<DocumentResponse>> {
-    const response = await fetch(getProjectServiceUrl(`/api/documents/${documentId}`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/documents/${documentId}`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -197,7 +179,7 @@ export const latexApi = {
   },
 
   async updateDocument(request: UpdateDocumentRequest): Promise<APIResponse<DocumentResponse>> {
-    const response = await fetch(getProjectServiceUrl('/api/documents'), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', '/api/documents'), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -213,7 +195,7 @@ export const latexApi = {
   },
 
   async deleteDocument(documentId: string): Promise<APIResponse<void>> {
-    const response = await fetch(getProjectServiceUrl(`/api/documents/${documentId}`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/documents/${documentId}`), {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -229,7 +211,7 @@ export const latexApi = {
 
   // LaTeX compilation
   async compileLatex(request: CompileLatexRequest): Promise<APIResponse<string>> {
-    const response = await fetch(getProjectServiceUrl('/api/documents/compile'), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', '/api/documents/compile'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -246,7 +228,7 @@ export const latexApi = {
 
   // Direct PDF compilation using pdflatex
   async compileLatexToPdf(request: CompileLatexRequest): Promise<Blob> {
-    const response = await fetch(getProjectServiceUrl('/api/documents/compile-pdf'), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', '/api/documents/compile-pdf'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -262,7 +244,7 @@ export const latexApi = {
   },
 
   async generatePDF(request: GeneratePDFRequest): Promise<Blob> {
-    const response = await fetch(getProjectServiceUrl('/api/documents/generate-pdf'), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', '/api/documents/generate-pdf'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -279,7 +261,7 @@ export const latexApi = {
 
   // AI assistance
   async processChatRequest(request: AIChatRequest): Promise<APIResponse<string>> {
-    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/chat'), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', '/api/ai-assistance/chat'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -296,7 +278,7 @@ export const latexApi = {
 
   // LaTeX AI Chat - File-specific chat sessions
   async getChatSession(documentId: string, projectId: string): Promise<APIResponse<any>> {
-    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/session/${documentId}?projectId=${projectId}`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/latex-ai-chat/session/${documentId}?projectId=${projectId}`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -311,7 +293,7 @@ export const latexApi = {
   },
 
   async sendChatMessage(documentId: string, request: any): Promise<APIResponse<any>> {
-    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/session/${documentId}/message`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/latex-ai-chat/session/${documentId}/message`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -327,7 +309,7 @@ export const latexApi = {
   },
 
   async getChatHistory(documentId: string): Promise<APIResponse<any[]>> {
-    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/session/${documentId}/messages`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/latex-ai-chat/session/${documentId}/messages`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -342,7 +324,7 @@ export const latexApi = {
   },
 
   async applySuggestion(messageId: string, contentAfter: string): Promise<APIResponse<string>> {
-    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/message/${messageId}/apply`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/latex-ai-chat/message/${messageId}/apply`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -358,7 +340,7 @@ export const latexApi = {
   },
 
   async createCheckpoint(documentId: string, sessionId: string, request: any): Promise<APIResponse<any>> {
-    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/document/${documentId}/checkpoint?sessionId=${sessionId}`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/latex-ai-chat/document/${documentId}/checkpoint?sessionId=${sessionId}`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -374,7 +356,7 @@ export const latexApi = {
   },
 
   async restoreToCheckpoint(checkpointId: string): Promise<APIResponse<string>> {
-    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/checkpoint/${checkpointId}/restore`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/latex-ai-chat/checkpoint/${checkpointId}/restore`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -389,7 +371,7 @@ export const latexApi = {
   },
 
   async getCheckpoints(documentId: string): Promise<APIResponse<any[]>> {
-    const response = await fetch(getProjectServiceUrl(`/api/latex-ai-chat/document/${documentId}/checkpoints`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/latex-ai-chat/document/${documentId}/checkpoints`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -404,7 +386,7 @@ export const latexApi = {
   },
 
   async reviewDocument(content: string): Promise<APIResponse<any>> {
-    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/review'), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', '/api/ai-assistance/review'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -420,7 +402,7 @@ export const latexApi = {
   },
 
   async generateSuggestions(content: string, context?: string): Promise<APIResponse<string>> {
-    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/suggestions'), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', '/api/ai-assistance/suggestions'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -436,7 +418,7 @@ export const latexApi = {
   },
 
   async checkCompliance(content: string, venue?: string): Promise<APIResponse<any>> {
-    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/compliance'), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', '/api/ai-assistance/compliance'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -452,7 +434,7 @@ export const latexApi = {
   },
 
   async validateCitations(content: string): Promise<APIResponse<any>> {
-    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/citations/validate'), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', '/api/ai-assistance/citations/validate'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -468,7 +450,7 @@ export const latexApi = {
   },
 
   async generateCorrections(content: string): Promise<APIResponse<any>> {
-    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/corrections'), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', '/api/ai-assistance/corrections'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -479,7 +461,7 @@ export const latexApi = {
   },
 
   async generateFinalReview(content: string): Promise<APIResponse<string>> {
-    const response = await fetch(getProjectServiceUrl('/api/ai-assistance/final-review'), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', '/api/ai-assistance/final-review'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -496,7 +478,7 @@ export const latexApi = {
 
   // Document Versioning
   async createDocumentVersion(documentId: string, content: string, commitMessage: string, createdBy?: string): Promise<APIResponse<any>> {
-    const url = getProjectServiceUrl(`/api/documents/${documentId}/versions`)
+    const url = getMicroserviceUrl('project-service', `/api/documents/${documentId}/versions`)
     const body = `commitMessage=${encodeURIComponent(commitMessage)}&content=${encodeURIComponent(content)}${createdBy ? `&createdBy=${encodeURIComponent(createdBy)}` : ''}`
     
     console.log('=== API CALL DEBUG ===')
@@ -506,7 +488,7 @@ export const latexApi = {
     console.log('Body:', body)
     
     try {
-      const response = await fetch(url, {
+      const response = await authenticatedFetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -540,7 +522,7 @@ export const latexApi = {
   },
 
   async getDocumentVersions(documentId: string): Promise<APIResponse<any[]>> {
-    const response = await fetch(getProjectServiceUrl(`/api/documents/${documentId}/versions`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/documents/${documentId}/versions`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -550,7 +532,7 @@ export const latexApi = {
   },
 
   async getSpecificDocumentVersion(documentId: string, versionNumber: number): Promise<APIResponse<any>> {
-    const response = await fetch(getProjectServiceUrl(`/api/documents/${documentId}/versions/${versionNumber}`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/documents/${documentId}/versions/${versionNumber}`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -560,7 +542,7 @@ export const latexApi = {
   },
 
   async getPreviousDocumentVersion(documentId: string, currentVersion: number): Promise<APIResponse<any>> {
-    const response = await fetch(getProjectServiceUrl(`/api/documents/${documentId}/versions/${currentVersion}/previous`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/documents/${documentId}/versions/${currentVersion}/previous`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -570,7 +552,7 @@ export const latexApi = {
   },
 
   async getNextDocumentVersion(documentId: string, currentVersion: number): Promise<APIResponse<any>> {
-    const response = await fetch(getProjectServiceUrl(`/api/documents/${documentId}/versions/${currentVersion}/next`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/documents/${documentId}/versions/${currentVersion}/next`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -601,7 +583,7 @@ export const latexApi = {
       }
     };
 
-    const response = await fetch(getProjectServiceUrl('/api/citations/jobs'), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', '/api/citations/jobs'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(backendRequest),
@@ -612,7 +594,7 @@ export const latexApi = {
   },
 
   async getCitationJob(jobId: string): Promise<CitationCheckJob> {
-    const res = await fetch(getProjectServiceUrl(`/api/citations/jobs/${jobId}`), { headers: { 'Content-Type': 'application/json' }});
+    const res = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/citations/jobs/${jobId}`), { headers: { 'Content-Type': 'application/json' }});
     if (!res.ok) throw new Error(`Failed to get citation job: ${res.statusText}`);
     const data = await res.json();
     const issues = convertBackendIssuesToFrontend(data.issues || []);
@@ -628,7 +610,7 @@ export const latexApi = {
   },
 
   async getCitationResult(documentId: string): Promise<CitationCheckJob | null> {
-    const res = await fetch(getProjectServiceUrl(`/api/citations/documents/${documentId}`), {
+    const res = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/citations/documents/${documentId}`), {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -653,7 +635,7 @@ export const latexApi = {
   },
 
   async updateCitationIssue(issueId: string, patch: UpdateCitationIssueRequest): Promise<APIResponse<any>> {
-    const response = await fetch(getProjectServiceUrl(`/api/citations/issues/${issueId}`), {
+    const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/citations/issues/${issueId}`), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -697,7 +679,7 @@ export async function startCitationCheckWithStreaming(
 
   // Start new job (backend handles content hash caching internally)
   console.log('🚀 Starting new citation job...');
-  const response = await fetch(getProjectServiceUrl(`/api/citations/check/${projectId}`), {
+  const response = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/citations/check/${projectId}`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ 
@@ -757,7 +739,7 @@ export function streamCitationJob(jobId: string, handlers: {
   onEvent?: (raw: any) => void,
   onError?: (err: any) => void,
 }) {
-  const url = getProjectServiceUrl(`/api/citations/jobs/${jobId}/events`);
+  const url = getMicroserviceUrl('project-service', `/api/citations/jobs/${jobId}/events`);
   console.log('🔌 Starting SSE stream to:', url);
   
   const es = new EventSource(url);
@@ -811,7 +793,7 @@ export function streamCitationJob(jobId: string, handlers: {
 }
 
 export async function cancelCitationJob(jobId: string): Promise<void> {
-  const res = await fetch(getProjectServiceUrl(`/api/citations/jobs/${jobId}`), { method: 'DELETE' });
+  const res = await authenticatedFetch(getMicroserviceUrl('project-service', `/api/citations/jobs/${jobId}`), { method: 'DELETE' });
   if (!res.ok) throw new Error(`Failed to cancel citation job: ${res.statusText}`);
 }
 
