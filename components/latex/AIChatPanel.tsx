@@ -24,7 +24,9 @@ import {
   Code,
   BookOpen,
   History,
-  RotateCcw
+  RotateCcw,
+  RefreshCw,
+  Sparkles
 } from 'lucide-react'
 import { latexApi } from '@/lib/api/latex-service'
 import type { LatexAiChatSession, LatexAiChatMessage, CreateLatexChatMessageRequest } from '@/types/chat'
@@ -87,6 +89,7 @@ export function AIChatPanel({
   const [selectedTextDisplay, setSelectedTextDisplay] = useState<string>('')
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [positionMarkers, setPositionMarkers] = useState<Array<{ position: number; label: string; blinking: boolean }>>([])
+  
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -123,6 +126,17 @@ export function AIChatPanel({
       }
       setContentCheckpoints(prev => [checkpoint, ...prev.slice(0, 9)])
 
+      // Persist checkpoint in backend if possible
+      if (documentId && chatSession?.id) {
+        latexApi.createCheckpoint(documentId, chatSession.id, {
+          checkpointName: checkpoint.description,
+          contentBefore: originalContent,
+          contentAfter: newContent,
+          messageId: undefined,
+          setCurrent: true
+        }).catch(err => console.warn('Failed to persist checkpoint:', err))
+      }
+
       // Add restore checkpoint message
       const restoreMessage: LatexAiChatMessage = {
         id: `restore-${checkpoint.id}`,
@@ -138,6 +152,9 @@ export function AIChatPanel({
       }
       
       setMessages(prev => [...prev, restoreMessage])
+
+      // Clear active preview banner if any
+      setActiveSuggestionId(null)
     }
 
     window.addEventListener('suggestion-accepted', handleSuggestionAccepted as EventListener)
@@ -146,6 +163,65 @@ export function AIChatPanel({
       window.removeEventListener('suggestion-accepted', handleSuggestionAccepted as EventListener)
     }
   }, [chatSession?.id])
+
+  // Also clear active suggestion when inline diff is accepted/rejected directly in editor
+  useEffect(() => {
+    const clearActive = () => setActiveSuggestionId(null)
+    const onAccept = () => clearActive()
+    const onReject = () => clearActive()
+    document.addEventListener('acceptInlineDiff', onAccept as EventListener)
+    document.addEventListener('rejectInlineDiff', onReject as EventListener)
+    return () => {
+      document.removeEventListener('acceptInlineDiff', onAccept as EventListener)
+      document.removeEventListener('rejectInlineDiff', onReject as EventListener)
+    }
+  }, [])
+
+  // Helper: load checkpoints from backend and hydrate UI with restore buttons
+  const loadAndHydrateCheckpoints = async () => {
+    if (!documentId) return
+    try {
+      const resp = await latexApi.getCheckpoints(documentId)
+      const cps = Array.isArray(resp.data) ? resp.data : []
+
+      // Map to local checkpoint cache
+      const mapped = cps.map((cp: any) => ({
+        id: String(cp.id),
+        content: String(cp.contentBefore ?? ''),
+        timestamp: String(cp.createdAt ?? new Date().toISOString()),
+        description: String(cp.displayName ?? cp.checkpointName ?? 'Checkpoint')
+      }))
+      setContentCheckpoints(mapped)
+
+      if (mapped.length > 0) {
+        // For each checkpoint, ensure a restore message exists
+        const existingIds = new Set(messages.map(m => String(m.id)))
+        const restoreMsgs: LatexAiChatMessage[] = mapped
+          .filter(cp => !existingIds.has(`restore-${cp.id}`))
+          .map(cp => ({
+            id: `restore-${cp.id}`,
+            sessionId: chatSession?.id || '',
+            messageType: 'AI',
+            content: '✅ Suggestion applied successfully! You can restore the previous version if needed.',
+            isApplied: false,
+            sender: 'ai',
+            timestamp: cp.timestamp,
+            createdAt: cp.timestamp,
+            hasLatexSuggestion: false,
+            hasSelectionRange: false
+          }))
+
+        if (restoreMsgs.length > 0) {
+          const merged = [...messages, ...restoreMsgs]
+          // Sort by timestamp ascending if available
+          merged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+          setMessages(merged)
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load checkpoints:', err)
+    }
+  }
 
   const loadChatSession = async () => {
     if (!documentId || !projectId) return
@@ -156,61 +232,81 @@ export function AIChatPanel({
       const response = await latexApi.getChatSession(documentId, projectId)
       setChatSession(response.data)
       console.log('Loaded existing chat session:', response.data)
-      
-      // Load chat history for this session
-      await loadChatHistory()
-    } catch (error) {
-      console.log('No existing session found, creating new one')
-      // Create a simple session state as fallback
-      const simpleSession: LatexAiChatSession = {
-        id: `session-${documentId}`,
-        documentId: documentId,
-        projectId: projectId,
-        sessionTitle: 'LaTeX AI Chat',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isActive: true,
-        messageCount: 0,
-        lastMessageTime: new Date().toISOString(),
-        messages: [],
-        checkpoints: []
-      }
-      
-      setChatSession(simpleSession)
-      
-      // Initialize with welcome message
-      if (!messages.length) {
-        const welcomeMessage: LatexAiChatMessage = {
-          id: 'welcome',
-          sessionId: simpleSession.id,
-          messageType: 'AI',
-          content: "Welcome to **LaTeXAI**! 🚀 I'm your specialized LaTeX assistant for this document.\n\n" +
-                  "**I can help you with:**\n" +
-                  "• Writing and formatting LaTeX documents\n" +
-                  "• Fixing compilation errors and syntax issues\n" +
-                  "• Suggesting mathematical notation and environments\n" +
-                  "• Optimizing document structure and styling\n" +
-                  "• Using packages and custom commands\n" +
-                  "• Converting content to LaTeX format\n\n" +
-                  "**💡 How to use:**\n" +
-                  "• Select text in your document and ask me anything about LaTeX!\n" +
-                  "• I can add, modify, or improve your LaTeX content\n" +
-                  "• Ask me to explain LaTeX concepts or fix errors\n\n" +
-                  "Select text in your document and ask me anything about LaTeX!",
-          isApplied: false,
-          sender: 'ai',
-          timestamp: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          hasLatexSuggestion: false,
-          hasSelectionRange: false
+
+      // Prefer messages returned with the session (already ordered by createdAt)
+      const sessionMessages = Array.isArray(response.data?.messages) ? response.data.messages : []
+      if (sessionMessages.length > 0) {
+        setMessages(sessionMessages)
+        console.log('Initialized chat with session messages:', sessionMessages.length)
+      } else {
+        // Fallback: try loading history endpoint
+        const historyLoaded = await loadChatHistory()
+        // Only show welcome message if no history was loaded
+        if (!historyLoaded) {
+          await initializeWithWelcomeMessage(response.data)
         }
-        setMessages([welcomeMessage])
       }
+      // Regardless, hydrate checkpoints for restore buttons
+      await loadAndHydrateCheckpoints()
+    } catch (error) {
+      console.log('No existing session found, will try to load history anyway')
       
-      console.log('Initialized simple chat session for document:', documentId)
+      // Even if session creation fails, try to load chat history
+      // In case there are existing messages in the database
+      const historyLoaded = await loadChatHistory()
+      
+      // Create a simple session state as fallback only if no messages were loaded
+      if (!historyLoaded) {
+        const simpleSession: LatexAiChatSession = {
+          id: `session-${documentId}`,
+          documentId: documentId,
+          projectId: projectId,
+          sessionTitle: 'LaTeX AI Chat',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isActive: true,
+          messageCount: 0,
+          lastMessageTime: new Date().toISOString(),
+          messages: [],
+          checkpoints: []
+        }
+        
+        setChatSession(simpleSession)
+        await initializeWithWelcomeMessage(simpleSession)
+      }
     } finally {
       setIsLoadingSession(false)
     }
+  }
+
+  const initializeWithWelcomeMessage = async (session: LatexAiChatSession) => {
+    // Initialize with welcome message only if no existing messages
+    const welcomeMessage: LatexAiChatMessage = {
+      id: 'welcome',
+      sessionId: session.id,
+      messageType: 'AI',
+      content: "Welcome to **LaTeXAI**! 🚀 I'm your specialized LaTeX assistant for this document.\n\n" +
+              "**I can help you with:**\n" +
+              "• Writing and formatting LaTeX documents\n" +
+              "• Fixing compilation errors and syntax issues\n" +
+              "• Suggesting mathematical notation and environments\n" +
+              "• Optimizing document structure and styling\n" +
+              "• Using packages and custom commands\n" +
+              "• Converting content to LaTeX format\n\n" +
+              "**💡 How to use:**\n" +
+              "• Select text in your document and ask me anything about LaTeX!\n" +
+              "• I can add, modify, or improve your LaTeX content\n" +
+              "• Ask me to explain LaTeX concepts or fix errors\n\n" +
+              "Select text in your document and ask me anything about LaTeX!",
+      isApplied: false,
+      sender: 'ai',
+      timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      hasLatexSuggestion: false,
+      hasSelectionRange: false
+    }
+    setMessages([welcomeMessage])
+    console.log('Initialized simple chat session with welcome message for document:', documentId)
   }
 
   // Update selected text display when prop changes
@@ -269,7 +365,7 @@ export function AIChatPanel({
   // Load chat history when document changes
   useEffect(() => {
     if (documentId) {
-      loadChatHistory()
+      loadChatHistory().then(() => loadAndHydrateCheckpoints())
     } else {
       setMessages([])
       setChatSession(null)
@@ -307,23 +403,14 @@ export function AIChatPanel({
     
     switch (actionType) {
       case 'replace':
-        // For replace: show original text as "delete" and new text as "add"
-        if (originalText && originalText.trim()) {
-          previews.push({
-            id: `${suggestionId}-delete`,
-            type: 'delete',
-            from,
-            to,
-            content: originalText,
-            originalContent: originalText
-          })
-        }
+        // Emit a single replace preview with both original and suggested content
         previews.push({
-          id: `${suggestionId}-add`,
-          type: 'add',
-          from: to, // Insert the new content after the deleted part
-          to: to,
-          content: suggestion
+          id: suggestionId,
+          type: 'replace',
+          from,
+          to,
+          content: suggestion,
+          originalContent: originalText
         })
         break
         
@@ -380,96 +467,58 @@ export function AIChatPanel({
     setMessages(prev => [...prev, userMessage])
 
     try {
-      // Save user message to database (if endpoints are available)
+      // Use backend to persist the user message and generate the AI response in one call
       if (documentId) {
-        try {
-          await latexApi.sendChatMessage(documentId, {
-            messageType: 'USER',
-            content: inputValue,
-            selectionRangeFrom: selectedText?.from,
-            selectionRangeTo: selectedText?.to,
-            cursorPosition: cursorPosition
-          })
-        } catch (dbError) {
-          console.log('Failed to save user message to database:', dbError)
+        const response = await latexApi.sendChatMessage(documentId, {
+          messageType: 'USER',
+          content: inputValue,
+          selectionRangeFrom: selectedText?.from,
+          selectionRangeTo: selectedText?.to,
+          cursorPosition: cursorPosition,
+          // Provide full context so backend can produce better suggestions
+          selectedText: selectedText?.text || '',
+          fullDocument: content || '',
+          userRequest: inputValue
+        })
+
+        // The backend returns the AI message DTO
+        const serverAiMessage = response.data as unknown as LatexAiChatMessage
+        setMessages(prev => [...prev, serverAiMessage])
+
+        // Create inline diff preview if AI provided LaTeX suggestion
+        if (serverAiMessage?.latexSuggestion && serverAiMessage.latexSuggestion.trim().length > 0 && onPreviewInlineDiff) {
+          // Prefer server actionType; otherwise, if there is a real selection, default to REPLACE.
+          const hasSelection =
+            !!(selectedText?.text && selectedText.text.trim().length > 0) &&
+            selectedText?.from !== undefined &&
+            selectedText?.to !== undefined &&
+            selectedText.from !== selectedText.to;
+
+          const defaultAct: 'add' | 'replace' | 'delete' = hasSelection ? 'replace' : 'add';
+          const act =
+            (serverAiMessage.actionType?.toLowerCase?.() as 'add' | 'replace' | 'delete') ||
+            defaultAct;
+
+          // Compute the correct range:
+          const from =
+            serverAiMessage.selectionRangeFrom ??
+            (hasSelection ? selectedText!.from : (cursorPosition ?? 0));
+
+          const to =
+            serverAiMessage.selectionRangeTo ??
+            (act === 'add'
+              ? from // add is an insertion point
+              : (hasSelection ? selectedText!.to : from)); // replace/delete need the real end
+
+          createInlineDiffPreviews(
+            act,
+            from,
+            to,
+            selectedText?.text || '',
+            serverAiMessage.latexSuggestion,
+            String(serverAiMessage.id)
+          );
         }
-      }
-
-      // Use the original working AI assistance endpoint
-      const aiRequest = {
-        selectedText: selectedText?.text || '',
-        userRequest: inputValue,
-        fullDocument: content || ''
-      }
-
-      const response = await latexApi.processChatRequest(aiRequest)
-      const aiResponseContent = response.data
-
-      // Parse AI response using existing sophisticated logic
-      const { actionType, suggestion, position } = parseAIResponse(
-        aiResponseContent, 
-        inputValue, 
-        cursorPosition, 
-        selectedText
-      )
-
-      // Extract explanation (text before LaTeX code)
-      const explanation = extractExplanation(aiResponseContent)
-
-      // Create AI message
-      const aiMessage: LatexAiChatMessage = {
-        id: `ai-${Date.now()}`,
-        sessionId: chatSession?.id || '',
-        messageType: 'AI',
-        content: explanation || aiResponseContent,
-        latexSuggestion: suggestion,
-        actionType: actionType.toUpperCase() as 'ADD' | 'REPLACE' | 'DELETE' | 'MODIFY',
-        selectionRangeFrom: selectedText?.from,
-        selectionRangeTo: selectedText?.to,
-        cursorPosition: position,
-        isApplied: false,
-        sender: 'ai',
-        timestamp: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        hasLatexSuggestion: Boolean(suggestion && suggestion.length > 0),
-        hasSelectionRange: selectedText?.from !== undefined && selectedText?.to !== undefined
-      }
-
-      // Add AI message to state
-      setMessages(prev => [...prev, aiMessage])
-
-      // Save AI message to database (if endpoints are available)
-      if (documentId) {
-        try {
-          await latexApi.sendChatMessage(documentId, {
-            messageType: 'AI',
-            content: explanation || aiResponseContent,
-            latexSuggestion: suggestion,
-            actionType: actionType.toUpperCase(),
-            selectionRangeFrom: selectedText?.from,
-            selectionRangeTo: selectedText?.to,
-            cursorPosition: position,
-            hasLatexSuggestion: Boolean(suggestion && suggestion.length > 0),
-            hasSelectionRange: selectedText?.from !== undefined && selectedText?.to !== undefined
-          })
-        } catch (dbError) {
-          console.log('Failed to save AI message to database:', dbError)
-        }
-      }
-
-      // Create inline diff preview if AI provided LaTeX suggestion
-      if (suggestion && suggestion.length > 0 && onPreviewInlineDiff) {
-        const from = selectedText?.from || position || 0
-        const to = selectedText?.to || from
-        
-        createInlineDiffPreviews(
-          actionType as 'add' | 'replace' | 'delete',
-          from,
-          to,
-          selectedText?.text || '',
-          suggestion,
-          aiMessage.id
-        )
       }
 
     } catch (error) {
@@ -496,31 +545,48 @@ export function AIChatPanel({
     }
   }
 
-  const loadChatHistory = async () => {
-    if (!documentId) return
+  const loadChatHistory = async (): Promise<boolean> => {
+    if (!documentId) {
+      console.log('❌ loadChatHistory: No documentId provided')
+      return false
+    }
+    
+    console.log('🔍 loadChatHistory: Loading chat history for documentId:', documentId)
     
     try {
       // Try to load chat history from database
       const response = await latexApi.getChatHistory(documentId)
+      console.log('📡 loadChatHistory: API response:', response)
+      
       if (response.data && response.data.length > 0) {
         setMessages(response.data)
-        console.log('Loaded chat history from database:', response.data.length, 'messages')
+        console.log('✅ loadChatHistory: Loaded chat history from database:', response.data.length, 'messages')
+        response.data.forEach((msg, index) => {
+          console.log(`  Message ${index + 1}:`, {
+            id: msg.id,
+            type: msg.messageType,
+            content: msg.content.substring(0, 50) + '...'
+          })
+        })
+        return true
       } else {
         // No messages found, keep current state (welcome message)
-        console.log('No chat history found in database')
+        console.log('🔍 loadChatHistory: No chat history found in database')
+        return false
       }
     } catch (error) {
-      console.log('Failed to load chat history from database, using local state')
+      console.error('❌ loadChatHistory: Failed to load chat history from database:', error)
+      return false
     }
   }
 
-  const createCheckpointBeforeApply = async (messageId: string, suggestion: string) => {
+  const createCheckpointBeforeApply = async (messageId: string | number, suggestion: string) => {
     // For now, just apply the suggestion directly since checkpoint endpoints are not available yet
     try {
       if (onContentChange) {
         const newContent = applySuggestionToContent(content, suggestion, selectedText)
         onContentChange(newContent)
-        console.log('Applied suggestion to content:', messageId)
+        console.log('Applied suggestion to content:', String(messageId))
       }
     } catch (error) {
       console.error('Failed to apply suggestion:', error)
@@ -542,42 +608,37 @@ export function AIChatPanel({
     const lowerRequest = userRequest.toLowerCase()
     const lowerResponse = response.toLowerCase()
     
-    let actionType: 'add' | 'replace' | 'delete' | 'modify' = 'add'
+    // Determine if there is a real selection
+    const hasSelection =
+      !!(selectedText?.text && selectedText.text.trim().length > 0) &&
+      selectedText?.from !== undefined &&
+      selectedText?.to !== undefined &&
+      selectedText.from !== selectedText.to;
+    
+    // Default action type based on selection
+    let actionType: 'add' | 'replace' | 'delete' | 'modify' = hasSelection ? 'replace' : 'add'
     let suggestion = response
     let position = cursorPos
     let label = 'AI Edit'
 
-    // Determine action type based on user request and context
-    if (selectedText && selectedText.text) {
-      // If there's selected text, default to replace mode
-      if (lowerRequest.includes('replace') || lowerRequest.includes('change') || lowerRequest.includes('modify') || 
-          lowerRequest.includes('make') || lowerRequest.includes('convert') || lowerRequest.includes('table')) {
-        actionType = 'replace'
-        label = 'Replace Selection'
-        // Use cursor position from selection
-        position = selectedText.from
-      } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
-        actionType = 'delete'
-        label = 'Delete Selection'
-      } else {
-        // Default to replace when there's selection
-        actionType = 'replace'
-        label = 'Replace Selection'
-        position = selectedText.from
-      }
-    } else {
-      // No selection, determine action type from request
-      if (lowerRequest.includes('replace') || lowerRequest.includes('change') || lowerRequest.includes('modify')) {
-        actionType = 'replace'
-      } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
-        actionType = 'delete'
-      } else if (lowerRequest.includes('add') || lowerRequest.includes('insert')) {
-        actionType = 'add'
-        label = 'Add Content'
-      } else if (lowerRequest.includes('make') || lowerRequest.includes('convert')) {
-        actionType = 'modify'
-        label = 'Modify Content'
-      }
+    // Override based on explicit request keywords
+    if (lowerRequest.includes('replace') || lowerRequest.includes('change') || lowerRequest.includes('modify') || 
+        lowerRequest.includes('make') || lowerRequest.includes('convert') || lowerRequest.includes('table')) {
+      actionType = 'replace'
+      label = 'Replace Selection'
+      // Use cursor position from selection
+      position = hasSelection ? selectedText!.from : cursorPos
+    } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
+      actionType = 'delete'
+      label = 'Delete Selection'
+    } else if (lowerRequest.includes('add') || lowerRequest.includes('insert')) {
+      actionType = 'add'
+      label = 'Add Content'
+    } else if (hasSelection) {
+      // Default to replace when there's selection
+      actionType = 'replace'
+      label = 'Replace Selection'
+      position = selectedText!.from
     }
 
     // Extract LaTeX code from response if present
@@ -601,36 +662,28 @@ export function AIChatPanel({
     const lowerRequest = userRequest.toLowerCase()
     const lowerResponse = response.toLowerCase()
     
-    // Determine action type based on context - prioritize selection over cursor
-    let actionType: 'replace' | 'add' | 'delete' = 'add'
+    // Determine if there is a real selection
+    const hasSelection =
+      !!(selectedText?.text && selectedText.text.trim().length > 0) &&
+      selectedText?.from !== undefined &&
+      selectedText?.to !== undefined &&
+      selectedText.from !== selectedText.to;
     
-    if (selectedText && selectedText.text && selectedText.text.trim()) {
-      // If there's selected text, analyze the request more carefully
-      if (lowerRequest.includes('replace') || lowerRequest.includes('make') || lowerRequest.includes('table') || 
-          lowerRequest.includes('change') || lowerRequest.includes('modify') || lowerRequest.includes('convert') ||
-          lowerRequest.includes('instead') || lowerRequest.includes('rather than')) {
-        actionType = 'replace'
-      } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
-        actionType = 'delete'
-      } else if (lowerRequest.includes('add') || lowerRequest.includes('insert')) {
-        actionType = 'add'
-      } else {
-        // Default to replace when there's selection and the request seems to want modification
-        if (lowerRequest.includes('this') || lowerRequest.includes('that') || lowerRequest.includes('here')) {
-          actionType = 'replace'
-        }
-      }
-    } else {
-      // No selection, determine action type from request
-      if (lowerRequest.includes('replace') || lowerRequest.includes('change') || lowerRequest.includes('modify')) {
-        actionType = 'replace'
-      } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
-        actionType = 'delete'
-      } else if (lowerRequest.includes('add') || lowerRequest.includes('insert')) {
-        actionType = 'add'
-      } else if (lowerRequest.includes('make') || lowerRequest.includes('convert')) {
-        actionType = 'add' // Default to add for creation requests
-      }
+    // Default action type based on selection
+    let actionType: 'replace' | 'add' | 'delete' = hasSelection ? 'replace' : 'add'
+    
+    // Override based on explicit request keywords
+    if (lowerRequest.includes('replace') || lowerRequest.includes('make') || lowerRequest.includes('table') || 
+        lowerRequest.includes('change') || lowerRequest.includes('modify') || lowerRequest.includes('convert') ||
+        lowerRequest.includes('instead') || lowerRequest.includes('rather than')) {
+      actionType = 'replace'
+    } else if (lowerRequest.includes('delete') || lowerRequest.includes('remove')) {
+      actionType = 'delete'
+    } else if (lowerRequest.includes('add') || lowerRequest.includes('insert')) {
+      actionType = 'add'
+    } else if (hasSelection && (lowerRequest.includes('this') || lowerRequest.includes('that') || lowerRequest.includes('here'))) {
+      // Default to replace when there's selection and the request seems to want modification
+      actionType = 'replace'
     }
 
     // Extract LaTeX code from response
@@ -638,9 +691,9 @@ export function AIChatPanel({
     
     // Determine position based on selection or cursor - ALWAYS prioritize selection
     const position = {
-      from: selectedText && selectedText.text ? selectedText.from : (getInsertAnchor?.() ?? cursorPosition ?? 0),
-      to: selectedText && selectedText.text ? selectedText.to : (getInsertAnchor?.() ?? cursorPosition ?? 0),
-      originalText: selectedText && selectedText.text ? selectedText.text : ''
+      from: hasSelection ? selectedText!.from : (getInsertAnchor?.() ?? cursorPosition ?? 0),
+      to: hasSelection ? selectedText!.to : (getInsertAnchor?.() ?? cursorPosition ?? 0),
+      originalText: hasSelection ? selectedText!.text : ''
     }
 
     // Extract explanation (text before LaTeX code)
@@ -755,7 +808,7 @@ export function AIChatPanel({
     return 'AI suggestion generated' // Fallback
   }
 
-  const handleAcceptSuggestion = async (messageId: string, suggestion: string, actionType?: string, position?: number, selectionRange?: { from: number; to: number }) => {
+  const handleAcceptSuggestion = async (messageId: string | number, suggestion: string, actionType?: string, position?: number, selectionRange?: { from: number; to: number }) => {
     try {
       // Store current content as a checkpoint before applying suggestion
       const checkpoint = {
@@ -772,7 +825,7 @@ export function AIChatPanel({
       }
 
       // Mark suggestion as applied in backend
-      await latexApi.applySuggestion(messageId, content + suggestion)
+      await latexApi.applySuggestion(String(messageId), content + suggestion)
 
       // Update local state
       setMessages(prev => prev.map(msg => 
@@ -802,7 +855,7 @@ export function AIChatPanel({
     }
   }
 
-  const handleRejectSuggestion = async (messageId: string) => {
+  const handleRejectSuggestion = async (messageId: string | number) => {
     try {
       // The backend doesn't need to track rejections specifically
       // Just update local state to show as rejected
@@ -815,17 +868,26 @@ export function AIChatPanel({
   }
 
   // Handle restoring content from checkpoint
-  const handleRestoreCheckpoint = (checkpointId: string) => {
-    const checkpoint = contentCheckpoints.find(cp => cp.id === checkpointId)
-    if (checkpoint && onContentChange) {
-      onContentChange(checkpoint.content)
-      
-      // Add confirmation message
+  const handleRestoreCheckpoint = async (checkpointId: string) => {
+    try {
+      // Try backend restore first
+      const resp = await latexApi.restoreToCheckpoint(checkpointId)
+      const restoredContent = String(resp.data ?? '')
+      if (restoredContent && onContentChange) {
+        onContentChange(restoredContent)
+      } else {
+        // Fallback to local cache
+        const checkpoint = contentCheckpoints.find(cp => cp.id === checkpointId)
+        if (checkpoint && onContentChange) {
+          onContentChange(checkpoint.content)
+        }
+      }
+
       const confirmMessage: LatexAiChatMessage = {
         id: `restored-${Date.now()}`,
         sessionId: chatSession?.id || '',
         messageType: 'AI',
-        content: `✅ Content restored to checkpoint: "${checkpoint.description}"`,
+        content: `✅ Content restored from checkpoint.`,
         isApplied: false,
         sender: 'ai',
         timestamp: new Date().toISOString(),
@@ -833,8 +895,9 @@ export function AIChatPanel({
         hasLatexSuggestion: false,
         hasSelectionRange: false
       }
-      
       setMessages(prev => [...prev, confirmMessage])
+    } catch (err) {
+      console.error('Failed to restore checkpoint:', err)
     }
   }
 
@@ -867,6 +930,25 @@ export function AIChatPanel({
     onClearSelection?.()
     setSelectedTextDisplay('')
     setActiveSuggestionId(null)
+  }
+
+  const handleQuickAction = async (prompt: string) => {
+    if (isLoading) return
+    
+    // Add context about selection if there's any
+    let finalPrompt = prompt
+    if (selectedTextDisplay) {
+      finalPrompt = `${prompt}\n\nSelected text: "${selectedTextDisplay}"`
+    }
+    
+    // Set the prompt as input value
+    setInputValue(finalPrompt)
+    
+    // Send the message directly with the final prompt
+    setTimeout(async () => {
+      // Call the existing send message logic
+      await handleSendMessage()
+    }, 100)
   }
 
   const renderMessage = (message: LatexAiChatMessage) => {
@@ -991,13 +1073,13 @@ export function AIChatPanel({
           )}
           
           {/* Restore Checkpoint Button for restore messages */}
-          {message.id.startsWith('restore-') && (
+          {String(message.id).startsWith('restore-') && (
             <div className="mt-3">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const checkpointId = message.id.replace('restore-', '')
+                  const checkpointId = String(message.id).replace('restore-', '')
                   handleRestoreCheckpoint(checkpointId)
                 }}
                 className="bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
@@ -1019,7 +1101,7 @@ export function AIChatPanel({
     )
   }
 
-    return (
+  return (
     <div className="h-full flex flex-col bg-card border-l border-border">
       {/* Header */}
       <div className="flex-shrink-0 p-3 border-b border-border bg-card">
@@ -1183,35 +1265,62 @@ export function AIChatPanel({
         )}
       </div>
       
-      {/* Inline Diff Preview Controls */}
-      {activeSuggestionId && (
-        <div className="flex-shrink-0 border-t bg-blue-50 p-3">
-          <div className="text-center mb-2">
-            <span className="text-sm font-medium text-blue-800">
-              🎯 AI Suggestion Preview Active
-            </span>
-            <p className="text-xs text-blue-600 mt-1">
-              Hover over highlighted text in the editor to accept/reject changes
-            </p>
-          </div>
-          <div className="flex space-x-2 justify-center">
-            <Button 
-              onClick={clearActiveSuggestion}
-              size="sm"
+      {/* Inline Diff Preview Controls removed per UX; accept/reject lives in-editor */}
+      
+      {/* AI Tools Bar - Always visible above input */}
+      <div className="sticky bottom-0 bg-background border-t border-border">
+        {/* Quick AI Actions */}
+        <div className="p-3 pb-2">
+          <div className="flex flex-wrap gap-2">
+            <Button
               variant="outline"
-              className="text-blue-600 border-blue-600 hover:bg-blue-50"
+              size="sm"
+              onClick={() => handleQuickAction("Improve this LaTeX code for better formatting and readability")}
+              disabled={isLoading}
+              className="h-7 text-xs bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-blue-200 text-blue-700"
             >
-              Clear Preview
+              <Lightbulb className="h-3 w-3 mr-1" />
+              Improve
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickAction("Fix any LaTeX syntax errors or compilation issues in this code")}
+              disabled={isLoading}
+              className="h-7 text-xs bg-gradient-to-r from-red-50 to-pink-50 hover:from-red-100 hover:to-pink-100 border-red-200 text-red-700"
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Fix
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickAction("Explain this LaTeX code and what it does")}
+              disabled={isLoading}
+              className="h-7 text-xs bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border-green-200 text-green-700"
+            >
+              <BookOpen className="h-3 w-3 mr-1" />
+              Explain
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickAction("Optimize this LaTeX code for better performance and structure")}
+              disabled={isLoading}
+              className="h-7 text-xs bg-gradient-to-r from-purple-50 to-violet-50 hover:from-purple-100 hover:to-violet-100 border-purple-200 text-purple-700"
+            >
+              <Zap className="h-3 w-3 mr-1" />
+              Optimize
             </Button>
           </div>
         </div>
-      )}
-      
-      {/* Input Area - Always visible at bottom */}
-      <div className="sticky bottom-0 p-3 border-t bg-background">
+
         {/* Selection Confirmation Display */}
         {selectedTextDisplay && (
-          <div className="mb-3 p-2 bg-muted border border-border rounded-md text-xs flex items-center justify-between">
+          <div className="mx-3 mb-2 p-2 bg-muted border border-border rounded-md text-xs flex items-center justify-between">
             <div className="flex items-center gap-2 text-muted-foreground">
               <div className="w-2 h-2 bg-primary rounded-full"></div>
               <span className="font-medium">
@@ -1234,36 +1343,39 @@ export function AIChatPanel({
             </Button>
           </div>
         )}
-        
-        <div className="flex items-end gap-2">
-          <div className="flex-1 rounded-2xl border border-border bg-card">
-            <textarea
-              ref={textareaRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyPress}
-              placeholder="Ask LaTeXAI to help with your document..."
-              disabled={isLoading}
-              className="w-full resize-none bg-transparent px-4 py-3 outline-none
-                         placeholder:text-muted-foreground text-sm max-h-48 min-h-[44px]
-                         scrollbar-thin"
-            />
+
+        {/* Input Area */}
+        <div className="p-3 pt-0">
+          <div className="flex items-end gap-2">
+            <div className="flex-1 rounded-2xl border border-border bg-card">
+              <textarea
+                ref={textareaRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Ask LaTeXAI to help with your document..."
+                disabled={isLoading}
+                className="w-full resize-none bg-transparent px-4 py-3 outline-none
+                           placeholder:text-muted-foreground text-sm max-h-48 min-h-[44px]
+                           scrollbar-thin"
+              />
+            </div>
+            <button
+              onClick={handleSendMessage}
+              disabled={isLoading || !inputValue.trim()}
+              className="h-11 w-11 shrink-0 rounded-xl text-white disabled:opacity-50
+                         bg-gradient-to-r from-rose-400 to-orange-400
+                         hover:from-rose-500 hover:to-orange-500 focus:outline-none
+                         focus:ring-2 focus:ring-rose-300 flex items-center justify-center"
+              aria-label="Send"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </button>
           </div>
-          <button
-            onClick={handleSendMessage}
-            disabled={isLoading || !inputValue.trim()}
-            className="h-11 w-11 shrink-0 rounded-xl text-white disabled:opacity-50
-                       bg-gradient-to-r from-rose-400 to-orange-400
-                       hover:from-rose-500 hover:to-orange-500 focus:outline-none
-                       focus:ring-2 focus:ring-rose-300 flex items-center justify-center"
-            aria-label="Send"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </button>
         </div>
       </div>
     </div>

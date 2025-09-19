@@ -1,20 +1,24 @@
 # ---------- Base image ----------
   FROM node:22-alpine AS base
 
-  # ---------- Dependencies ----------
-  FROM base AS deps
-  RUN apk add --no-cache libc6-compat python3 make g++ cairo-dev jpeg-dev pango-dev musl-dev
-  WORKDIR /app
-  
-  # Copy package files
-  COPY package.json package-lock.json* ./
-  RUN npm ci --only=production
-  
-  # ---------- Builder ----------
-  FROM base AS builder
-  WORKDIR /app
-  COPY --from=deps /app/node_modules ./node_modules
-  COPY . .
+# ---------- Dependencies ----------
+FROM base AS deps
+RUN apk add --no-cache libc6-compat python3 make g++ cairo-dev jpeg-dev pango-dev musl-dev
+# Install pnpm globally
+RUN npm install -g pnpm
+WORKDIR /app
+
+# Copy package files
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --no-frozen-lockfile
+
+# ---------- Builder ----------
+FROM base AS builder
+# Install pnpm in builder stage too
+RUN npm install -g pnpm
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
   
   # Accept build-time variables from docker-compose
   ARG NEXT_PUBLIC_ENV
@@ -36,7 +40,7 @@
   ENV NEXT_TELEMETRY_DISABLED=1
   
   # Build Next.js app
-  RUN npm run build
+  RUN pnpm run build
   
   # ---------- Runner ----------
   FROM base AS runner
@@ -88,4 +92,3 @@
   
   # Run the app
   CMD ["node", "server.js"]
-  

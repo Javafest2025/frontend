@@ -17,14 +17,21 @@ if (typeof window !== 'undefined') {
 interface PDFViewerProps {
   fileUrl: string
   className?: string
+  // Optional hooks used by callers; currently no text selection extraction implemented
+  onSelectionToChat?: (text: string) => void
+  initialPage?: number
+  initialZoom?: number
+  initialRotation?: number
+  // Search state callback passthrough
+  onSearchStateChange?: (searchState: any) => void
 }
 
-const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, className }) => {
+const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, className, initialPage, initialZoom, initialRotation, onSelectionToChat, onSearchStateChange }) => {
   const [numPages, setNumPages] = useState<number | null>(null)
-  const [pageNumber, setPageNumber] = useState(1)
+  const [pageNumber, setPageNumber] = useState(initialPage ?? 1)
   const [containerWidth, setContainerWidth] = useState(0)
-  const [scale, setScale] = useState(1.0)
-  const [rotation, setRotation] = useState(0)
+  const [scale, setScale] = useState(initialZoom ?? 1.0)
+  const [rotation, setRotation] = useState(initialRotation ?? 0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -61,7 +68,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, className }) => {
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     console.log('PDF loaded successfully with', numPages, 'pages')
     setNumPages(numPages)
-    setPageNumber(1)
+    setPageNumber(initialPage ?? 1)
     setLoading(false)
     setError(null)
   }
@@ -110,9 +117,9 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, className }) => {
   }
 
   return (
-    <div ref={containerRef} className={cn("w-full h-full flex flex-col", className)}>
+    <div ref={containerRef} className={cn("w-full h-full flex flex-col max-h-screen overflow-hidden", className)}>
       {/* PDF Controls */}
-      <div className="flex items-center justify-between p-3 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex items-center justify-between p-3 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex-shrink-0">
         <div className="flex items-center space-x-2">
           <Button
             variant="outline"
@@ -196,9 +203,12 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, className }) => {
       </div>
 
       {/* PDF Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-gray-900">
+      <div 
+        className="flex-1 min-h-0 h-full bg-gray-50 dark:bg-gray-900 relative overflow-auto"
+        data-pdf-scroll-container="true"
+      >
         {containerWidth > 0 && (
-          <div className="flex flex-col items-center py-4 space-y-4">
+          <div className="flex flex-col items-center py-4 space-y-4 min-h-full w-full">
             <Document 
               file={fileUrl} 
               onLoadStart={() => console.log('PDF loading started')}

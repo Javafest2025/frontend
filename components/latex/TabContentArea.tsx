@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useTabContext } from '@/contexts/TabContext';
 import { CenterTabs } from '@/components/latex/CenterTabs';
+import { ViewModeSelector, type ViewMode } from '@/components/latex/ViewModeSelector';
 import { EnhancedLatexEditor } from '@/components/latex/EnhancedLatexEditor';
 import PDFViewer from '@/components/latex/PDFViewer';
-import { FileText } from 'lucide-react';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { FileText, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OpenItem, TabViewState } from '@/types/tabs';
+import type { CitationCheckJob } from '@/types/citations';
 
 interface TabContentAreaProps {
   // Editor-related props
@@ -54,6 +57,8 @@ interface TabContentAreaProps {
   // UI state
   showAddToChat: boolean;
   tempSelectedText: string;
+  // Temporary selection positions from the editor (used to compute line range label)
+  tempSelectionPositions?: { from: number; to: number };
   onHandleAddToChat: () => void;
   onHandleCancelSelection: () => void;
   onHandleEditorClick: () => void;
@@ -61,11 +66,24 @@ interface TabContentAreaProps {
   onHandleEditorFocus?: () => void;
   onHandleEditorFocusLost: () => void;
   
+  // PDF and compilation
+  pdfPreviewUrl: string;
+  isCompiling: boolean;
+  onCompile?: () => void;
+  
   // PDF selection to chat
   onPDFSelectionToChat: (text: string) => void;
   
   // Document loading for tab switching
   onTabDocumentLoad?: (documentId: string) => Promise<void>;
+  
+  // Citation checking
+  citationCount?: number;
+  onOpenCitationPanel?: () => void;
+  onRunCitationCheck?: () => void;
+  citationBusy?: boolean;
+  currentJob?: CitationCheckJob | null; // Real-time job status
+  highlightedRanges?: Array<{ from: number; to: number; className: string }>;
 }
 
 export function TabContentArea({
@@ -90,14 +108,24 @@ export function TabContentArea({
   onRejectInlineDiff,
   showAddToChat,
   tempSelectedText,
+  tempSelectionPositions,
   onHandleAddToChat,
   onHandleCancelSelection,
   onHandleEditorClick,
   onHandleEditorBlur,
   onHandleEditorFocus,
   onHandleEditorFocusLost,
+  pdfPreviewUrl,
+  isCompiling,
+  onCompile,
   onPDFSelectionToChat,
   onTabDocumentLoad,
+  citationCount,
+  onOpenCitationPanel,
+  onRunCitationCheck,
+  citationBusy,
+  currentJob,
+  highlightedRanges
 }: TabContentAreaProps) {
   const {
     openItems,
@@ -111,9 +139,27 @@ export function TabContentArea({
     swapToPdf,
   } = useTabContext();
 
+  // View mode state for LaTeX editor
+  const [viewMode, setViewMode] = useState<ViewMode>('editor');
+
   const activeItem = openItems.find(item => item.id === activeItemId);
   const hasTexTab = openItems.some(item => item.kind === 'tex');
   const hasPdfTab = openItems.some(item => item.kind === 'pdf');
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    console.log('TabContentArea: View mode change requested:', mode);
+    console.log('Current view mode:', viewMode);
+    console.log('Has compiled PDF:', !!pdfPreviewUrl);
+    console.log('Is compiling:', isCompiling);
+    
+    setViewMode(mode);
+    
+    // Auto-compile when switching to preview if no PDF available
+    if (mode === 'preview' && !pdfPreviewUrl && !isCompiling && onCompile) {
+      console.log('TabContentArea: Auto-triggering compile for preview mode');
+      onCompile();
+    }
+  };
 
   // Custom tab change handler that loads document content when switching to tex tabs
   const handleTabChange = async (tabId: string) => {
@@ -188,7 +234,7 @@ export function TabContentArea({
     }
 
     if (activeItem.kind === 'tex') {
-      return (
+      const renderEditor = () => (
         <div className="flex-1 relative">
           <EnhancedLatexEditor
             value={editorContent}
@@ -213,42 +259,38 @@ export function TabContentArea({
             onAcceptInlineDiff={onAcceptInlineDiff}
             onRejectInlineDiff={onRejectInlineDiff}
             onLastCursorChange={onLastCursorPosChange}
+            highlightedRanges={highlightedRanges}
           />
-          
-          {/* Add to Chat overlay */}
-          {showAddToChat && (
-            <div 
-              className="absolute top-2 right-2 flex space-x-2 z-50"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-            >
+
+          {/* Floating Add-to-Chat overlay when text is selected */}
+          {showAddToChat && tempSelectedText && (
+            <div className="absolute top-2 right-2 z-20 flex items-center gap-2 bg-card/95 backdrop-blur border border-border shadow-md rounded-md px-2 py-1">
+              <div className="text-xs text-muted-foreground mr-1">
+                {(() => {
+                  const from = tempSelectionPositions?.from ?? 0;
+                  const to = tempSelectionPositions?.to ?? from;
+                  const clamp = (n: number) => (isFinite(n) && n >= 0 ? n : 0);
+                  const safeFrom = clamp(from);
+                  const safeTo = clamp(to);
+                  const prefixFrom = editorContent?.slice(0, safeFrom) ?? '';
+                  const prefixTo = editorContent?.slice(0, safeTo) ?? prefixFrom;
+                  const lineFrom = (prefixFrom.match(/\n/g)?.length ?? 0) + 1;
+                  const lineTo = (prefixTo.match(/\n/g)?.length ?? 0) + 1;
+                  const range = lineFrom === lineTo ? `L${lineFrom}` : `L${lineFrom}–L${lineTo}`;
+                  return range;
+                })()}
+              </div>
               <button
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onHandleAddToChat();
-                }}
-                className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                onClick={onHandleAddToChat}
+                className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground hover:opacity-90"
+                title="Add the selected text and its range to the AI chat"
               >
                 Add to Chat
               </button>
               <button
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onHandleCancelSelection();
-                }}
-                className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90"
+                onClick={onHandleCancelSelection}
+                className="text-xs px-2 py-1 rounded border border-border hover:bg-muted"
+                title="Cancel selection"
               >
                 Cancel
               </button>
@@ -256,15 +298,68 @@ export function TabContentArea({
           )}
         </div>
       );
+
+      const renderPreview = () => (
+        <div className="flex-1 min-h-0 flex flex-col">
+          {pdfPreviewUrl ? (
+            <PDFViewer
+              fileUrl={pdfPreviewUrl}
+              className="w-full h-full flex-1"
+              onSelectionToChat={onPDFSelectionToChat}
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="text-center">
+                <Eye className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">No PDF Preview</h3>
+                <p className="text-muted-foreground mb-4">
+                  Compile your LaTeX document to see the preview
+                </p>
+                {onCompile && (
+                  <button
+                    onClick={onCompile}
+                    disabled={isCompiling}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {isCompiling ? 'Compiling...' : 'Compile Now'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+
+      // Render based on view mode
+      switch (viewMode) {
+        case 'editor':
+          return renderEditor();
+        case 'preview':
+          return renderPreview();
+        case 'split':
+          return (
+            <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+              <ResizablePanel defaultSize={50} minSize={30} className="flex flex-col">
+                {renderEditor()}
+              </ResizablePanel>
+              <ResizableHandle />
+              <ResizablePanel defaultSize={50} minSize={30} className="flex flex-col overflow-hidden">
+                {renderPreview()}
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          );
+        default:
+          return renderEditor();
+      }
     }
 
     if (activeItem.kind === 'pdf') {
       const viewState = getTabViewState(activeItemId!);
       return (
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col">
           <PDFViewer
             fileUrl={activeItem.url!}
-            className="w-full h-full"
+            className="w-full h-full flex-1"
             onSelectionToChat={onPDFSelectionToChat}
             initialPage={viewState.page}
             initialZoom={viewState.zoom}
@@ -299,8 +394,25 @@ export function TabContentArea({
         onTabClose={closeItem}
         onSwapToTex={hasTexTab && hasPdfTab ? swapToTex : undefined}
         onSwapToPdf={hasTexTab && hasPdfTab ? swapToPdf : undefined}
-        className="border-b flex-shrink-0"
+        className="flex-shrink-0"
       />
+      
+      {/* View Mode Selector - Only show for LaTeX files */}
+      {activeItem?.kind === 'tex' && (
+        <ViewModeSelector
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          hasCompiledPdf={!!pdfPreviewUrl}
+          isCompiling={isCompiling}
+          citationCount={citationCount}
+          onOpenCitationPanel={onOpenCitationPanel}
+          onRunCitationCheck={onRunCitationCheck}
+          citationBusy={citationBusy}
+          currentJob={currentJob}
+          editorContent={editorContent}
+          className="flex-shrink-0"
+        />
+      )}
       
       {/* Tab Content */}
       {renderTabContent()}
