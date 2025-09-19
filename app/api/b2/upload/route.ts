@@ -90,10 +90,12 @@ class B2Uploader {
     async uploadFile(fileBuffer: Buffer, fileName: string, contentType: string): Promise<{ fileId: string; downloadUrl: string; fileName: string }> {
         const { uploadUrl, authorizationToken } = await this.getUploadUrl()
 
-        // Generate a unique filename
+        // Generate a unique filename with proper encoding
         const timestamp = Date.now()
         const randomId = Math.random().toString(36).substring(2, 15)
-        const uniqueFileName = `papers/${timestamp}-${randomId}-${fileName}`
+        // Clean the filename to avoid encoding issues
+        const cleanFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/_+/g, '_')
+        const uniqueFileName = `papers/${timestamp}-${randomId}-${cleanFileName}`
 
         // Calculate SHA1 hash
         const crypto = require('crypto')

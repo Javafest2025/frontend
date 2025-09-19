@@ -112,9 +112,10 @@ export function PaperCard({ paper, index, onSelect, onViewPdf, onToggleFavorite,
 
     const formatDate = (dateString: string) => {
         try {
+            if (!dateString) return "Unknown"
             return new Date(dateString).getFullYear()
         } catch {
-            return dateString
+            return "Unknown"
         }
     }
 
@@ -330,11 +331,16 @@ The methodology employed in this study combines quantitative and qualitative app
                                     <Quote className="h-4 w-4 text-purple-500" />
                                     <span>{paper.citationCount} citations</span>
                                 </div>
-                                {paper.venueName && (
+                                {paper.source && (
                                     <div className="flex items-center gap-2">
-                                        <BookOpen className="h-4 w-4 text-orange-500" />
-                                        <span className="line-clamp-1">{paper.venueName}</span>
+                                        <Building className="h-4 w-4 text-orange-500" />
+                                        <span className="line-clamp-1">{paper.source}</span>
                                     </div>
+                                )}
+                                {paper.source === "Uploaded" && (
+                                    <Badge variant="secondary" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20">
+                                        Uploaded
+                                    </Badge>
                                 )}
                                 {paper.doi && (
                                     <Badge variant="outline" className="text-xs border-primary/20">

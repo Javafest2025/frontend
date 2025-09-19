@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { } from "framer-motion"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -12,7 +12,7 @@ import { Upload, FileText, X, CheckCircle, AlertCircle, Loader2, Eye, EyeOff } f
 import { PDFExtractor } from "@/lib/pdf-extractor"
 import { libraryApi } from "@/lib/api/project-service"
 import { cn } from "@/lib/utils"
-import { useRouter } from "next/navigation"
+
 import { AuthorDialog } from "@/components/interface/AuthorDialog"
 import { useAuthorDialog } from "@/hooks/useAuthorDialog"
 
@@ -31,7 +31,6 @@ interface UploadProgress {
 }
 
 export function PDFUploadDialog({ isOpen, onClose, projectId, onUploadComplete }: PDFUploadDialogProps) {
-    const router = useRouter()
     const [selectedFiles, setSelectedFiles] = useState<File[]>([])
     const [uploadProgress, setUploadProgress] = useState<UploadProgress>({
         stage: 'selecting',
@@ -48,7 +47,7 @@ export function PDFUploadDialog({ isOpen, onClose, projectId, onUploadComplete }
     const [isUploading, setIsUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const { toast } = useToast()
-    const { authorName, isOpen: isAuthorDialogOpen, openAuthorDialog, closeAuthorDialog, setIsOpen: setIsAuthorDialogOpen } = useAuthorDialog()
+    const { authorName, isOpen: isAuthorDialogOpen, openAuthorDialog, setIsOpen: setIsAuthorDialogOpen } = useAuthorDialog()
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files || [])
@@ -135,20 +134,45 @@ export function PDFUploadDialog({ isOpen, onClose, projectId, onUploadComplete }
                 const file = selectedFiles[i]
                 const metadata = extractedMetadata[i]
 
-                setUploadProgress({
-                    stage: 'uploading',
-                    progress: (i / selectedFiles.length) * 100,
-                    message: `Uploading ${file.name}...`
-                })
+                // Create smooth progress tracking for this file
+                const baseProgress = (i / selectedFiles.length) * 100
+                const progressPerFile = 100 / selectedFiles.length
 
-                // Upload to B2 via server API
+                const updateSmoothProgress = (phase: 'upload' | 'extract' | 'save', phaseProgress: number) => {
+                    const phaseWeight = progressPerFile / 3 // Each phase is 1/3 of a file's progress
+                    const phaseOffset = phase === 'upload' ? 0 : phase === 'extract' ? phaseWeight : phaseWeight * 2
+                    const totalProgress = baseProgress + phaseOffset + (phaseProgress / 100) * phaseWeight
+
+                    setUploadProgress({
+                        stage: phase === 'upload' ? 'uploading' : 'processing',
+                        progress: Math.min(100, totalProgress),
+                        message: phase === 'upload'
+                            ? `Uploading ${file.name}... ${Math.round(phaseProgress)}%`
+                            : phase === 'extract'
+                                ? `Extracting metadata from ${file.name}... ${Math.round(phaseProgress)}%`
+                                : `Saving ${file.name}... ${Math.round(phaseProgress)}%`
+                    })
+                }
+
+                // Phase 1: Upload with simulated progress
+                updateSmoothProgress('upload', 0)
+
                 const formData = new FormData()
                 formData.append('file', file)
+
+                // Create smooth upload progress simulation
+                let uploadProgress = 0
+                const uploadProgressInterval = setInterval(() => {
+                    uploadProgress = Math.min(95, uploadProgress + Math.random() * 15)
+                    updateSmoothProgress('upload', uploadProgress)
+                }, 100)
 
                 const uploadResponse = await fetch('/api/b2/upload', {
                     method: 'POST',
                     body: formData
                 })
+                clearInterval(uploadProgressInterval)
+                updateSmoothProgress('upload', 100)
 
                 if (!uploadResponse.ok) {
                     const errorData = await uploadResponse.json()
@@ -157,11 +181,81 @@ export function PDFUploadDialog({ isOpen, onClose, projectId, onUploadComplete }
 
                 const uploadResult = await uploadResponse.json()
 
-                setUploadProgress({
-                    stage: 'processing',
-                    progress: ((i + 0.5) / selectedFiles.length) * 100,
-                    message: `Processing ${file.name}...`
+                // Phase 2: GROBID extraction with progress
+                updateSmoothProgress('extract', 0)
+
+                // Call GROBID to extract metadata from the uploaded PDF
+                console.log("🔍 Calling GROBID to extract metadata from:", file.name)
+                const grobidForm = new FormData()
+                grobidForm.append('file', file)
+
+                // Create smooth GROBID progress simulation (header extraction is faster)
+                let extractProgress = 0
+                const extractProgressInterval = setInterval(() => {
+                    extractProgress = Math.min(95, extractProgress + Math.random() * 20)
+                    updateSmoothProgress('extract', extractProgress)
+                }, 120)
+
+                const grobidRes = await fetch('/api/grobid/metadata', {
+                    method: 'POST',
+                    body: grobidForm
                 })
+                clearInterval(extractProgressInterval)
+                updateSmoothProgress('extract', 100)
+
+                console.log("📊 GROBID response status:", grobidRes.status, grobidRes.statusText)
+
+                if (!grobidRes.ok) {
+                    const err = await grobidRes.json().catch(() => ({}))
+                    console.error("❌ GROBID API error:", err)
+
+                    // If GROBID service is unavailable, fall back to basic metadata
+                    if (grobidRes.status === 503) {
+                        console.warn("⚠️ GROBID service unavailable, using fallback metadata")
+                        toast({
+                            title: "GROBID service unavailable",
+                            description: "Using fallback metadata extraction. Some features may be limited.",
+                            variant: "default"
+                        })
+
+                        // Use fallback metadata from PDF.js extraction
+                        const extracted = {
+                            title: metadata.title || file.name.replace('.pdf', ''),
+                            authors: metadata.authors || [],
+                            abstractText: metadata.abstract || null,
+                            isValid: !!(metadata.title || metadata.abstract)
+                        }
+
+                        if (!extracted.isValid) {
+                            throw new Error('Could not extract basic metadata from PDF. Please ensure this is a valid academic paper.')
+                        }
+
+                        // Continue with fallback data
+                        var grobidExtracted = extracted
+                    } else {
+                        throw new Error(err.details || `GROBID extraction failed: ${grobidRes.status}`)
+                    }
+                } else {
+                    const grobidData = await grobidRes.json()
+                    var grobidExtracted = grobidData.data as { title?: string; authors?: string[]; abstractText?: string; isValid?: boolean }
+                    console.log("✅ GROBID extraction successful:", grobidExtracted)
+                }
+
+                // Validate metadata with more detailed error messages
+                if (!grobidExtracted?.isValid) {
+                    const missingParts = []
+                    if (!grobidExtracted?.title || grobidExtracted.title.trim().length < 3) missingParts.push('title')
+                    if (!grobidExtracted?.abstractText || grobidExtracted.abstractText.trim().length < 10) missingParts.push('abstract')
+                    if (!grobidExtracted?.authors || grobidExtracted.authors.length === 0) missingParts.push('authors')
+
+                    const missingText = missingParts.length > 0 ? ` (missing: ${missingParts.join(', ')})` : ''
+                    throw new Error(`This PDF does not appear to be an academic paper${missingText}. Please ensure you're uploading a research paper with proper metadata.`)
+                }
+
+                const extracted = grobidExtracted
+
+                // Phase 3: Save to backend with progress
+                updateSmoothProgress('save', 0)
 
                 // Get user data for authentication
                 const { getUserData } = await import("@/lib/api/user-service/auth")
@@ -171,18 +265,52 @@ export function PDFUploadDialog({ isOpen, onClose, projectId, onUploadComplete }
                     throw new Error('User not authenticated')
                 }
 
+                updateSmoothProgress('save', 20)
+
                 // Create paper entry in backend
                 const paperData = {
                     userId: userData.id,
                     projectId: projectId,
-                    title: metadata.title,
-                    abstract: metadata.abstract || null,
-                    authors: metadata.authors?.map(name => ({ name })) || [],
-                    publicationDate: new Date().toISOString().split('T')[0], // Today's date as fallback
+                    title: extracted.title || metadata.title,
+                    abstractText: extracted.abstractText || metadata.abstract || null,
+                    authors: (extracted.authors && extracted.authors.length > 0
+                        ? extracted.authors
+                        : (metadata.authors || [])
+                    ).map(name => ({
+                        name: name,
+                        primaryAffiliation: null,
+                        allAffiliations: null,
+                        semanticScholarId: null,
+                        orcidId: null,
+                        googleScholarId: null,
+                        openalexId: null,
+                        citationCount: null,
+                        hIndex: null,
+                        i10Index: null,
+                        paperCount: null,
+                        firstPublicationYear: null,
+                        lastPublicationYear: null,
+                        researchAreas: null,
+                        recentPublications: null,
+                        dataSources: null,
+                        dataQualityScore: null,
+                        searchStrategy: null,
+                        sourcesAttempted: null,
+                        sourcesSuccessful: null,
+                        isSynced: false,
+                        lastSyncAt: null,
+                        syncError: null,
+                        homepageUrl: null,
+                        email: null,
+                        profileImageUrl: null,
+                        createdAt: null,
+                        updatedAt: null
+                    })),
+                    publicationDate: null, // Unknown date for uploaded papers
                     source: 'Uploaded',
                     pdfContentUrl: uploadResult.downloadUrl,
                     pdfUrl: uploadResult.downloadUrl,
-                    isOpenAccess: true,
+                    isOpenAccess: false, // Mark uploaded papers as not open access
                     publicationTypes: ['Uploaded Document'],
                     fieldsOfStudy: [],
                     uploadedAt: new Date().toISOString(),
@@ -190,13 +318,21 @@ export function PDFUploadDialog({ isOpen, onClose, projectId, onUploadComplete }
                     fileName: file.name
                 }
 
+                updateSmoothProgress('save', 50)
+
                 await libraryApi.uploadPaper(projectId, paperData)
 
+                updateSmoothProgress('save', 100)
+
+                // Brief completion message for this file
                 setUploadProgress({
                     stage: 'processing',
                     progress: ((i + 1) / selectedFiles.length) * 100,
-                    message: `Completed ${file.name}`
+                    message: `✅ Completed ${file.name}`
                 })
+
+                // Small delay to show completion
+                await new Promise(resolve => setTimeout(resolve, 200))
             }
 
             setUploadProgress({
