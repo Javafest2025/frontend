@@ -12,6 +12,50 @@ export interface ServiceHealth {
     healthEndpoint?: string;
 }
 
+// Environment-based service URL configuration
+const getServiceBaseUrl = (): string => {
+    const env = process.env.NEXT_PUBLIC_ENV || "dev";
+
+    switch (env.toLowerCase()) {
+        case "docker":
+            return process.env.NEXT_PUBLIC_DOCKER_BACKEND_URL || "http://scholar-api-gateway:8989";
+        case "prod":
+            return process.env.NEXT_PUBLIC_API_BASE_URL || "http://70.153.18.56:8989";
+        case "dev":
+        default:
+            return "http://localhost";
+    }
+};
+
+// Helper function to get service URL based on environment
+const getServiceUrl = (port: number, path: string = ""): string => {
+    const env = process.env.NEXT_PUBLIC_ENV || "dev";
+
+    if (env.toLowerCase() === "docker") {
+        // For Docker, use service names instead of localhost
+        const serviceMap: { [key: number]: string } = {
+            8761: "scholar-service-registry",
+            8989: "scholar-api-gateway",
+            8081: "scholar-user-service",
+            8082: "scholar-notification-service",
+            8083: "scholar-project-service",
+            8001: "scholar-paper-search",
+            8002: "scholar-extractor",
+            8003: "scholar-gap-analyzer",
+            3000: "scholar-frontend",
+            8070: "pdf_extractor_grobid"
+        };
+        const serviceName = serviceMap[port] || `service-${port}`;
+        return `http://${serviceName}:${port}${path}`;
+    } else if (env.toLowerCase() === "prod") {
+        // For production, use the production IP
+        return `http://70.153.18.56:${port}${path}`;
+    } else {
+        // For dev, use localhost
+        return `http://localhost:${port}${path}`;
+    }
+};
+
 export interface SystemStats {
     totalRequests: number;
     avgResponseTime: number;
@@ -39,7 +83,7 @@ export function getAllServices(): ServiceHealth[] {
             name: 'service-registry',
             displayName: 'Service Registry',
             status: 'up',
-            url: 'http://localhost:8761',
+            url: getServiceUrl(8761),
             port: 8761,
             responseTime: 45,
             uptime: '5h 23m',
@@ -51,7 +95,7 @@ export function getAllServices(): ServiceHealth[] {
             name: 'api-gateway',
             displayName: 'API Gateway',
             status: 'up',
-            url: 'http://localhost:8989',
+            url: getServiceUrl(8989),
             port: 8989,
             responseTime: 67,
             uptime: '5h 22m',
@@ -64,7 +108,7 @@ export function getAllServices(): ServiceHealth[] {
             name: 'user-service',
             displayName: 'User Service',
             status: 'up',
-            url: 'http://localhost:8081',
+            url: getServiceUrl(8081),
             port: 8081,
             responseTime: 89,
             uptime: '4h 58m',
@@ -77,7 +121,7 @@ export function getAllServices(): ServiceHealth[] {
             name: 'project-service',
             displayName: 'Project Service',
             status: 'up',
-            url: 'http://localhost:8083',
+            url: getServiceUrl(8083),
             port: 8083,
             responseTime: 76,
             uptime: '4h 56m',
@@ -90,7 +134,7 @@ export function getAllServices(): ServiceHealth[] {
             name: 'notification-service',
             displayName: 'Notification Service',
             status: 'up',
-            url: 'http://localhost:8082',
+            url: getServiceUrl(8082),
             port: 8082,
             responseTime: 54,
             uptime: '4h 57m',
@@ -103,7 +147,7 @@ export function getAllServices(): ServiceHealth[] {
             name: 'paper-search',
             displayName: 'Paper Search Service',
             status: 'up',
-            url: 'http://localhost:8001',
+            url: getServiceUrl(8001),
             port: 8001,
             responseTime: 123,
             uptime: '3h 45m',
@@ -115,7 +159,7 @@ export function getAllServices(): ServiceHealth[] {
             name: 'extractor',
             displayName: 'PDF Extractor Service',
             status: 'up',
-            url: 'http://localhost:8002',
+            url: getServiceUrl(8002),
             port: 8002,
             responseTime: 156,
             uptime: '3h 44m',
@@ -125,35 +169,36 @@ export function getAllServices(): ServiceHealth[] {
             healthEndpoint: '/health'
         },
         {
+            name: 'gap-analyzer',
+            displayName: 'Gap Analyzer Service',
+            status: 'up',
+            url: getServiceUrl(8003),
+            port: 8003,
+            responseTime: 189,
+            uptime: '3h 43m',
+            version: '1.2.0',
+            type: 'microservice',
+            dependencies: ['project-db', 'user-rabbitmq', 'grobid'],
+            healthEndpoint: '/health'
+        },
+        {
             name: 'frontend',
             displayName: 'Frontend Application',
             status: 'up',
-            url: 'http://localhost:3000',
+            url: getServiceUrl(3000),
             port: 3000,
             responseTime: 25,
             uptime: '1h 12m',
             version: '0.1.0',
             type: 'frontend'
         },
-        {
-            name: 'nginx-proxy',
-            displayName: 'NGINX Proxy',
-            status: 'up',
-            url: 'http://localhost:80',
-            port: 80,
-            responseTime: 12,
-            uptime: '3h 42m',
-            version: '1.25.3',
-            type: 'gateway',
-            dependencies: ['frontend', 'api-gateway']
-        },
-        
+
         // Infrastructure Services
         {
             name: 'grobid',
             displayName: 'GROBID PDF Processor',
             status: 'up',
-            url: 'http://localhost:8070',
+            url: getServiceUrl(8070),
             port: 8070,
             responseTime: 234,
             uptime: '5h 23m',
@@ -164,7 +209,7 @@ export function getAllServices(): ServiceHealth[] {
             name: 'user-db',
             displayName: 'User Database',
             status: 'up',
-            url: 'localhost:5433',
+            url: getServiceUrl(5433),
             port: 5433,
             responseTime: 8,
             uptime: '5h 23m',
@@ -175,7 +220,7 @@ export function getAllServices(): ServiceHealth[] {
             name: 'project-db',
             displayName: 'Project Database',
             status: 'up',
-            url: 'localhost:5435',
+            url: getServiceUrl(5435),
             port: 5435,
             responseTime: 6,
             uptime: '5h 23m',
@@ -186,7 +231,7 @@ export function getAllServices(): ServiceHealth[] {
             name: 'notification-db',
             displayName: 'Notification Database',
             status: 'up',
-            url: 'localhost:5434',
+            url: getServiceUrl(5434),
             port: 5434,
             responseTime: 7,
             uptime: '5h 23m',
@@ -197,7 +242,7 @@ export function getAllServices(): ServiceHealth[] {
             name: 'user-redis',
             displayName: 'Redis Cache',
             status: 'up',
-            url: 'localhost:6379',
+            url: getServiceUrl(6379),
             port: 6379,
             responseTime: 3,
             uptime: '5h 23m',
@@ -208,7 +253,7 @@ export function getAllServices(): ServiceHealth[] {
             name: 'user-rabbitmq',
             displayName: 'RabbitMQ Broker',
             status: 'up',
-            url: 'localhost:5672',
+            url: getServiceUrl(5672),
             port: 5672,
             responseTime: 15,
             uptime: '5h 23m',
@@ -278,11 +323,11 @@ export function getServiceLogs(limit: number = 50): ServiceLogs[] {
 export async function checkServiceHealth(service: ServiceHealth): Promise<ServiceHealth> {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 100));
-    
+
     // 95% chance service is up, 5% chance it's down or degraded
     const random = Math.random();
     let status: ServiceHealth['status'] = 'up';
-    
+
     if (random < 0.02) {
         status = 'down';
     } else if (random < 0.05) {
