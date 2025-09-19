@@ -1638,4 +1638,190 @@
     will-change: transform;
   }
 
+  /* Force scrolling for PDF containers */
+  [data-pdf-scroll-container="true"] {
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-behavior: smooth !important;
+    height: 100% !important;
+    max-height: 100% !important;
+  }
+
+  /* Ensure PDF pages are scrollable */
+  .react-pdf__Document {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .react-pdf__Page {
+    margin-bottom: 16px !important;
+  }
+
+  /* Shimmer animations for AI tools */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    50% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes professional-shimmer {
+    0% {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    50% {
+      opacity: 0.6;
+    }
+    100% {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+
+  @keyframes blue-shimmer {
+    0% {
+      background-position: -200% 0;
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+    }
+    100% {
+      background-position: 200% 0;
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+    }
+  }
+
+  .blue-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(59, 130, 246, 0.15) 0%,
+      rgba(147, 197, 253, 0.3) 50%,
+      rgba(59, 130, 246, 0.15) 100%
+    );
+    background-size: 200% 100%;
+    animation: blue-shimmer 2s ease-in-out infinite;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+  }
+
+  .blue-shimmer-button {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, 
+      rgba(59, 130, 246, 0.2) 0%, 
+      rgba(147, 197, 253, 0.3) 50%, 
+      rgba(59, 130, 246, 0.2) 100%
+    );
+    background-size: 200% 200%;
+    animation: blue-shimmer 2.5s ease-in-out infinite;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+  }
+
+  .blue-shimmer-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(59, 130, 246, 0.4),
+      transparent
+    );
+    animation: blue-shimmer 2s ease-in-out infinite;
+  }
+
+  /* Completely transparent effect for advanced AI tools */
+  .advanced-ai-transparent {
+    position: relative;
+    overflow: hidden;
+    background: transparent !important;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    box-shadow: 
+      0 4px 15px rgba(255, 255, 255, 0.05), 
+      0 2px 8px rgba(255, 255, 255, 0.03),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .advanced-ai-transparent::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+      transparent, 
+      rgba(255, 255, 255, 0.2), 
+      rgba(255, 255, 255, 0.3), 
+      rgba(255, 255, 255, 0.2), 
+      transparent
+    );
+    animation: glass-shine 3s ease-in-out infinite;
+    z-index: 2;
+  }
+
+  .advanced-ai-transparent:hover {
+    background: transparent !important;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    box-shadow: 
+      0 6px 20px rgba(255, 255, 255, 0.08), 
+      0 3px 12px rgba(255, 255, 255, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  @keyframes glass-shine {
+    0% {
+      transform: translateX(-120%);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    80% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(120%);
+      opacity: 0;
+    }
+  }
+
+  @keyframes gradient-shimmer {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  @keyframes shimmer-slide {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-shimmer-slide {
+    animation: shimmer-slide 2s ease-in-out infinite;
+  }
+
 }

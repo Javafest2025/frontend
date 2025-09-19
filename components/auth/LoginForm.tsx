@@ -126,7 +126,15 @@ export function LoginForm() {
                     description: "Redirecting to dashboard...",
                     variant: "success",
                 })
-                navigateWithLoading("/interface/home", "Accessing neural network...")
+                
+                // Check if user is admin and redirect accordingly
+                const userRole = response.user.roles?.[0];
+                if (userRole === 'ADMIN') {
+                    console.log('Admin user detected, redirecting to admin dashboard')
+                    navigateWithLoading("/admin", "Accessing admin dashboard...")
+                } else {
+                    navigateWithLoading("/interface/home", "Accessing neural network...")
+                }
             }
             else if (response.requiresEmailVerification) {
                 console.log('Email verification required, redirecting to verification page')
@@ -179,8 +187,15 @@ export function LoginForm() {
 
             // Add a small delay to ensure auth state is updated before navigation
             setTimeout(() => {
-                console.log("Navigating to /interface/home...")
-                navigateWithLoading('/interface/home', "Accessing neural network...")
+                console.log("Navigating...")
+                // Check if user is admin and redirect accordingly
+                const userRole = data.user?.roles?.[0];
+                if (userRole === 'ADMIN') {
+                    console.log('Admin user detected, redirecting to admin dashboard')
+                    navigateWithLoading('/admin', "Accessing admin dashboard...")
+                } else {
+                    navigateWithLoading('/interface/home', "Accessing neural network...")
+                }
             }, 100)
         } else {
             // Handle cases where social login API might return success:false but was handled as success by SocialLogin

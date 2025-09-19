@@ -66,6 +66,7 @@ interface TabProviderWrapperProps {
   // UI state
   showAddToChat: boolean;
   tempSelectedText: string;
+  tempSelectionPositions?: { from: number; to: number };
   onHandleAddToChat: () => void;
   onHandleCancelSelection: () => void;
   onHandleEditorClick: () => void;
@@ -76,6 +77,7 @@ interface TabProviderWrapperProps {
   // PDF and compile
   pdfPreviewUrl: string;
   isCompiling: boolean;
+  onCompile?: () => void;
   onPDFSelectionToChat: (text: string) => void;
   
   // Tab opening callback
@@ -83,6 +85,14 @@ interface TabProviderWrapperProps {
   
   // Document loading for tab switching
   onTabDocumentLoad?: (documentId: string) => Promise<void>;
+  
+  // Citation checking
+  citationCount?: number;
+  onOpenCitationPanel?: () => void;
+  onRunCitationCheck?: () => void;
+  citationBusy?: boolean;
+  currentJob?: any; // CitationCheckJob type
+  highlightedRanges?: Array<{ from: number; to: number; className: string }>;
 }
 
 function TabProviderContent({
@@ -108,6 +118,7 @@ function TabProviderContent({
   onRejectInlineDiff,
   showAddToChat,
   tempSelectedText,
+  tempSelectionPositions,
   onHandleAddToChat,
   onHandleCancelSelection,
   onHandleEditorClick,
@@ -116,9 +127,16 @@ function TabProviderContent({
   onHandleEditorFocusLost,
   pdfPreviewUrl,
   isCompiling,
+  onCompile,
   onPDFSelectionToChat,
   onOpenPaperReady,
   onTabDocumentLoad,
+  citationCount,
+  onOpenCitationPanel,
+  onRunCitationCheck,
+  citationBusy,
+  currentJob,
+  highlightedRanges
 }: TabProviderWrapperProps) {
   const { openItem, openItems } = useTabContext();
 
@@ -201,14 +219,24 @@ function TabProviderContent({
       onRejectInlineDiff={onRejectInlineDiff}
       showAddToChat={showAddToChat}
       tempSelectedText={tempSelectedText}
+      tempSelectionPositions={tempSelectionPositions}
       onHandleAddToChat={onHandleAddToChat}
       onHandleCancelSelection={onHandleCancelSelection}
       onHandleEditorClick={onHandleEditorClick}
       onHandleEditorBlur={onHandleEditorBlur}
       onHandleEditorFocus={onHandleEditorFocus}
       onHandleEditorFocusLost={onHandleEditorFocusLost}
+      pdfPreviewUrl={pdfPreviewUrl}
+      isCompiling={isCompiling}
+      onCompile={onCompile}
       onPDFSelectionToChat={onPDFSelectionToChat}
       onTabDocumentLoad={onTabDocumentLoad}
+      citationCount={citationCount}
+      onOpenCitationPanel={onOpenCitationPanel}
+      onRunCitationCheck={onRunCitationCheck}
+      citationBusy={citationBusy}
+      currentJob={currentJob}
+      highlightedRanges={highlightedRanges}
     />
     </>
   );

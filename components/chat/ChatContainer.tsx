@@ -7,16 +7,24 @@ import { Button } from "@/components/ui/button"
 import { Plus, Cloud, Clock, MoreHorizontal, X, Loader2, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import type { Message } from "@/types/chat"
-import { 
-    createChatSession, 
-    continueChatSession, 
+import {
+    createChatSession,
+    continueChatSession,
     getChatSessions,
     getChatSessionHistory,
-    checkPaperChatReadiness, 
-    extractPaperForChat,
-    type ChatSession 
+    type ChatSession
 } from "@/lib/api/chat"
-import { getStructuredFacts } from "@/lib/api/extract"
+import { getStructuredFacts } from "@/lib/api/paper-extraction"
+import { 
+    triggerExtraction, 
+    triggerExtractionForPaper,
+    getExtractionStatus, 
+    isPaperExtracted,
+    getExtractionStatusOnly,
+    getExtractedFigures,
+    getExtractedTables,
+    type ExtractionRequest 
+} from "@/lib/api/project-service/extraction"
 
 type ChatContainerProps = {
     /**
@@ -36,22 +44,27 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
     const [chatName, setChatName] = useState("New Chat")
     const [isEditingName, setIsEditingName] = useState(false)
     const [showSidebar, setShowSidebar] = useState(false)
-    
+
     // Session-based chat state
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
     const [isLoadingSessions, setIsLoadingSessions] = useState(false)
     const [isLoadingSession, setIsLoadingSession] = useState(false)
-    
+
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     // New state for chat readiness
     const [isChatReady, setIsChatReady] = useState<boolean | null>(null)
     const [isExtracting, setIsExtracting] = useState(false)
-    const [extractionCountdown, setExtractionCountdown] = useState(60)
     const [extractionError, setExtractionError] = useState<string | null>(null)
     const [paperInfo, setPaperInfo] = useState<any>(null)
     const [hasInitialMessage, setHasInitialMessage] = useState(false)
+    
+    // Enhanced extraction state
+    const [extractionProgress, setExtractionProgress] = useState(0)
+    const [extractionStage, setExtractionStage] = useState<string>("")
+    const [extractedFiguresCount, setExtractedFiguresCount] = useState(0)
+    const [extractedTablesCount, setExtractedTablesCount] = useState(0)
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -69,57 +82,35 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
         }
     }, [paperId])
 
-    // Handle extraction countdown
-    useEffect(() => {
-        let interval: NodeJS.Timeout | null = null
-
-        if (isExtracting && extractionCountdown > 0) {
-            interval = setInterval(() => {
-                setExtractionCountdown(prev => {
-                    if (prev <= 1) {
-                        setIsExtracting(false)
-                        setIsChatReady(true)
-                        return 0
-                    }
-                    return prev - 1
-                })
-            }, 1000)
-        }
-
-        return () => {
-            if (interval) clearInterval(interval)
-        }
-    }, [isExtracting, extractionCountdown])
-
     const loadChatSessions = async () => {
         if (!paperId) return
 
         try {
             setIsLoadingSessions(true)
             const sessions = await getChatSessions(paperId)
-            
+
             // Sort sessions: latest first, invalid ones at the end
             const sortedSessions = sessions.sort((a, b) => {
                 // Check if sessions have valid dates
                 const aHasValidDate = a.lastMessageAt && a.lastMessageAt !== "Invalid Date"
                 const bHasValidDate = b.lastMessageAt && b.lastMessageAt !== "Invalid Date"
-                
+
                 // Invalid sessions go to the end
                 if (!aHasValidDate && bHasValidDate) return 1
                 if (aHasValidDate && !bHasValidDate) return -1
                 if (!aHasValidDate && !bHasValidDate) return 0
-                
+
                 // For valid sessions, sort by lastMessageAt (latest first)
                 const aTime = new Date(a.lastMessageAt).getTime()
                 const bTime = new Date(b.lastMessageAt).getTime()
-                
+
                 // If lastMessageAt is invalid, fall back to createdAt
                 const aFallback = isNaN(aTime) ? new Date(a.createdAt).getTime() : aTime
                 const bFallback = isNaN(bTime) ? new Date(b.createdAt).getTime() : bTime
-                
+
                 return bFallback - aFallback // Latest first (descending order)
             })
-            
+
             setChatSessions(sortedSessions)
         } catch (error) {
             console.error("Failed to load chat sessions:", error)
@@ -134,7 +125,7 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
         try {
             setIsLoadingSession(true)
             const sessionHistory = await getChatSessionHistory(paperId, sessionId)
-            
+
             // Convert to Message format
             const convertedMessages: Message[] = sessionHistory.messages.map(msg => ({
                 id: msg.id,
@@ -147,7 +138,7 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
             setCurrentSessionId(sessionId)
             setChatName(sessionHistory.title)
             setHasInitialMessage(true) // Prevent initial message when loading existing session
-            
+
         } catch (error) {
             console.error("Failed to load chat session:", error)
         } finally {
@@ -163,14 +154,14 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
             const paperData = await getStructuredFacts(paperId)
             console.log("📊 Paper data received:", paperData)
             setPaperInfo(paperData)
-            
+
             // Create initial welcome message for new chats
             console.log("🔍 Checking welcome message conditions:", {
                 currentSessionId,
                 messagesLength: messages.length,
                 hasInitialMessage
             })
-            
+
             // More lenient conditions - create welcome message if no session and no initial message yet
             if (!currentSessionId && !hasInitialMessage) {
                 console.log("✨ Creating welcome message...")
@@ -205,22 +196,26 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
     const generateWelcomeMessage = (paperData: any) => {
         // Use the format requested by the user (removed abstract)
         let message = "🎓 **Paper Analysis Complete!**\n\n"
-        
-        if (paperData?.data?.title) {
-            message += `📄 **Title:** ${paperData.data.title}\n\n`
+
+        // Handle both paperData.title and paperData.data.title structures
+        const title = paperData?.title || paperData?.data?.title;
+        if (title && title !== "Extracted Paper" && title !== "Unknown Paper" && title !== "Error Loading Paper") {
+            message += `📄 **Title:** ${title}\n\n`
         } else {
-            message += `📄 **Title:** The Hitchhiker's Guide to Programming and Optimizing Cache Coherent Heterogeneous Systems: CXL, NVLink-C2C, and AMD Infinity Fabric\n\n`
+            message += `📄 **Title:** Unable to load paper title\n\n`
         }
-        
-        if (paperData?.data?.authors && paperData.data.authors.length > 0) {
-            const authorNames = paperData.data.authors.map((author: any) => 
+
+        // Handle both paperData.authors and paperData.data.authors structures  
+        const authors = paperData?.authors || paperData?.data?.authors;
+        if (authors && authors.length > 0) {
+            const authorNames = authors.map((author: any) =>
                 typeof author === 'string' ? author : (author.name || author)
             ).join(", ")
             message += `👥 **Authors:** ${authorNames}\n\n`
         } else {
-            message += `👥 **Authors:** Zixuan Wang, Suyash Mahar, Luyi Li, and 9 more\n\n`
+            message += `👥 **Authors:** Unable to load author information\n\n`
         }
-        
+
         message += "🤖 **I can help you with:**\n"
         message += "• Understanding the methodology and approach\n"
         message += "• Explaining key findings and results\n"
@@ -228,7 +223,7 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
         message += "• Comparing with related work\n"
         message += "• Answering specific questions about any section\n\n"
         message += "💬 **What would you like to explore first?**"
-        
+
         console.log("📝 Generated welcome message:", message)
         return message
     }
@@ -248,11 +243,11 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
             setCurrentSessionId(null)
             setIsEditingName(false)
             setHasInitialMessage(false)
-            
+
             // Load paper info and create welcome message immediately
             console.log("📄 Loading paper info for welcome message...")
             await loadPaperInfo()
-            
+
             console.log("✅ New chat state cleared successfully")
         } catch (error) {
             console.error("❌ Failed to start new chat:", error)
@@ -267,27 +262,46 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
             setExtractionError(null)
 
             console.log("🔍 Checking chat readiness for paperId:", paperId)
-            const readiness = await checkPaperChatReadiness(paperId)
-
-            if (readiness.isReady) {
-                console.log("✅ Chat is ready, current state:", {
-                    messagesLength: messages.length,
-                    currentSessionId,
-                    hasInitialMessage
-                })
+            
+            // First check if paper is already extracted using the detailed API
+            const isExtracted = await isPaperExtracted(paperId)
+            
+            if (isExtracted) {
+                console.log("✅ Paper is already extracted, chat is ready")
                 setIsChatReady(true)
                 // Load initial welcome message if no messages and no current session
                 if (messages.length === 0 && !currentSessionId && !hasInitialMessage) {
                     console.log("📝 Loading welcome message...")
                     await loadPaperInfo()
                 }
-            } else if (readiness.needsExtraction) {
-                console.log("⚠️ Paper needs extraction")
-                // Start extraction process
-                await startExtraction()
+            } else {
+                // Check if extraction is already in progress
+                try {
+                    const extractionStatus = await getExtractionStatusOnly(paperId)
+                    console.log("📊 Current extraction status:", extractionStatus)
+                    
+                    if (extractionStatus === 'PROCESSING' || extractionStatus === 'PENDING') {
+                        console.log("🔄 Extraction already in progress")
+                        setIsExtracting(true)
+                        setIsChatReady(false)
+                        // Start monitoring the existing extraction
+                        setTimeout(async () => {
+                            await checkChatReadiness()
+                        }, 5000)
+                    } else {
+                        console.log("⚠️ Paper needs extraction")
+                        setIsChatReady(false)
+                        // Start extraction process
+                        await startExtraction()
+                    }
+                } catch (statusError) {
+                    console.warn("Could not get extraction status, starting extraction")
+                    setIsChatReady(false)
+                    await startExtraction()
+                }
             }
         } catch (error) {
-            console.error("Error checking chat readiness:", error)
+            console.error("Error checking if paper is extracted:", error)
             setExtractionError("Failed to check if paper is ready for chat")
         }
     }
@@ -297,20 +311,159 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
 
         try {
             setIsExtracting(true)
-            setExtractionCountdown(60)
             setExtractionError(null)
 
-            // Start extraction in background
-            extractPaperForChat(paperId).catch(error => {
-                console.error("Extraction failed:", error)
-                setExtractionError("Failed to extract paper. Please try again.")
-                setIsExtracting(false)
-            })
+            // Use more comprehensive extraction with detailed options
+            const extractionRequest: ExtractionRequest = {
+                paperId,
+                extractText: true,
+                extractFigures: true,
+                extractTables: true,
+                extractEquations: true,
+                extractReferences: true,
+                useOcr: true,
+                detectEntities: true,
+                asyncProcessing: true
+            }
+
+            // Start extraction with detailed monitoring
+            const extractionResponse = await triggerExtraction(extractionRequest)
+            console.log("🔄 Extraction started:", extractionResponse)
+
+            // Monitor extraction progress
+            const monitorExtraction = async () => {
+                try {
+                    const status = await getExtractionStatus(paperId)
+                    console.log("📊 Extraction status:", status)
+                    
+                    // Update progress and stage
+                    if (status.progress !== undefined) {
+                        setExtractionProgress(status.progress)
+                    }
+                    
+                    // Set extraction stage based on status
+                    setExtractionStage(status.status || "Processing...")
+                    
+                    if (status.status === 'COMPLETED') {
+                        setIsExtracting(false)
+                        setIsChatReady(true)
+                        setExtractionProgress(100)
+                        setExtractionStage("Completed")
+                        
+                        // Get extracted figures and tables count
+                        try {
+                            const [figures, tables] = await Promise.all([
+                                getExtractedFigures(paperId),
+                                getExtractedTables(paperId)
+                            ])
+                            setExtractedFiguresCount(figures.length)
+                            setExtractedTablesCount(tables.length)
+                            console.log(`✅ Extraction completed: ${figures.length} figures, ${tables.length} tables`)
+                        } catch (figureTableError) {
+                            console.warn("Could not get figures/tables count:", figureTableError)
+                        }
+                        
+                        console.log("✅ Extraction completed successfully")
+                        
+                        // For new chats (no current session), always create welcome message
+                        if (!currentSessionId) {
+                            console.log("🎉 Creating welcome message for new chat after extraction")
+                            await loadPaperInfo() // This will create the welcome message
+                        }
+                    } else if (status.status === 'FAILED' || status.error) {
+                        setExtractionError(status.error || "Extraction failed")
+                        setIsExtracting(false)
+                        setExtractionStage("Failed")
+                    } else {
+                        // Continue monitoring if still in progress
+                        setTimeout(monitorExtraction, 3000) // Check every 3 seconds
+                    }
+                } catch (error) {
+                    console.error("Error monitoring extraction:", error)
+                    // Fallback to simple check
+                    setTimeout(async () => {
+                        try {
+                            const isExtracted = await isPaperExtracted(paperId)
+                            if (isExtracted) {
+                                setIsExtracting(false)
+                                setIsChatReady(true)
+                                await loadPaperInfo()
+                            } else {
+                                setTimeout(monitorExtraction, 5000)
+                            }
+                        } catch (fallbackError) {
+                            console.error("Fallback extraction check failed:", fallbackError)
+                            setExtractionError("Failed to monitor extraction progress")
+                            setIsExtracting(false)
+                        }
+                    }, 5000)
+                }
+            }
+
+            // Start monitoring
+            setTimeout(monitorExtraction, 2000) // Initial delay
+
         } catch (error) {
             console.error("Error starting extraction:", error)
-            setExtractionError("Failed to start paper extraction")
+            setExtractionError(`Failed to start paper extraction: ${error instanceof Error ? error.message : 'Unknown error'}`)
             setIsExtracting(false)
         }
+    }
+
+    const pollExtractionStatus = async () => {
+        if (!paperId) return
+
+        const pollInterval = 2000 // Poll every 2 seconds
+        const maxPolls = 30 // Maximum 30 polls (60 seconds total)
+        let pollCount = 0
+
+        const poll = async () => {
+            try {
+                pollCount++
+                console.log(`🔍 Polling extraction status (${pollCount}/${maxPolls}) for paper:`, paperId)
+
+                const status = await getExtractionStatus(paperId)
+                console.log("📊 Extraction status:", status)
+
+                if (status.status === "COMPLETED" || status.status === "SUCCESS") {
+                    console.log("✅ Extraction completed successfully!")
+                    setIsExtracting(false)
+                    setIsChatReady(true)
+
+                    // Load initial welcome message if no messages and no current session
+                    if (messages.length === 0 && !currentSessionId && !hasInitialMessage) {
+                        console.log("📝 Loading welcome message after extraction...")
+                        await loadPaperInfo()
+                    }
+                    return
+                } else if (status.status === "FAILED" || status.status === "ERROR") {
+                    console.error("❌ Extraction failed:", status.error)
+                    setExtractionError(status.error || "Extraction failed. Please try again.")
+                    setIsExtracting(false)
+                    return
+                } else if (pollCount >= maxPolls) {
+                    console.warn("⏰ Extraction polling timeout")
+                    setExtractionError("Extraction is taking longer than expected. Please try again later.")
+                    setIsExtracting(false)
+                    return
+                }
+
+                // Continue polling
+                setTimeout(poll, pollInterval)
+            } catch (error) {
+                console.error("Error polling extraction status:", error)
+                if (pollCount >= maxPolls) {
+                    setExtractionError("Failed to check extraction status. Please try again.")
+                    setIsExtracting(false)
+                } else {
+                    // Retry polling on error
+                    setTimeout(poll, pollInterval)
+                }
+            }
+        }
+
+        // Start polling
+        poll()
     }
 
     const handleSend = async (message: string, context?: string[]) => {
@@ -348,16 +501,16 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                     undefined, // Let AI generate title
                     externalContexts.join('\n') || undefined
                 )
-                
+
                 // Set the session ID and update chat name with AI-generated title
                 setCurrentSessionId(response.sessionId)
-                
+
                 // Update chat name in real-time with AI-generated title
                 if (response.title && response.title.trim() !== '') {
                     setChatName(response.title)
                     console.log("✨ Updated chat title to:", response.title)
                 }
-                
+
                 if (messages.length === 0) {
                     // This is the first message, reload sessions to get updated title in sidebar
                     setTimeout(() => loadChatSessions(), 1000)
@@ -433,9 +586,9 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                             <div className="p-3">
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="text-sm font-medium text-muted-foreground">Past Chats</h3>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="sm" 
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
                                         className="h-6 text-xs"
                                         onClick={loadChatSessions}
                                         disabled={isLoadingSessions}
@@ -512,9 +665,9 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
+                        <Button
+                            variant="ghost"
+                            size="icon"
                             className="h-8 w-8"
                             onClick={startNewChat}
                             disabled={isLoadingSessions}
@@ -559,14 +712,8 @@ export function ChatContainer({ onClose, externalContexts = [], onExternalContex
                                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                             <div className="text-lg font-medium">Getting chatbot ready...</div>
                                         </div>
-                                        <div className="text-sm text-muted-foreground mb-4">
+                                        <div className="text-sm text-muted-foreground">
                                             Extracting paper content for AI analysis
-                                        </div>
-                                        <div className="text-2xl font-bold text-primary">
-                                            {extractionCountdown}s
-                                        </div>
-                                        <div className="text-xs text-muted-foreground mt-2">
-                                            This may take up to 60 seconds
                                         </div>
                                     </div>
                                 ) : extractionError ? (

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,12 +32,13 @@ import {
   ChevronRight,
   PanelRightOpen,
   PanelRightClose,
-  Code
+  Code,
+  Globe
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { useSettings } from "@/contexts/SettingsContext"
 import { projectsApi } from "@/lib/api/project-service"
-import { latexApi } from "@/lib/api/latex-service"
+import { latexApi, sha256Hex, startCitationCheck, streamCitationJob, getCitationResult, cancelCitationJob, startCitationCheckWithStreaming, pollCitationJob } from "@/lib/api/latex-service"
 import { AIChatPanel } from "@/components/latex/AIChatPanel"
 import { AIAssistancePanel } from "@/components/latex/AIAssistancePanel"
 import { LaTeXPDFViewer } from "@/components/latex/LaTeXPDFViewer"
@@ -46,8 +47,11 @@ import { EnhancedLatexEditor } from "@/components/latex/EnhancedLatexEditor"
 import { PapersSelector } from "@/components/latex/PapersSelector"
 import { CenterTabs } from "@/components/latex/CenterTabs"
 import { TabProviderWrapper } from "@/components/latex/TabProviderWrapper"
+import { ViewModeSelector } from "@/components/latex/ViewModeSelector"
+import { CitationIssuesPanel } from "@/components/latex/CitationIssuesPanel"
 import type { OpenItem, TabViewState } from "@/types/tabs"
 import type { Paper } from "@/types/websearch"
+import type { CitationIssue, CitationCheckJob } from "@/types/citations"
 
 interface Project {
   id: string
@@ -81,8 +85,14 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null)
   const [editorContent, setEditorContent] = useState('')
   const [compiledContent, setCompiledContent] = useState('')
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>('')
+  const [pdfPreviewUrls, setPdfPreviewUrls] = useState<Map<string, string>>(new Map())
   const [isCompiling, setIsCompiling] = useState(false)
+  
+  // Get PDF URL for current document
+  const pdfPreviewUrl = currentDocument ? pdfPreviewUrls.get(currentDocument.id) || '' : ''
+  
+  // Ref to track current URLs for cleanup
+  const pdfUrlsRef = useRef<Map<string, string>>(new Map())
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [selectedText, setSelectedText] = useState<{ text: string; from: number; to: number }>({ text: '', from: 0, to: 0 })
@@ -137,6 +147,19 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   // New state to track when selection should be shown in chat
   const [selectionAddedToChat, setSelectionAddedToChat] = useState(false)
 
+  // Citation checking state
+  const [citationBusy, setCitationBusy] = useState(false)
+  const [currentCitationJob, setCurrentCitationJob] = useState<CitationCheckJob | null>(null)
+  const [showCitationPanel, setShowCitationPanel] = useState(false)
+  const [runWebCheck, setRunWebCheck] = useState(true)
+  const [citationTimeoutWarning, setCitationTimeoutWarning] = useState(false)
+  
+  // Enhanced citation state for content hash and SSE streaming
+  const [lastContentHash, setLastContentHash] = useState<string | null>(null)
+  const [contentHashStale, setContentHashStale] = useState(false)
+  const [contentHashDismissed, setContentHashDismissed] = useState(false)
+  const [sseConnection, setSseConnection] = useState<{ close: () => void } | null>(null)
+
   // Debug state changes
   useEffect(() => {
     console.log('🔄 State Change - selectionAddedToChat:', selectionAddedToChat)
@@ -154,14 +177,33 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     console.log('🔄 State Change - showAddToChat:', showAddToChat)
   }, [showAddToChat])
 
-  // Cleanup PDF URL when component unmounts or PDF changes
+  // Debug citation state changes
+  useEffect(() => {
+    console.log('🔎 Citation State Change - citationBusy:', citationBusy)
+  }, [citationBusy])
+
+  useEffect(() => {
+    console.log('🔎 Citation State Change - currentCitationJob:', currentCitationJob)
+  }, [currentCitationJob])
+
+  useEffect(() => {
+    console.log('🔎 Citation State Change - selectedPapers:', selectedPapers)
+  }, [selectedPapers])
+
+  // Update ref when URLs change
+  useEffect(() => {
+    pdfUrlsRef.current = pdfPreviewUrls
+  }, [pdfPreviewUrls])
+
+  // Cleanup PDF URLs when component unmounts
   useEffect(() => {
     return () => {
-      if (pdfPreviewUrl) {
-        URL.revokeObjectURL(pdfPreviewUrl)
-      }
+      // Clean up all PDF URLs on component unmount
+      pdfUrlsRef.current.forEach((url) => {
+        URL.revokeObjectURL(url)
+      })
     }
-  }, [pdfPreviewUrl])
+  }, []) // Empty dependency array - only run on mount/unmount
 
   // Load project data
   useEffect(() => {
@@ -204,12 +246,40 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     }
   }, [projectId, documents.length])
 
+  // Load existing citations when document changes
+  useEffect(() => {
+    const loadExistingCitations = async () => {
+      if (currentDocument?.id && !citationBusy) {
+        try {
+          console.log('🔄 Loading existing citations for document:', currentDocument.id)
+          const citationResult = await getCitationResult(currentDocument.id)
+          console.log('🔄 Existing citation result:', citationResult)
+          
+          if (citationResult && citationResult.summary) {
+            console.log('🔄 Found existing citation job:', citationResult)
+            setCurrentCitationJob(citationResult)
+          } else {
+            console.log('🔄 No existing citations found')
+            setCurrentCitationJob(null)
+          }
+        } catch (error) {
+          console.log('🔄 Error loading citations:', error)
+          // If there's an error, reset the state
+          setCurrentCitationJob(null)
+        }
+      }
+    }
+
+    loadExistingCitations()
+  }, [currentDocument?.id, citationBusy])
+
   // Clear version history when switching documents to prevent stale data
   useEffect(() => {
     if (currentDocument?.id) {
       console.log('Document changed, clearing version history')
       setVersionHistory([])
       setIsViewingVersion(false)
+      setCurrentVersionIndex(0) // Reset version navigation index
     }
   }, [currentDocument?.id])
 
@@ -226,6 +296,38 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  // Monitor content changes for stale citation detection (debounced)
+  useEffect(() => {
+    const checkContentHash = async () => {
+      if (editorContent && currentCitationJob?.summary?.contentHash) {
+        const currentHash = await sha256Hex(editorContent)
+        if (currentHash !== currentCitationJob.summary.contentHash) {
+          setContentHashStale(true)
+          setContentHashDismissed(false) // Reset dismissed state on new changes
+          console.log('🔶 Content hash mismatch - results are stale')
+        } else {
+          setContentHashStale(false)
+          setContentHashDismissed(false)
+        }
+      }
+    }
+    
+    // Debounce content hash checking to avoid excessive notifications during typing
+    const timeoutId = setTimeout(checkContentHash, 2000) // 2 second delay
+    return () => clearTimeout(timeoutId)
+  }, [editorContent, currentCitationJob?.summary?.contentHash])
+
+  // Cleanup SSE connection on unmount or document change
+  useEffect(() => {
+    return () => {
+      if (sseConnection) {
+        console.log('🔌 Closing SSE connection')
+        sseConnection.close()
+        setSseConnection(null)
+      }
+    }
+  }, [currentDocument?.id])
 
   // Listen for selection changes and clearing from the editor
   // But don't automatically set selectedText - only show Add to Chat button
@@ -343,6 +445,9 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       
       console.log('Document saved successfully')
       
+      // Reset editing state after successful save
+      setIsEditing(false)
+      
       // Reset version viewing state since we're now viewing the current content
       setIsViewingVersion(false)
     } catch (error) {
@@ -398,14 +503,14 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
   }, [])
 
   const handleCompile = useCallback(async () => {
-    if (isCompiling) {
-      console.log('Compilation already in progress, skipping...')
+    if (isCompiling || !currentDocument) {
+      console.log('Compilation already in progress or no document selected, skipping...')
       return
     }
     
     setIsCompiling(true)
     try {
-      console.log('Starting PDF compilation...')
+      console.log('Starting PDF compilation for document:', currentDocument.title)
       console.log('LaTeX content length:', editorContent.length)
       console.log('LaTeX content preview:', editorContent.substring(0, 200) + '...')
       
@@ -423,8 +528,19 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
       
       // Create a URL for the PDF blob with proper MIME type
       const pdfUrl = URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }))
-      console.log('Created PDF blob URL:', pdfUrl)
-      setPdfPreviewUrl(pdfUrl)
+      console.log('Created PDF blob URL for document', currentDocument.id, ':', pdfUrl)
+      
+      // Store PDF URL by document ID
+      setPdfPreviewUrls(prev => {
+        const newMap = new Map(prev)
+        // Clean up old URL if it exists
+        const oldUrl = newMap.get(currentDocument.id)
+        if (oldUrl) {
+          URL.revokeObjectURL(oldUrl)
+        }
+        newMap.set(currentDocument.id, pdfUrl)
+        return newMap
+      })
       
       // Set compiled content to show PDF preview
       setCompiledContent(`
@@ -432,6 +548,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
           <h1>LaTeX PDF Preview</h1>
           <p style="color: green;">✓ PDF compiled successfully!</p>
           <p>Your LaTeX document has been compiled to PDF. Use the preview tab to view it.</p>
+          <p><strong>Document:</strong> ${currentDocument.title}</p>
           <p><strong>PDF Size:</strong> ${(pdfBlob.size / 1024).toFixed(1)} KB</p>
           <p><strong>PDF Type:</strong> ${pdfBlob.type}</p>
         </div>
@@ -440,25 +557,67 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     } catch (error) {
       console.error('PDF compilation failed:', error)
       
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      // Extract detailed error information
+      let errorMessage = 'Unknown error'
+      let detailedError = ''
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+        
+        // Try to extract LaTeX compilation details from backend error
+        if (errorMessage.includes('Output:')) {
+          const outputMatch = errorMessage.match(/Output: (.+)/)
+          if (outputMatch) {
+            detailedError = outputMatch[1]
+              .replace(/\\n/g, '\n')
+              .replace(/<EOL>/g, '\n')
+              .trim()
+          }
+        }
+      }
+      
       setCompiledContent(`
         <div style="padding: 20px; background: white; color: black;">
           <h1>LaTeX Compilation Error</h1>
-          <p style="color: red;">PDF compilation failed: ${errorMessage}</p>
-          <p>Please check your LaTeX syntax and try again.</p>
-          <details style="margin-top: 10px;">
+          <p style="color: red;">✗ PDF compilation failed</p>
+          <p><strong>Document:</strong> ${currentDocument?.title || 'Unknown'}</p>
+          <p><strong>Error:</strong> ${errorMessage}</p>
+          ${detailedError ? `
+            <details style="margin-top: 15px;">
+              <summary style="cursor: pointer; font-weight: bold; color: #d73a49;">📋 Compilation Output</summary>
+              <pre style="background: #f6f8fa; padding: 15px; border-radius: 4px; border-left: 4px solid #d73a49; margin-top: 10px; font-size: 12px; overflow-x: auto; white-space: pre-wrap;">${detailedError}</pre>
+            </details>
+          ` : ''}
+          <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px;">
+            <p style="margin: 0; color: #856404;"><strong>💡 Common Issues:</strong></p>
+            <ul style="margin: 5px 0 0 20px; color: #856404;">
+              <li>Missing packages: Make sure all \\usepackage{} declarations are correct</li>
+              <li>Syntax errors: Check for missing braces, unescaped characters, or typos</li>
+              <li>Document class: Ensure the document class is properly defined</li>
+              <li>Special characters: Use proper LaTeX escaping for special symbols</li>
+            </ul>
+          </div>
+          <details style="margin-top: 15px;">
             <summary>Raw LaTeX Content</summary>
             <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-size: 12px; margin-top: 10px;">${editorContent}</pre>
           </details>
         </div>
       `)
       
-      // Clear PDF preview URL on error
-      setPdfPreviewUrl('')
+      // Clear PDF preview URL on error for current document
+      setPdfPreviewUrls(prev => {
+        const newMap = new Map(prev)
+        const oldUrl = newMap.get(currentDocument.id)
+        if (oldUrl) {
+          URL.revokeObjectURL(oldUrl)
+        }
+        newMap.delete(currentDocument.id)
+        return newMap
+      })
     } finally {
       setIsCompiling(false)
     }
-  }, [editorContent, isCompiling])
+  }, [editorContent, isCompiling, currentDocument])
 
   // Compile when switching to preview tab
   const handleTabChange = useCallback((value: string) => {
@@ -553,24 +712,38 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     console.log('Current selectedText:', selectedText)
     console.log('Editor content length:', editorContent.length)
     
+    // Determine if there is a real selection
+    const hasSelection =
+      !!(selectedText.text && selectedText.text.trim().length > 0) &&
+      selectedText.from !== undefined &&
+      selectedText.to !== undefined &&
+      selectedText.from !== selectedText.to;
+
+    // Normalize action: server wins; otherwise selection ⇒ replace, no selection ⇒ add
+    const normalized: 'add' | 'replace' | 'delete' | 'modify' =
+      (actionType as any) ?? (hasSelection ? 'replace' : 'add');
+    
     let newContent = editorContent
 
-    switch (actionType) {
+    switch (normalized) {
       case 'replace':
       case 'modify':
-        if (selectedText.text && selectedText.from !== selectedText.to) {
+        if (hasSelection) {
           // Use the actual selected text positions
           console.log('Replacing selection from', selectedText.from, 'to', selectedText.to)
           const before = editorContent.substring(0, selectedText.from)
           const after = editorContent.substring(selectedText.to)
           newContent = before + suggestion + after
           console.log('New content created with replace')
+          // Set cursor to end of inserted content
+          setCursorPosition((before + suggestion).length)
         } else if (selectionRange && selectionRange.from !== selectionRange.to) {
           // Fallback to selectionRange if available
           console.log('Using fallback selectionRange:', selectionRange)
           const before = editorContent.substring(0, selectionRange.from)
           const after = editorContent.substring(selectionRange.to)
           newContent = before + suggestion + after
+          setCursorPosition((before + suggestion).length)
         } else if (position !== undefined) {
           // Insert at specific position
           console.log('Inserting at position:', position)
@@ -581,29 +754,30 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
         break
 
       case 'delete':
-        if (selectedText.text && selectedText.from !== selectedText.to) {
+        if (hasSelection) {
           // Delete selected text
           const before = editorContent.substring(0, selectedText.from)
           const after = editorContent.substring(selectedText.to)
           newContent = before + after
-        } else if (selectionRange) {
+          setCursorPosition(before.length)
+        } else if (selectionRange && selectionRange.from !== selectionRange.to) {
           const before = editorContent.substring(0, selectionRange.from)
           const after = editorContent.substring(selectionRange.to)
           newContent = before + after
+          setCursorPosition(before.length)
         }
         break
 
       case 'add':
-      default:
-    if (position !== undefined) {
-      // Insert at specific cursor position
-      const before = editorContent.substring(0, position)
-      const after = editorContent.substring(position)
-          newContent = before + suggestion + after
-    } else {
-      // Append to end
-          newContent = editorContent + '\n\n' + suggestion
-        }
+      default: {
+        // insertion at cursor or provided position
+        const insertAt = position ?? (hasSelection ? selectedText.from : (cursorPosition ?? editorContent.length))
+        const before = editorContent.substring(0, insertAt)
+        const after = editorContent.substring(insertAt)
+        newContent = before + suggestion + after
+        setCursorPosition((before + suggestion).length)
+        break
+      }
         break
     }
 
@@ -648,6 +822,173 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     }, 100)
   }
 
+  // Citation handlers
+  const handleRunCitationCheck = useCallback(async (forceRecheck = false) => {
+    if (!currentDocument?.id || !projectId || citationBusy) {
+      console.log('Citation check prevented:', { 
+        hasDocument: !!currentDocument?.id, 
+        hasProjectId: !!projectId, 
+        citationBusy 
+      })
+      return
+    }
+
+    try {
+      setCitationBusy(true)
+      const contentHash = await sha256Hex(editorContent)
+
+      // 1) Try reuse-by-hash (only if not forcing recheck)
+      if (!forceRecheck) {
+        const latest = await getCitationResult(currentDocument.id).catch(() => null)
+        if (latest && latest.summary?.contentHash === contentHash && latest.status === 'DONE') {
+          setCurrentCitationJob(latest)
+          setShowCitationPanel(true)
+          setCitationBusy(false)
+          return
+        }
+      }
+
+      // 2) Clear previous issues/state and open panel immediately to show progress
+      setCurrentCitationJob(null)    
+      setShowCitationPanel(true)     
+
+      // Close any existing SSE connection
+      if (sseConnection) {
+        sseConnection.close()
+        setSseConnection(null)
+      }
+
+      // 3) Start job with streaming
+      const { jobId } = await startCitationCheck({
+        projectId,
+        documentId: currentDocument.id,
+        texFileName: currentDocument.title ?? 'main.tex',
+        latexContent: editorContent,
+        selectedPaperIds: (selectedPapers ?? []).map(p => p.id),
+        overwrite: forceRecheck,      // Use forceRecheck parameter for cache override
+        runWebCheck,                  // reflects UI toggle
+        contentHash
+      })
+
+      // 4) Stream progress with enhanced error handling and timeout
+      let timeoutId: NodeJS.Timeout | null = null;
+      
+      // Helper function for polling fallback
+      const startPollingFallback = async (jobId: string) => {
+        try {
+          console.log('🔄 Starting polling fallback for job:', jobId)
+          await pollCitationJob(jobId, (snap: CitationCheckJob) => {
+            console.log('📊 Polling update:', snap.status, snap.step)
+            setCurrentCitationJob(snap)
+            
+            // Complete when done
+            if (snap.status === 'DONE' || snap.status === 'ERROR') {
+              setCitationBusy(false)
+              console.log('✅ Polling completed with status:', snap.status)
+            }
+          })
+        } catch (pollErr) {
+          console.error('❌ Polling fallback failed:', pollErr)
+          setCitationBusy(false)
+        }
+      };
+      
+      const stream = streamCitationJob(jobId, {
+        onStatus: (s) => {
+          setCurrentCitationJob(j => ({ ...(j ?? {} as any), jobId, ...s }))
+          setCitationTimeoutWarning(false); // Reset warning on progress
+          // Reset timeout on each status update
+          if (timeoutId) clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            console.warn('⏰ Citation check timeout - switching to polling fallback');
+            setCitationTimeoutWarning(true);
+            setSseConnection(null);
+            if (stream) stream.close();
+            startPollingFallback(jobId);
+          }, 30000); // 30 second timeout
+        },
+        onIssue:  (issue) => setCurrentCitationJob(j => ({ ...(j ?? {} as any), jobId, issues: [ ...(j?.issues ?? []), issue ] })),
+        onSummary:(summary) => {
+          if (timeoutId) clearTimeout(timeoutId);
+          setCitationTimeoutWarning(false);
+          setCurrentCitationJob(j => ({ ...(j ?? {} as any), jobId, summary }))
+          setCitationBusy(false)
+          if (stream) stream.close()
+          setSseConnection(null)
+          console.log('✅ Citation check completed via summary event')
+        },
+        onComplete: () => {
+          if (timeoutId) clearTimeout(timeoutId);
+          setCitationTimeoutWarning(false);
+          console.log('🔌 SSE completion event received - fetching final results');
+          // Fetch final results when completion event is received
+          getCitationResult(currentDocument.id).then(result => {
+            if (result) {
+              setCurrentCitationJob(result);
+            }
+            setCitationBusy(false);
+            if (stream) stream.close();
+            setSseConnection(null);
+            console.log('✅ Citation check completed via completion event');
+          }).catch(err => {
+            console.error('Failed to fetch final results:', err);
+            setCitationBusy(false);
+          });
+        },
+        onError: async (error) => {
+          if (timeoutId) clearTimeout(timeoutId);
+          console.error('🔌 SSE Stream error occurred, switching to polling fallback:', error)
+          setSseConnection(null)
+          startPollingFallback(jobId);
+        },
+      })
+
+      setSseConnection(stream)
+
+    } catch (e) {
+      console.error('Failed to start citation check:', e)
+      setCitationBusy(false)
+    }
+  }, [currentDocument?.id, projectId, editorContent, selectedPapers, runWebCheck, citationBusy])
+
+  // Forced recheck handler for the citation panel
+  const handleForcedRecheck = useCallback(() => {
+    console.log('🔄 Forced recheck triggered from citation panel')
+    return handleRunCitationCheck(true) // Force overwrite existing results
+  }, [handleRunCitationCheck])
+
+  const handleOpenCitationPanel = useCallback(async () => {
+    if (!currentDocument) return
+    
+    // If no current job, try to get latest result
+    if (!currentCitationJob) {
+      try {
+        const latest = await getCitationResult(currentDocument.id)
+        if (latest) {
+          setCurrentCitationJob(latest)
+        }
+      } catch (error) {
+        console.log('No previous citation results found:', error)
+      }
+    }
+    
+    setShowCitationPanel(true)
+    console.log('Opening citation panel with current job:', currentCitationJob)
+  }, [currentDocument, currentCitationJob])
+
+  const handleNavigateToIssue = useCallback((issue: CitationIssue) => {
+    // Navigate to the line where the citation issue is
+    // We can use the lineStart to position the cursor
+    const lineContent = editorContent.split('\n')
+    let charPosition = 0
+    for (let i = 0; i < issue.lineStart - 1; i++) {
+      charPosition += lineContent[i].length + 1 // +1 for newline
+    }
+    setCursorPosition(charPosition + issue.from)
+    setShowCitationPanel(false)
+    console.log('Navigating to issue at line', issue.lineStart, 'position', charPosition + issue.from)
+  }, [editorContent])
+
   // Create initial tex item when currentDocument changes
   useEffect(() => {
     if (currentDocument) {
@@ -676,7 +1017,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     setInlineDiffPreviews(previews)
   }
 
-  const handleAcceptInlineDiff = (id: string) => {
+  const handleAcceptInlineDiff = (id: string, mappedFrom?: number, mappedTo?: number) => {
     console.log('=== ACCEPT INLINE DIFF ===')
     console.log('Accepting diff with ID:', id)
     
@@ -689,37 +1030,66 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     // Store current content as checkpoint before applying
     const currentContentCheckpoint = editorContent
 
+    // Prefer mapped positions from the editor (already adjusted across edits)
+    const docLen = editorContent.length
+    const safeFrom = mappedFrom !== undefined ? Math.max(0, Math.min(mappedFrom, docLen)) : preview.from
+    const safeTo = mappedTo !== undefined ? Math.max(0, Math.min(mappedTo, docLen)) : preview.to
+
     let newContent = editorContent
     switch (preview.type) {
       case 'add':
         // Insert new content at the specified position
-        const beforeAdd = editorContent.substring(0, preview.from)
-        const afterAdd = editorContent.substring(preview.from)
+        const beforeAdd = editorContent.substring(0, safeFrom)
+        const afterAdd = editorContent.substring(safeFrom)
         newContent = beforeAdd + preview.content + afterAdd
         break
         
       case 'delete':
         // Remove content from the specified range
-        const beforeDel = editorContent.substring(0, preview.from)
-        const afterDel = editorContent.substring(preview.to)
+        const beforeDel = editorContent.substring(0, safeFrom)
+        const afterDel = editorContent.substring(safeTo)
         newContent = beforeDel + afterDel
         break
         
       case 'replace':
         // Replace content in the specified range
-        const beforeReplace = editorContent.substring(0, preview.from)
-        const afterReplace = editorContent.substring(preview.to)
-        newContent = beforeReplace + preview.content + afterReplace
+        const beforeReplace = editorContent.substring(0, safeFrom)
+        const afterReplace = editorContent.substring(safeTo)
+        let next = beforeReplace + preview.content + afterReplace
+
+        // --- De-dupe: remove any remaining copies of the original block elsewhere ---
+        const orig = String(preview.originalContent ?? '').trim()
+        if (orig.length > 0) {
+          // Escape regex special chars, then make whitespace tolerant
+          const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const pattern = new RegExp(esc(orig).replace(/\s+/g, '\\s+'), 'g')
+
+          // Where the accepted content now sits
+          const applied = preview.content
+          const appliedPos = beforeReplace.length
+          const appliedEnd = appliedPos + applied.length
+
+          // 1) Strip all other occurrences of the original block
+          let stripped = next.replace(pattern, '')
+
+          // 2) Ensure the applied replacement stays (reinsert if the regex swept it)
+          const left = stripped.slice(0, appliedPos)
+          const right = stripped.slice(appliedPos)
+          stripped = left + applied + right
+
+          next = stripped
+        }
+        // ---------------------------------------------------------------------------
+
+        newContent = next
         break
     }
 
     setEditorContent(newContent)
     setIsEditing(true)
     
-    // Remove all related previews (both delete and add for replace operations)
-    setInlineDiffPreviews(prev => prev.filter(p => 
-      !p.id.startsWith(id.replace('-delete', '').replace('-add', ''))
-    ))
+    // Remove only the accepted preview (single-widget model)
+    setInlineDiffPreviews(prev => prev.filter(p => p.id !== id))
 
     // Trigger restore checkpoint functionality in the AI chat
     // This simulates accepting a suggestion to create the checkpoint message
@@ -738,12 +1108,12 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     console.log('Diff accepted and applied with checkpoint created')
   }
 
-  const handleRejectInlineDiff = (id: string) => {
+  const handleRejectInlineDiff = (id: string, _mappedFrom?: number, _mappedTo?: number) => {
     console.log('=== REJECT INLINE DIFF ===')
     console.log('Rejecting diff with ID:', id)
     
-    // Simply remove the preview without applying changes
-    setInlineDiffPreviews(prev => prev.filter(p => p.id !== id))
+  // Simply remove the preview without applying changes (single-widget model)
+  setInlineDiffPreviews(prev => prev.filter(p => p.id !== id))
     
     console.log('Diff rejected and removed')
   }
@@ -1384,6 +1754,78 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
     }
   };
 
+  // State to track current version index for Check Version functionality
+  const [currentVersionIndex, setCurrentVersionIndex] = useState<number>(0)
+
+  // Handle navigating through versions from latest to oldest
+  const handleNavigateVersions = async () => {
+    if (!currentDocument?.id) {
+      return
+    }
+
+    try {
+      // Load version history if not already loaded
+      if (versionHistory.length === 0) {
+        await loadVersionHistory(currentDocument.id)
+        
+        // After loading, check if we have any versions
+        const updatedHistory = await latexApi.getDocumentVersions(currentDocument.id)
+        if (updatedHistory.status === 200 && updatedHistory.data.length === 0) {
+          // No versions exist yet
+          alert('No versions found. Create your first version using the "Save Version" button!')
+          return
+        }
+        
+        // If we now have versions, continue with the navigation
+        if (updatedHistory.status === 200 && updatedHistory.data.length > 0) {
+          setVersionHistory(updatedHistory.data)
+          const latestVersion = updatedHistory.data[0] // Assuming versions are sorted latest first
+          setEditorContent(latestVersion.content)
+          setCurrentVersion(latestVersion.versionNumber)
+          setIsViewingVersion(true)
+          setCurrentVersionIndex(0)
+          console.log('Started version navigation with latest version:', latestVersion.versionNumber)
+        }
+        return
+      }
+
+      // If we're viewing the current working version, start with the latest saved version
+      if (!isViewingVersion) {
+        if (versionHistory.length > 0) {
+          const latestVersion = versionHistory[0] // Assuming versions are sorted latest first
+          setEditorContent(latestVersion.content)
+          setCurrentVersion(latestVersion.versionNumber)
+          setIsViewingVersion(true)
+          setCurrentVersionIndex(0)
+          console.log('Started version navigation with latest version:', latestVersion.versionNumber)
+        } else {
+          alert('No versions found. Create your first version using the "Save Version" button!')
+        }
+        return
+      }
+
+      // Navigate to the next older version
+      const nextIndex = currentVersionIndex + 1
+      if (nextIndex < versionHistory.length) {
+        const nextVersion = versionHistory[nextIndex]
+        setEditorContent(nextVersion.content)
+        setCurrentVersion(nextVersion.versionNumber)
+        setCurrentVersionIndex(nextIndex)
+        console.log(`Navigated to version ${nextVersion.versionNumber} (${nextIndex + 1}/${versionHistory.length})`)
+      } else {
+        // We've reached the oldest version, cycle back to current working version
+        setEditorContent(currentDocument.content)
+        setCurrentVersion(currentDocument.version || 1)
+        setIsViewingVersion(false)
+        setCurrentVersionIndex(0)
+        console.log('Cycled back to current working version')
+      }
+    } catch (error) {
+      console.error('Failed to navigate versions:', error)
+      alert('Failed to navigate versions')
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 relative overflow-hidden">
@@ -1431,6 +1873,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   console.error('No projectId available')
                 }
               }}
+              title="Reloads the editor"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Reload
@@ -1438,10 +1881,38 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={handleSave}
+              onClick={() => {
+                window.location.reload()
+              }}
+              title="Refresh entire browser page"
             >
-              <Save className="h-4 w-4 mr-2" />
-              Save
+              <Globe className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button 
+              variant={isEditing ? "default" : "outline"}
+              size="sm"
+              onClick={handleSave}
+              className={cn(
+                "transition-all duration-300 relative overflow-hidden",
+                isEditing && "bg-blue-500 hover:bg-blue-600 text-white border-blue-500 shadow-md"
+              )}
+              style={isEditing ? {
+                background: 'linear-gradient(45deg, #3b82f6, #60a5fa, #3b82f6, #60a5fa)',
+                backgroundSize: '400% 400%',
+                animation: 'gradient-shimmer 2s ease-in-out infinite'
+              } : undefined}
+            >
+              <Save className={cn("h-4 w-4 mr-2 relative z-10", isEditing ? "text-white" : "text-current")} />
+              <span className={cn(
+                "font-medium relative z-10",
+                isEditing ? "text-white font-bold" : "text-current"
+              )}>
+                {isEditing ? "Save*" : "Save"}
+              </span>
+              {isEditing && (
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer-slide" />
+              )}
             </Button>
             <Button 
               variant="outline" 
@@ -1454,21 +1925,21 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => handleRevertVersion()}
-              disabled={!currentDocument?.version || currentDocument.version <= 1}
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Revert
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
               onClick={handleCompile}
               disabled={isCompiling}
             >
               <Play className="h-4 w-4 mr-2" />
               {isCompiling ? 'Compiling...' : 'Compile'}
             </Button>
+            <label className="inline-flex items-center gap-2 text-xs px-2 py-1 border rounded">
+              <input 
+                type="checkbox" 
+                checked={runWebCheck} 
+                onChange={e => setRunWebCheck(e.target.checked)}
+                className="w-3 h-3"
+              />
+              Include web check
+            </label>
             <Button 
               variant="outline" 
               size="sm"
@@ -1735,7 +2206,9 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   </div>
                 </div>
               ) : (
-                <TabProviderWrapper
+                <>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <TabProviderWrapper
                   currentDocument={currentDocument}
                   editorContent={editorContent}
                   onEditorContentChange={setEditorContent}
@@ -1758,6 +2231,7 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   onRejectInlineDiff={handleRejectInlineDiff}
                   showAddToChat={showAddToChat}
                   tempSelectedText={tempSelectedText}
+                  tempSelectionPositions={tempSelectionPositions}
                   onHandleAddToChat={handleAddToChat}
                   onHandleCancelSelection={handleCancelSelection}
                   onHandleEditorClick={handleEditorClick}
@@ -1766,10 +2240,82 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
                   onHandleEditorFocusLost={() => handleEditorFocusLost({ cursorPosition: cursorPosition || 0 })}
                   pdfPreviewUrl={pdfPreviewUrl}
                   isCompiling={isCompiling}
+                  onCompile={handleCompile}
                   onPDFSelectionToChat={handlePDFSelectionToChat}
                   onOpenPaperReady={(fn) => setHandleOpenPaper(() => fn)}
                   onTabDocumentLoad={handleDocumentSwitchById}
-                />
+                  citationCount={currentCitationJob?.summary?.total ?? 0}
+                  onOpenCitationPanel={handleOpenCitationPanel}
+                  onRunCitationCheck={handleRunCitationCheck}
+                  citationBusy={citationBusy}
+                  currentJob={currentCitationJob}
+                  />
+                </div>
+                {/* Bottom version/footer bar that keeps editor above it */}
+                <div className="flex-shrink-0 border-t border-border bg-card px-3 py-2 text-xs text-muted-foreground flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="text-foreground">Lines: {editorContent ? editorContent.split('\n').length : 0}</span>
+                    {currentDocument?.version && (
+                      <span className="text-foreground">v{currentDocument.version}{isViewingVersion ? ' (viewing version)' : ''}</span>
+                    )}
+                    <span>Updated: {currentDocument?.updatedAt ? new Date(currentDocument.updatedAt).toLocaleTimeString() : '-'}</span>
+                    {currentDocument?.id && versionHistory.length > 0 && (
+                      <span className="text-blue-600">
+                        Versions: {versionHistory.length}
+                        {isViewingVersion && (
+                          <span className="ml-2 text-orange-600">
+                            ({currentVersionIndex + 1}/{versionHistory.length + 1})
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setShowVersionDialog(true)}
+                      className="h-8 px-3 text-xs hover:bg-primary/10 hover:text-primary"
+                      disabled={!currentDocument?.id}
+                      title="Save current version with commit message"
+                    >
+                      <GitBranch className="h-3 w-3 mr-1" />
+                      Save Version
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={navigateToPreviousVersion}
+                      className="h-8 px-3 text-xs hover:bg-primary/10 hover:text-primary"
+                      disabled={!currentDocument?.id}
+                      title={isViewingVersion ? "Return to current working version" : "View latest saved version"}
+                    >
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      {isViewingVersion ? "Current" : "Latest"}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleNavigateVersions}
+                      className="h-8 px-3 text-xs hover:bg-secondary/80"
+                      disabled={!currentDocument?.id}
+                      title={
+                        versionHistory.length === 0 
+                          ? "No versions yet - create a version first using 'Save Version'" 
+                          : `Navigate through versions (${isViewingVersion ? currentVersionIndex + 1 : 'current'}/${versionHistory.length + 1})`
+                      }
+                    >
+                      <ChevronLeft className="h-3 w-3 mr-1" />
+                      Check Version
+                      {isViewingVersion && versionHistory.length > 0 && (
+                        <span className="ml-1 text-orange-600">
+                          ({currentVersionIndex + 1}/{versionHistory.length + 1})
+                        </span>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                </>
               )}
             </div>
           </ResizablePanel>
@@ -1973,6 +2519,21 @@ export default function LaTeXEditorPage({ params }: ProjectOverviewPageProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Citation Issues Panel */}
+      <CitationIssuesPanel
+        job={currentCitationJob}
+        open={showCitationPanel}
+        onOpenChange={setShowCitationPanel}
+        onJumpToRange={(from, to) => {
+          setCursorPosition(from)
+          setShowCitationPanel(false)
+        }}
+        onRecheck={handleForcedRecheck}
+        timeoutWarning={citationTimeoutWarning}
+        contentHashStale={contentHashStale && currentCitationJob?.summary && !contentHashDismissed}
+        onDismissStaleWarning={() => setContentHashDismissed(true)}
+      />
     </div>
   )
 }

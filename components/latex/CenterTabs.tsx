@@ -84,7 +84,7 @@ export function CenterTabs({
   }
 
   return (
-    <div className={cn("flex items-center justify-between border-b bg-background", className)}>
+    <div className={cn("flex items-center justify-between border-b bg-background py-2", className)}>
       <div className="flex items-center">
         {items.map((item, index) => {
           const isActive = item.id === activeId;
@@ -94,7 +94,7 @@ export function CenterTabs({
             <div
               key={item.id}
               className={cn(
-                "group relative flex items-center gap-2 px-3 py-2 text-sm border-r cursor-pointer transition-colors",
+                "group relative flex items-center gap-2 px-4 py-2.5 text-sm border-r cursor-pointer transition-colors",
                 "hover:bg-muted/50",
                 isActive && "bg-muted border-b-2 border-b-primary"
               )}
@@ -125,11 +125,11 @@ export function CenterTabs({
       </div>
 
       {canShowSwap && (
-        <div className="flex items-center gap-1 px-2">
+        <div className="flex items-center gap-1 px-3 py-1">
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 px-2 text-xs"
+            className="h-9 px-3 text-xs"
             onClick={() => {
               if (activeItem?.kind === 'tex' && onSwapToPdf) {
                 onSwapToPdf();

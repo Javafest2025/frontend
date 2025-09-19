@@ -1,8 +1,9 @@
 import type { APIResponse } from "@/types/project";
-import { getApiUrl } from "@/lib/config/api-config";
+import { getMicroserviceUrl } from "@/lib/config/api-config";
 import { authenticatedFetch } from "@/lib/api/user-service";
-// Import extraction service functions
-import { hasStructuredFacts, extractPaper } from "@/lib/api/extract";
+// Import extraction service functions from project-service
+import { hasStructuredFacts } from "@/lib/api/paper-extraction";
+import { triggerExtractionForPaper } from "@/lib/api/project-service/extraction";
 
 /**
  * Chat API Request/Response Types - Must match backend DTOs exactly
@@ -79,7 +80,7 @@ export const continueChatSession = async (
     };
 
     const response = await authenticatedFetch(
-      getApiUrl(`/api/papers/${paperId}/chat/sessions/${sessionId}/messages`),
+      getMicroserviceUrl("project-service", `/api/papers/${paperId}/chat/sessions/${sessionId}/messages`),
       {
         method: "POST",
         body: JSON.stringify(chatRequest),
@@ -127,7 +128,7 @@ export const chatWithPaper = async (
     };
 
     const response = await authenticatedFetch(
-      getApiUrl(`/api/papers/${paperId}/chat`),
+      getMicroserviceUrl("project-service", `/api/papers/${paperId}/chat`),
       {
         method: "POST",
         body: JSON.stringify(chatRequest),
@@ -159,7 +160,7 @@ export const getChatMessages = async (
 ): Promise<ChatMessage[]> => {
   try {
     const response = await authenticatedFetch(
-      getApiUrl(`/api/papers/chat/sessions/${sessionId}/messages`)
+      getMicroserviceUrl("project-service", `/api/papers/chat/sessions/${sessionId}/messages`)
     );
 
     if (!response.ok) {
@@ -202,7 +203,7 @@ export const createChatSession = async (
     };
 
     const response = await authenticatedFetch(
-      getApiUrl(`/api/papers/${paperId}/chat/sessions`),
+      getMicroserviceUrl("project-service", `/api/papers/${paperId}/chat/sessions`),
       {
         method: "POST",
         body: JSON.stringify(createSessionRequest),
@@ -215,7 +216,7 @@ export const createChatSession = async (
     }
 
     const sessionResult = await response.json();
-    
+
     // Convert ChatSession response to ChatResponse format for consistency
     const chatResponse: ChatResponse = {
       sessionId: sessionResult.sessionId,
@@ -224,7 +225,7 @@ export const createChatSession = async (
       title: sessionResult.title, // Include AI-generated title
       success: true,
     };
-    
+
     return chatResponse;
   } catch (error) {
     console.error("Create chat session error:", error);
@@ -240,7 +241,7 @@ export const createChatSession = async (
 export const getChatSessions = async (paperId: string): Promise<ChatSession[]> => {
   try {
     const response = await authenticatedFetch(
-      getApiUrl(`/api/papers/${paperId}/chat/sessions`)
+      getMicroserviceUrl("project-service", `/api/papers/${paperId}/chat/sessions`)
     );
 
     if (!response.ok) {
@@ -275,7 +276,7 @@ export const getChatSessionHistory = async (
 }> => {
   try {
     const response = await authenticatedFetch(
-      getApiUrl(`/api/papers/${paperId}/chat/sessions/${sessionId}`)
+      getMicroserviceUrl("project-service", `/api/papers/${paperId}/chat/sessions/${sessionId}`)
     );
 
     if (!response.ok) {
@@ -298,7 +299,7 @@ export const getChatSessionHistory = async (
  */
 export const checkChatHealth = async (): Promise<boolean> => {
   try {
-    const response = await fetch(getApiUrl("/api/papers/chat/health"));
+    const response = await fetch(getMicroserviceUrl("project-service", "/api/papers/chat/health"));
     const result = await response.json();
     return result.data?.status === "UP";
   } catch (error) {
@@ -317,10 +318,14 @@ export const checkPaperChatReadiness = async (paperId: string): Promise<{
   try {
     // Check if paper has structured facts (extraction completed)
     const hasStructuredData = await hasStructuredFacts(paperId);
-    
+
     if (hasStructuredData.hasStructuredData) {
       return { isReady: true, needsExtraction: false };
+    } else if (hasStructuredData.statusValue === 'PROCESSING') {
+      // Extraction is already in progress, don't trigger again
+      return { isReady: false, needsExtraction: false };
     } else {
+      // Not extracted and not processing, needs extraction
       return { isReady: false, needsExtraction: true };
     }
   } catch (error) {
@@ -336,7 +341,7 @@ export const checkPaperChatReadiness = async (paperId: string): Promise<{
 export const extractPaperForChat = async (paperId: string): Promise<void> => {
   try {
     console.log(`🔄 Starting extraction for paper: ${paperId}`);
-    await extractPaper(paperId);
+    await triggerExtractionForPaper(paperId, true);
     console.log(`✅ Extraction initiated for paper: ${paperId}`);
   } catch (error) {
     console.error(`❌ Failed to extract paper ${paperId}:`, error);
