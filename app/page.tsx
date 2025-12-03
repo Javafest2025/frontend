@@ -4,6 +4,7 @@ import { FeaturesSection } from "@/components/landing/features-section"
 import { WorkflowSection } from "@/components/landing/workflow-section"
 import { TestimonialsSection } from "@/components/landing/testimonials-section"
 import { IntegrationsSection } from "@/components/landing/integrations-section"
+import { PricingSection } from "@/components/landing/pricing-section"
 import { Footer } from "@/components/landing/footer"
 import VideoBackground from "@/components/background/VideoBackground"
 
@@ -18,6 +19,7 @@ export default function Home() {
           <WorkflowSection />
           <TestimonialsSection />
           <IntegrationsSection />
+          <PricingSection />
         </main>
         <Footer />
       </div>

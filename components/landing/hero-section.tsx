@@ -51,9 +51,9 @@ export function HeroSection() {
                         </div>
                     </motion.div>
 
-                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-foreground sm:mb-4 lg:mb-6">
-                        <span className="block">{text}</span>
-                        <span className="bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent animate-gradient">
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-foreground mb-4 sm:mb-6 lg:mb-8 px-2">
+                        <span className="block leading-tight">{text}</span>
+                        <span className="bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent animate-gradient block">
                             {text.length === fullText.length && <motion.span
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
@@ -76,7 +76,7 @@ export function HeroSection() {
                             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-background/60 via-background/40 to-background/60 -z-10" />
                             <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/5 via-transparent to-purple-500/5 -z-10" />
 
-                            <p className="relative z-10 font-sans font-medium text-base sm:text-lg md:text-xl lg:text-2xl leading-relaxed text-foreground drop-shadow-lg tracking-wide px-4 sm:px-6 md:px-10 py-3 sm:py-4 md:py-6">
+                            <p className="relative z-10 font-sans font-medium text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl leading-relaxed text-foreground drop-shadow-lg tracking-wide px-4 sm:px-6 md:px-8 lg:px-10 py-4 sm:py-5 md:py-6">
                                 Transform how you <span className="font-semibold text-primary/90">discover</span>, <span className="font-semibold text-purple-400/90">analyze</span>, and <span className="font-semibold text-blue-400/90">synthesize</span> academic papers with our intelligent AI agents. From automated paper retrieval to gap analysis and contextual Q&amp;A.
                             </p>
                         </div>
@@ -118,7 +118,7 @@ export function HeroSection() {
                         initial={{ opacity: 0, y: 40 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 1.4, duration: 0.8 }}
-                        className="mt-12 sm:mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-2xl mx-auto"
+                        className="mt-10 sm:mt-12 md:mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 md:gap-6 max-w-2xl mx-auto px-4"
                     >
                         {[
                             { value: "50K+", label: "Papers Analyzed", icon: <svg className='w-4 h-4 sm:w-5 sm:h-5 text-primary' fill='none' stroke='currentColor' strokeWidth='2' viewBox='0 0 24 24'><path d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20' /><path d='M6 17V5a2 2 0 0 1 2-2h7.5a2 2 0 0 1 2 2v12' /></svg> },
@@ -132,7 +132,7 @@ export function HeroSection() {
                                     boxShadow: "0 8px 40px 0 rgba(99,102,241,0.25)",
                                     borderColor: "#6366f1"
                                 }}
-                                className="relative text-center p-4 sm:p-6 rounded-2xl transition-all duration-300 group overflow-hidden"
+                                className="relative text-center p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl transition-all duration-300 group overflow-hidden"
                             >
                                 {/* Enhanced background with multiple layers for better contrast */}
                                 <div className="absolute inset-0 rounded-2xl bg-background/80 backdrop-blur-xl border-2 border-primary/30 shadow-2xl shadow-primary/20 -z-10" />
@@ -142,10 +142,10 @@ export function HeroSection() {
                                 <span className="relative z-10 flex justify-center mb-2 opacity-80 group-hover:opacity-100 transition-opacity duration-300">
                                     {metric.icon}
                                 </span>
-                                <div className="relative z-10 text-2xl sm:text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-primary via-blue-400 to-purple-500 bg-clip-text text-transparent drop-shadow-lg tracking-tight mb-1">
+                                <div className="relative z-10 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold bg-gradient-to-r from-primary via-blue-400 to-purple-500 bg-clip-text text-transparent drop-shadow-lg tracking-tight mb-1">
                                     {metric.value}
                                 </div>
-                                <div className="relative z-10 text-sm sm:text-base lg:text-lg font-medium text-muted-foreground tracking-wide">
+                                <div className="relative z-10 text-xs sm:text-sm md:text-base lg:text-lg font-medium text-muted-foreground tracking-wide">
                                     {metric.label}
                                 </div>
                             </motion.div>

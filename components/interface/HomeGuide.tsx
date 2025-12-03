@@ -1,33 +1,28 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
 import { getUserData } from "@/lib/api/user-service"
+import { ProjectCreateDialog } from "@/components/interface/ProjectCreateDialog"
 import {
     BookOpen,
-    Plus,
-    Search,
-    Upload,
-    FileText,
-    MessageSquare,
     Brain,
-    Sparkles,
-    Play,
-    Library,
-    Eye,
-    Target,
-    Lightbulb,
-    Users,
-    Calendar,
-    CheckCircle,
-    Star,
+    MessageSquare,
+    Download,
     Edit3,
     Quote,
     Clipboard,
-    Download
+    Users,
+    Calendar,
+    Target,
+    Sparkles,
+    CheckCircle,
+    Star,
+    FolderPlus,
+    Library
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 
@@ -71,129 +66,6 @@ interface User {
     email?: string
     fullName?: string
 }
-
-const workflowSteps = [
-    {
-        id: 1,
-        title: "Go to Projects",
-        description: "Navigate to the Projects section to manage your research",
-        icon: BookOpen,
-        color: "text-blue-500",
-        bgColor: "bg-blue-500/10"
-    },
-    {
-        id: 2,
-        title: "Create Project",
-        description: "Start a new research project to organize your work",
-        icon: Plus,
-        color: "text-green-500",
-        bgColor: "bg-green-500/10"
-    },
-    {
-        id: 3,
-        title: "Open Project",
-        description: "Access your project workspace and tools",
-        icon: Play,
-        color: "text-purple-500",
-        bgColor: "bg-purple-500/10"
-    },
-    {
-        id: 4,
-        title: "Collect Papers",
-        description: "Search web or upload PDFs to add papers to your library",
-        icon: Search,
-        color: "text-pink-500",
-        bgColor: "bg-pink-500/10"
-    },
-    {
-        id: 5,
-        title: "Add Papers",
-        description: "Search web or upload PDFs to add papers to your library",
-        icon: Upload,
-        color: "text-orange-500",
-        bgColor: "bg-orange-500/10"
-    },
-    {
-        id: 6,
-        title: "Go to Library",
-        description: "Access the project library to manage papers",
-        icon: Library,
-        color: "text-indigo-500",
-        bgColor: "bg-indigo-500/10"
-    },
-    {
-        id: 7,
-        title: "Open Paper",
-        description: "Select and open a paper for detailed analysis",
-        icon: FileText,
-        color: "text-cyan-500",
-        bgColor: "bg-cyan-500/10"
-    },
-    {
-        id: 8,
-        title: "Summarize",
-        description: "Use AI to generate intelligent summaries and insights",
-        icon: Brain,
-        color: "text-emerald-500",
-        bgColor: "bg-emerald-500/10"
-    },
-    {
-        id: 9,
-        title: "View PDF",
-        description: "Read and annotate the full PDF document",
-        icon: Eye,
-        color: "text-amber-500",
-        bgColor: "bg-amber-500/10"
-    },
-    {
-        id: 10,
-        title: "Chat",
-        description: "Ask questions and get intelligent answers from your papers",
-        icon: MessageSquare,
-        color: "text-red-500",
-        bgColor: "bg-red-500/10"
-    },
-    {
-        id: 11,
-        title: "Analyze Gaps",
-        description: "Identify research gaps and opportunities in your field",
-        icon: Target,
-        color: "text-purple-500",
-        bgColor: "bg-purple-500/10"
-    },
-    {
-        id: 12,
-        title: "Get Topic Suggestions",
-        description: "AI-powered research topic recommendations based on your papers",
-        icon: Lightbulb,
-        color: "text-yellow-500",
-        bgColor: "bg-yellow-500/10"
-    },
-    {
-        id: 13,
-        title: "Write Papers",
-        description: "AI-integrated LaTeX editor for academic writing",
-        icon: FileText,
-        color: "text-blue-500",
-        bgColor: "bg-blue-500/10"
-    },
-    {
-        id: 14,
-        title: "Manage Todo",
-        description: "Organize research tasks and reading lists",
-        icon: CheckCircle,
-        color: "text-green-500",
-        bgColor: "bg-green-500/10"
-    },
-    {
-        id: 15,
-        title: "Notes & Annotations",
-        description: "Create and manage research notes and annotations",
-        icon: Star,
-        color: "text-pink-500",
-        bgColor: "bg-pink-500/10"
-    }
-]
 
 const aiFeatures = [
     {
@@ -287,20 +159,12 @@ const researchFeatures = [
 
 export function HomeGuide() {
     const [user, setUser] = useState<User | null>(null)
-    const [currentStep, setCurrentStep] = useState(0)
+    const [showCreateDialog, setShowCreateDialog] = useState(false)
+    const router = useRouter()
 
     useEffect(() => {
         const userData = getUserData()
         setUser(userData)
-    }, [])
-
-    // Step illumination animation effect
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentStep((prev) => (prev + 1) % 16) // 0-15, then back to 0
-        }, 2000) // Move to next step every 2000ms (much slower)
-
-        return () => clearInterval(interval)
     }, [])
 
     const getGreeting = () => {
@@ -310,8 +174,21 @@ export function HomeGuide() {
         return "Scholar"
     }
 
+    const handleCreateProject = () => {
+        setShowCreateDialog(true)
+    }
+
+    const handleBrowseProjects = () => {
+        router.push('/interface/projects')
+    }
+
+    const handleProjectCreated = () => {
+        setShowCreateDialog(false)
+        router.push('/interface/projects')
+    }
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 relative overflow-hidden">
+        <div className="w-full bg-gradient-to-br from-background via-background/95 to-primary/5 relative">
             <style jsx>{`
                 @keyframes shimmer {
                     0% { transform: translateX(-100%); }
@@ -346,99 +223,101 @@ export function HomeGuide() {
                     </p>
                 </motion.div>
 
-                {/* Research Workflow */}
+                {/* Quick Action Buttons */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.2 }}
-                    className="mb-8 sm:mb-12"
+                    className="mb-12 sm:mb-16"
                 >
                     <div className="flex items-center justify-center mb-6 sm:mb-8">
                         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-primary/30 to-primary/30" />
                         <div className="flex items-center gap-3 mx-4">
                             <div className="w-2 h-2 bg-primary rounded-full" />
-                            <h2 className="text-xl sm:text-2xl font-semibold text-center">Research Workflow</h2>
+                            <h2 className="text-xl sm:text-2xl font-semibold text-center">Get Started</h2>
                             <div className="w-2 h-2 bg-primary rounded-full" />
                         </div>
                         <div className="flex-1 h-px bg-gradient-to-l from-transparent via-primary/30 to-primary/30" />
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 relative">
-
-                        {workflowSteps.map((step, index) => (
-                            <motion.div
-                                key={step.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.6, delay: 0.3 + index * 0.1 }}
-                                className="relative"
-                            >
-                                <Card
-                                    className={cn(
-                                        "bg-background/40 backdrop-blur-xl border border-primary/10 shadow-lg hover:shadow-xl transition-all duration-500 group h-full relative overflow-hidden",
-                                        currentStep === step.id && "border-primary/50 shadow-primary/20 bg-background/60"
-                                    )}
-                                >
-                                    {/* Electric current overlay */}
-                                    {currentStep === step.id && (
-                                        <motion.div
-                                            initial={{ opacity: 0, scale: 0.8 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.8 }}
-                                            className="absolute inset-0 rounded-lg"
-                                            style={{
-                                                background: `linear-gradient(45deg, transparent 30%, ${getShimmerColor(step.color)} 50%, transparent 70%)`,
-                                                animation: "shimmer 1.5s ease-in-out infinite"
-                                            }}
-                                        />
-                                    )}
-
-                                    <CardContent className="p-4 sm:p-6 relative z-10">
-                                        <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-                                            <div className={cn(
-                                                "w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center transition-all duration-500",
-                                                step.bgColor,
-                                                currentStep === step.id && "scale-110 shadow-lg"
-                                            )}
-                                                style={currentStep === step.id ? {
-                                                    boxShadow: `0 10px 25px -5px ${getShimmerColor(step.color).replace('0.2', '0.3')}`
-                                                } : {}}
-                                            >
-                                                <step.icon className={cn(
-                                                    "h-5 w-5 sm:h-6 sm:w-6 transition-all duration-500",
-                                                    step.color,
-                                                    currentStep === step.id && "scale-110 drop-shadow-lg"
-                                                )} />
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className={cn(
-                                                            "text-xs transition-all duration-500",
-                                                            currentStep === step.id && "bg-primary/20 border-primary/50 text-primary"
-                                                        )}
-                                                    >
-                                                        Step {step.id}
-                                                    </Badge>
-                                                </div>
-                                                <h3 className={cn(
-                                                    "text-base sm:text-lg font-semibold group-hover:text-primary transition-all duration-500",
-                                                    currentStep === step.id && "text-primary drop-shadow-sm"
-                                                )}>
-                                                    {step.title}
-                                                </h3>
-                                            </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto">
+                        {/* Create New Project Button */}
+                        <motion.button
+                            onClick={handleCreateProject}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6, delay: 0.3 }}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="relative group"
+                        >
+                            <Card className="bg-gradient-to-br from-blue-500/20 via-cyan-500/15 to-blue-600/20 backdrop-blur-xl border border-blue-400/40 hover:border-blue-400/60 shadow-lg hover:shadow-2xl hover:shadow-blue-500/30 transition-all duration-500 h-full cursor-pointer overflow-hidden">
+                                {/* Shimmer effect on hover */}
+                                <div 
+                                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                                    style={{
+                                        background: `linear-gradient(45deg, transparent 30%, rgba(96, 165, 250, 0.3) 50%, transparent 70%)`,
+                                        animation: "shimmer 1.5s ease-in-out infinite"
+                                    }}
+                                />
+                                
+                                <CardContent className="p-6 sm:p-8 relative z-10">
+                                    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-blue-500/30 to-cyan-500/30 flex items-center justify-center group-hover:scale-110 transition-all duration-500 group-hover:shadow-xl shadow-blue-500/40"
+                                        >
+                                            <FolderPlus className="h-8 w-8 sm:h-10 sm:w-10 text-blue-400 group-hover:text-blue-300 group-hover:scale-110 transition-all duration-500" />
                                         </div>
-                                        <p className={cn(
-                                            "text-xs sm:text-sm text-muted-foreground transition-all duration-500",
-                                            currentStep === step.id && "text-foreground/80"
-                                        )}>
-                                            {step.description}
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        ))}
+                                        <div className="flex-1 text-center sm:text-left">
+                                            <h3 className="text-xl sm:text-2xl font-bold mb-2 text-blue-100 group-hover:text-blue-50 transition-colors duration-300">
+                                                Create New Project
+                                            </h3>
+                                            <p className="text-sm sm:text-base text-blue-200/80 group-hover:text-blue-100/90 transition-colors duration-300">
+                                                Start a new research project and organize your academic work
+                                            </p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.button>
+
+                        {/* Browse Projects Button */}
+                        <motion.button
+                            onClick={handleBrowseProjects}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6, delay: 0.4 }}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="relative group"
+                        >
+                            <Card className="bg-gradient-to-br from-purple-500/20 via-indigo-500/15 to-purple-600/20 backdrop-blur-xl border border-purple-400/40 hover:border-purple-400/60 shadow-lg hover:shadow-2xl hover:shadow-purple-500/30 transition-all duration-500 h-full cursor-pointer overflow-hidden">
+                                {/* Shimmer effect on hover */}
+                                <div 
+                                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                                    style={{
+                                        background: `linear-gradient(45deg, transparent 30%, rgba(167, 139, 250, 0.3) 50%, transparent 70%)`,
+                                        animation: "shimmer 1.5s ease-in-out infinite"
+                                    }}
+                                />
+                                
+                                <CardContent className="p-6 sm:p-8 relative z-10">
+                                    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-purple-500/30 to-indigo-500/30 flex items-center justify-center group-hover:scale-110 transition-all duration-500 group-hover:shadow-xl shadow-purple-500/40"
+                                        >
+                                            <Library className="h-8 w-8 sm:h-10 sm:w-10 text-purple-400 group-hover:text-purple-300 group-hover:scale-110 transition-all duration-500" />
+                                        </div>
+                                        <div className="flex-1 text-center sm:text-left">
+                                            <h3 className="text-xl sm:text-2xl font-bold mb-2 text-purple-100 group-hover:text-purple-50 transition-colors duration-300">
+                                                Browse Projects
+                                            </h3>
+                                            <p className="text-sm sm:text-base text-purple-200/80 group-hover:text-purple-100/90 transition-colors duration-300">
+                                                View and manage all your existing research projects
+                                            </p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.button>
                     </div>
                 </motion.div>
 
@@ -566,9 +445,14 @@ export function HomeGuide() {
                         ))}
                     </div>
                 </motion.div>
-
-
             </div>
+
+            {/* Create Project Dialog */}
+            <ProjectCreateDialog 
+                isOpen={showCreateDialog}
+                onClose={() => setShowCreateDialog(false)}
+                onProjectCreated={handleProjectCreated}
+            />
         </div>
     )
-} 
+}

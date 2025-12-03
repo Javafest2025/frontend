@@ -41,7 +41,7 @@ import {
     RefreshCw
 } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
-import { getUserData, isAuthenticated } from "@/lib/api/user-service/auth"
+import { getUserData, isAuthenticated, logout } from "@/lib/api/user-service/auth"
 import { accountApi } from "@/lib/api/user-service"
 import { scholarbotApi } from "@/lib/api/project-service/scholarbot"
 import { notificationsApi } from "@/lib/api/notification-service/notifications"
@@ -335,9 +335,19 @@ export function Header() {
         }
     }
 
-    const handleLogout = () => {
-        // TODO: Implement logout functionality
-        console.log("Logging out...")
+    const handleLogout = async () => {
+        try {
+            await logout()
+        } catch (error) {
+            console.error("Logout error:", error)
+            // Even if the API call fails, still clear local data and redirect
+            import("@/lib/api/user-service/auth").then(({ clearAuthData }) => {
+                clearAuthData()
+                if (typeof window !== "undefined") {
+                    window.location.href = "/login"
+                }
+            })
+        }
     }
 
     const toggleTheme = () => {
@@ -422,9 +432,9 @@ export function Header() {
                 transition={{ duration: 0.5, ease: "easeOut" }}
                 className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-lg"
             >
-                <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+                <div className="container mx-auto px-2 sm:px-4 h-16 flex items-center justify-between gap-2">
                     {/* Left Section - Breadcrumbs */}
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 min-w-0 flex-shrink">
                         <nav className="flex items-center space-x-1 text-sm">
                             {breadcrumbs.map((crumb, index) => (
                                 <div key={index} className="flex items-center">
@@ -459,8 +469,8 @@ export function Header() {
                     </div>
 
                     {/* Center Section - Global Search */}
-                    <div className="flex-1 max-w-2xl mx-8">
-                        <form onSubmit={handleSearch} className="relative">
+                    <div className="hidden md:flex flex-1 max-w-2xl mx-2 lg:mx-8">
+                        <form onSubmit={handleSearch} className="relative w-full">
                             <EnhancedTooltip content="Global search - Find projects, papers, todos, and more">
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -490,176 +500,8 @@ export function Header() {
                         </form>
                     </div>
 
-                    {/* Right Section - Quick Actions, Notifications, Profile */}
-                    <div className="flex items-center space-x-3">
-                        {/* Quick Actions */}
-                        <DropdownMenu>
-                            <EnhancedTooltip content="Quick Actions - Create new items">
-                                <DropdownMenuTrigger asChild>
-                                    <Button
-                                        size="sm"
-                                        className="group relative overflow-hidden h-9 w-9 p-0 text-accent-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-                                        style={{
-                                            background: `
-                                                 conic-gradient(
-                                                     from 45deg at 50% 50%,
-                                                     hsl(var(--accent)) 0deg,
-                                                     hsl(var(--accent) / 0.7) 90deg,
-                                                     hsl(var(--accent)) 180deg,
-                                                     hsl(var(--accent) / 0.7) 270deg,
-                                                     hsl(var(--accent)) 360deg
-                                                 )
-                                             `,
-                                            boxShadow: `
-                                                 0 0 20px hsl(var(--accent) / 0.3),
-                                                 0 0 40px hsl(var(--accent) / 0.2),
-                                                 0 0 0 1px hsl(var(--accent) / 0.4)
-                                             `
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.background = `
-                                                 conic-gradient(
-                                                     from 45deg at 50% 50%,
-                                                     hsl(var(--accent)) 0deg,
-                                                     hsl(var(--accent) / 0.8) 90deg,
-                                                     hsl(var(--accent)) 180deg,
-                                                     hsl(var(--accent) / 0.8) 270deg,
-                                                     hsl(var(--accent)) 360deg
-                                                 )
-                                             `;
-                                            e.currentTarget.style.boxShadow = `
-                                                    0 0 30px hsl(var(--accent) / 0.5),
-                                                    0 0 60px hsl(var(--accent) / 0.3),
-                                                    0 0 0 1px hsl(var(--accent) / 0.6)
-                                                `;
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.background = `
-                                                 conic-gradient(
-                                                     from 45deg at 50% 50%,
-                                                     hsl(var(--accent)) 0deg,
-                                                     hsl(var(--accent) / 0.7) 90deg,
-                                                     hsl(var(--accent)) 180deg,
-                                                     hsl(var(--accent) / 0.7) 270deg,
-                                                     hsl(var(--accent)) 360deg
-                                                 )
-                                             `;
-                                            e.currentTarget.style.boxShadow = `
-                                                    0 0 20px hsl(var(--accent) / 0.3),
-                                                    0 0 40px hsl(var(--accent) / 0.2),
-                                                    0 0 0 1px hsl(var(--accent) / 0.4)
-                                                `;
-                                        }}
-                                    >
-                                        <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                            </EnhancedTooltip>
-                            <DropdownMenuContent align="end" className="w-56 bg-background/80 backdrop-blur-xl border-r border-primary/30 overflow-hidden"
-                                style={{
-                                    boxShadow: `
-                                    inset -2px 0 0 0 hsl(var(--accent-1) / 0.2),
-                                    4px 0 20px hsl(var(--accent-1) / 0.1),
-                                    8px 0 40px hsl(var(--accent-2) / 0.05),
-                                    0 0 0 1px hsl(var(--accent-1) / 0.05)
-                                `
-                                }}>
-                                {/* Background Effects - Matching sidebar */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-background/20 via-background/10 to-primary/5" />
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/5 to-transparent rounded-full blur-2xl animate-pulse" />
-                                <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-accent/5 to-transparent rounded-full blur-2xl animate-pulse" />
-
-                                <div className="relative z-10">
-                                    {/* Header */}
-                                    <div className="flex h-16 items-center justify-between px-4 border-b border-primary/30 relative z-10"
-                                        style={{
-                                            boxShadow: `
-                                            0 2px 0 0 hsl(var(--accent-1) / 0.2),
-                                            0 4px 15px hsl(var(--accent-1) / 0.1),
-                                            0 0 0 1px hsl(var(--accent-1) / 0.05)
-                                        `
-                                        }}>
-                                        <div className="flex items-center gap-3">
-                                            <div className="relative p-1.5 rounded-lg bg-gradient-to-r from-primary/30 to-accent/20">
-                                                <Plus className="h-4 w-4 text-primary drop-shadow-glow" />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-lg text-gradient-primary">Quick Actions</span>
-                                                <span className="text-xs text-gradient-accent font-medium tracking-wide">Create new items</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Menu Items */}
-                                    <div className="p-3 space-y-2 relative z-10">
-                                        <DropdownMenuItem
-                                            onClick={() => handleQuickAction('project')}
-                                            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border-2 w-full text-left hover:bg-primary/10 hover:border-primary/50 text-foreground/80 hover:text-foreground border-primary/20 bg-background/20"
-                                            style={{
-                                                boxShadow: `
-                                                0 0 10px hsl(var(--accent-1) / 0.1),
-                                                0 2px 8px rgba(0, 0, 0, 0.05),
-                                                0 0 0 1px hsl(var(--accent-1) / 0.05)
-                                            `
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.boxShadow = `
-                                                0 0 20px hsl(var(--accent-1) / 0.2),
-                                                0 0 40px hsl(var(--accent-2) / 0.1),
-                                                0 4px 20px hsl(var(--accent-1) / 0.15),
-                                                0 0 0 1px hsl(var(--accent-1) / 0.15)
-                                            `
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.boxShadow = `
-                                                0 0 10px hsl(var(--accent-1) / 0.1),
-                                                0 2px 8px rgba(0, 0, 0, 0.05),
-                                                0 0 0 1px hsl(var(--accent-1) / 0.05)
-                                            `
-                                            }}
-                                        >
-                                            <div className="relative p-1.5 rounded-lg transition-all duration-300 group-hover:bg-primary/10 group-hover:scale-110 group-hover:rotate-12">
-                                                <FileText className="h-4 w-4 text-foreground/70 group-hover:text-primary transition-all duration-300" />
-                                            </div>
-                                            <span className="truncate font-medium">New Project</span>
-                                        </DropdownMenuItem>
-
-                                        <DropdownMenuItem
-                                            onClick={() => handleQuickAction('todo')}
-                                            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative backdrop-blur-sm border-2 w-full text-left hover:bg-primary/10 hover:border-primary/50 text-foreground/80 hover:text-foreground border-primary/20 bg-background/20"
-                                            style={{
-                                                boxShadow: `
-                                                0 0 10px hsl(var(--accent-1) / 0.1),
-                                                0 2px 8px rgba(0, 0, 0, 0.05),
-                                                0 0 0 1px hsl(var(--accent-1) / 0.05)
-                                            `
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.boxShadow = `
-                                                0 0 20px hsl(var(--accent-1) / 0.2),
-                                                0 0 40px hsl(var(--accent-2) / 0.1),
-                                                0 4px 20px hsl(var(--accent-1) / 0.15),
-                                                0 0 0 1px hsl(var(--accent-1) / 0.15)
-                                            `
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.boxShadow = `
-                                                0 0 10px hsl(var(--accent-1) / 0.1),
-                                                0 2px 8px rgba(0, 0, 0, 0.05),
-                                                0 0 0 1px hsl(var(--accent-1) / 0.05)
-                                            `
-                                            }}
-                                        >
-                                            <div className="relative p-1.5 rounded-lg transition-all duration-300 group-hover:bg-primary/10 group-hover:scale-110 group-hover:rotate-12">
-                                                <CheckSquare className="h-4 w-4 text-foreground/70 group-hover:text-primary transition-all duration-300" />
-                                            </div>
-                                            <span className="truncate font-medium">New ToDo</span>
-                                        </DropdownMenuItem>
-                                    </div>
-                                </div>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
+                    {/* Right Section - Notifications, ScholarBot, Profile (Quick Actions removed) */}
+                    <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3 flex-shrink-0">
                         {/* Notifications */}
                         <EnhancedTooltip content={`Notifications${notificationCount > 0 ? ` (${notificationCount} new)` : ''}`}>
                             <Button

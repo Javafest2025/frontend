@@ -7,7 +7,7 @@ services:
         NEXT_PUBLIC_ENV: docker
         NEXT_PUBLIC_API_BASE_URL: http://70.153.18.56:8989
         NEXT_PUBLIC_DEV_API_URL: http://localhost:8989
-        NEXT_PUBLIC_DOCKER_BACKEND_URL: http://scholar-api-gateway:8989      
+        NEXT_PUBLIC_DOCKER_BACKEND_URL: http://localhost:8989      
     container_name: scholar-frontend
 
     # 🏷️ Add metadata labels for cleanup & observability
@@ -17,14 +17,14 @@ services:
       version: "0.0.1-SNAPSHOT"
       description: "Next.js Frontend for ScholarAI"
     env_file:
-      - /opt/scholarai/envs/frontend.env
+      - .env
     ports:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_ENV=docker
       - NEXT_PUBLIC_API_BASE_URL=http://70.153.18.56:8989
       - NEXT_PUBLIC_DEV_API_URL=http://localhost:8989
-      - NEXT_PUBLIC_DOCKER_BACKEND_URL=http://scholar-api-gateway:8989
+      - NEXT_PUBLIC_DOCKER_BACKEND_URL=http://localhost:8989
     networks:
       - scholarai-network
     restart: unless-stopped

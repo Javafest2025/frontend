@@ -125,12 +125,12 @@ export default function SocialLogin({ className = '', onLoginSuccess, onLoginErr
             {/* Hidden Google button */}
             <div ref={googleButtonRef} className="hidden" />
 
-            <div className="flex flex-row items-center justify-center gap-x-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-x-4 w-full px-4 sm:px-0">
                 {/* Custom Google Button */}
                 <button
                     onClick={handleCustomGoogleLogin}
                     aria-label="Continue with Google"
-                    className="group relative w-[190px] h-[46px] flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 border border-primary/40 shadow-lg shadow-primary/25 hover:shadow-xl text-white transition-all duration-300 overflow-hidden"
+                    className="group relative w-full sm:w-[190px] max-w-[280px] h-[46px] sm:h-[46px] flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 border border-primary/40 shadow-lg shadow-primary/25 hover:shadow-xl text-white transition-all duration-300 overflow-hidden"
                 >
                     {/* Subtle hover gradient */}
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -146,7 +146,7 @@ export default function SocialLogin({ className = '', onLoginSuccess, onLoginErr
                 <button
                     onClick={handleGithubLogin}
                     aria-label="Continue with GitHub"
-                    className="group relative w-[190px] h-[46px] flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 border border-primary/40 shadow-lg shadow-primary/25 hover:shadow-xl text-white transition-all duration-300 overflow-hidden"
+                    className="group relative w-full sm:w-[190px] max-w-[280px] h-[46px] sm:h-[46px] flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 border border-primary/40 shadow-lg shadow-primary/25 hover:shadow-xl text-white transition-all duration-300 overflow-hidden"
                 >
                     {/* Subtle hover gradient */}
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

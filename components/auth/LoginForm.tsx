@@ -220,28 +220,28 @@ export function LoginForm() {
     /*  JSX                                                      */
     /* ────────────────────────────────────────────────────────── */
     return (
-        <div className="w-full min-h-screen flex flex-col px-4 font-['Segoe_UI']">
+        <div className="w-full min-h-screen flex flex-col px-4 sm:px-6 md:px-8 font-['Segoe_UI']">
             {/* Logo in top left corner */}
-            <div className="absolute top-6 left-6 z-10">
+            <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10">
                 <button
                     type="button"
-                    className="flex items-center space-x-3 cursor-pointer hover:scale-105 transition-transform duration-200 bg-transparent border-none p-0"
+                    className="flex items-center space-x-2 sm:space-x-3 cursor-pointer hover:scale-105 transition-transform duration-200 bg-transparent border-none p-0"
                     onClick={() => navigateWithLoading("/")}
                     aria-label="Go to home page"
                 >
                     <div className="relative">
-                        <Brain className="h-8 w-8 text-primary" />
-                        <div className="absolute inset-0 h-8 w-8 bg-primary/20 rounded-full blur-md animate-pulse" />
+                        <Brain className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+                        <div className="absolute inset-0 h-6 w-6 sm:h-8 sm:w-8 bg-primary/20 rounded-full blur-md animate-pulse" />
                     </div>
-                    <span className="text-xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                    <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
                         ScholarAI
                     </span>
                 </button>
             </div>
 
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center py-8 sm:py-12">
                 <div className="max-w-[450px] w-full">
-                    <h1 className="text-3xl font-extrabold text-center mb-8 text-foreground drop-shadow-lg bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                    <h1 className="text-2xl sm:text-3xl font-extrabold text-center mb-6 sm:mb-8 text-foreground drop-shadow-lg bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent px-4">
                         {AUTH_CONSTANTS.loginTitle}
                     </h1>
 
@@ -251,7 +251,7 @@ export function LoginForm() {
 
                     {/* ----------  ENHANCED GLASS CARD ---------- */}
                     <div
-                        className="rounded-2xl p-10 w-[450px] min-h-[500px] flex flex-col shadow-2xl backdrop-blur-2xl border-2 border-primary/50 bg-gradient-to-br from-background/80 via-background/70 to-background/60 hover:shadow-primary/40 transition-all duration-300 relative overflow-hidden"
+                        className="rounded-2xl p-6 sm:p-8 md:p-10 w-full sm:w-[450px] min-h-[450px] sm:min-h-[500px] flex flex-col shadow-2xl backdrop-blur-2xl border-2 border-primary/50 bg-gradient-to-br from-background/80 via-background/70 to-background/60 hover:shadow-primary/40 transition-all duration-300 relative overflow-hidden"
                     >
                         {/* Enhanced background overlay for better contrast */}
                         <div className="absolute inset-0 bg-gradient-to-br from-background/40 via-background/30 to-background/20 rounded-2xl"></div>
@@ -262,7 +262,7 @@ export function LoginForm() {
                         {/* Content with higher z-index */}
                         <div className="relative z-10">
                             <form onSubmit={handleSubmit} className="flex flex-col flex-grow">
-                                <div className="space-y-5">
+                                <div className="space-y-4 sm:space-y-5">
                                     <InputField
                                         id="email"
                                         name="email"
@@ -288,7 +288,7 @@ export function LoginForm() {
                                         toggleShowPassword={toggleShowPassword}
                                     />
 
-                                    <div className="flex items-center justify-between text-base text-foreground mb-8">
+                                    <div className="flex items-center justify-between text-sm sm:text-base text-foreground mb-6 sm:mb-8">
                                         <Checkbox
                                             id="rememberMe"
                                             name="rememberMe"
@@ -299,7 +299,7 @@ export function LoginForm() {
 
                                         <Link
                                             href="/forgot-password"
-                                            className="text-foreground hover:text-primary/80 transition-colors font-['Segoe_UI'] underline underline-offset-2 text-sm"
+                                            className="text-foreground hover:text-primary/80 transition-colors font-['Segoe_UI'] underline underline-offset-2 text-xs sm:text-sm whitespace-nowrap"
                                         >
                                             {AUTH_CONSTANTS.forgotPassword}
                                         </Link>
@@ -311,7 +311,7 @@ export function LoginForm() {
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full h-[70px] px-4 rounded-2xl font-['Segoe_UI'] font-semibold text-lg text-white shadow-lg shadow-primary/25 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 border border-primary/40 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center mt-8"
+                                    className="w-full h-[56px] sm:h-[64px] md:h-[70px] px-4 rounded-xl sm:rounded-2xl font-['Segoe_UI'] font-semibold text-base sm:text-lg text-white shadow-lg shadow-primary/25 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 border border-primary/40 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center mt-6 sm:mt-8"
                                 >
                                     {isLoading ? (
                                         <>
@@ -345,16 +345,16 @@ export function LoginForm() {
                         </div>
                     </div>
 
-                    <div className="mt-12 text-center">
-                        <div className="flex items-center justify-center gap-3 mb-8">
-                            <div className="h-[1px] bg-foreground/30 w-40"></div>
-                            <span className="text-foreground text-base font-['Segoe_UI'] whitespace-nowrap">or connect with</span>
-                            <div className="h-[1px] bg-foreground/30 w-40"></div>
+                    <div className="mt-8 sm:mt-12 text-center">
+                        <div className="flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-8">
+                            <div className="h-[1px] bg-foreground/30 flex-1 max-w-[100px] sm:max-w-[160px]"></div>
+                            <span className="text-foreground text-sm sm:text-base font-['Segoe_UI'] whitespace-nowrap px-2">or connect with</span>
+                            <div className="h-[1px] bg-foreground/30 flex-1 max-w-[100px] sm:max-w-[160px]"></div>
                         </div>
                         <SocialLogin onLoginSuccess={handleSocialLoginSuccess} onLoginError={handleSocialLoginError} />
                     </div>
 
-                    <p className="text-center text-foreground text-base mt-8 font-['Segoe_UI']">
+                    <p className="text-center text-foreground text-sm sm:text-base mt-6 sm:mt-8 font-['Segoe_UI'] px-4">
                         {AUTH_CONSTANTS.noAccount}{" "}
                         <Link
                             href="/signup"

@@ -104,7 +104,7 @@ export function WorkflowSection() {
     }
 
     return (
-        <section id="workflow" className="py-24 bg-gradient-to-b from-background to-muted/30" ref={ref}>
+        <section id="workflow" className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-b from-background to-muted/30" ref={ref}>
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
@@ -116,11 +116,11 @@ export function WorkflowSection() {
                         <Sparkles className="h-6 w-6 text-primary mr-2" />
                         <span className="text-sm font-medium text-primary uppercase tracking-wider">Workflow</span>
                     </div>
-                    <h2 className="text-4xl font-bold text-foreground sm:text-5xl mb-6">
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 sm:mb-6 px-4">
                         How ScholarAI
                         <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent"> Works</span>
                     </h2>
-                    <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed mb-8">
+                    <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed mb-6 sm:mb-8 px-4">
                         A seamless workflow powered by specialized AI agents that work together
                         to accelerate your research process from start to finish.
                     </p>
@@ -150,7 +150,7 @@ export function WorkflowSection() {
                             <div className="absolute top-16 left-0 w-full h-1 bg-border rounded-full" />
 
                             {/* Steps */}
-                            <div className="grid grid-cols-4 gap-8">
+                            <div className="grid grid-cols-4 gap-4 md:gap-6 lg:gap-8">
                                 {workflowSteps.map((step, index) => {
                                     const Icon = step.icon
                                     const isActive = activeStep === step.id

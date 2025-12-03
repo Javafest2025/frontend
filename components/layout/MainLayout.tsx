@@ -19,7 +19,8 @@ type Props = {
 
 export function MainLayout({ children }: Props) {
   const pathname = usePathname()
-  const isProjectRoute = pathname.includes('/projects/')
+  const isProjectRoute = pathname.includes('/projects/') || pathname === '/interface/projects'
+  const isHomeRoute = pathname === '/interface/home'
 
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -33,8 +34,8 @@ export function MainLayout({ children }: Props) {
   return (
     <TooltipProvider delayDuration={500} skipDelayDuration={300}>
       <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
-        {/* Left Sidebar - Hidden on mobile, collapsible on tablet, and hidden for project routes */}
-        {!isMobile && !isProjectRoute && (
+        {/* Left Sidebar - Hidden on mobile, collapsible on tablet, hidden for project routes, and hidden for home route */}
+        {!isMobile && !isProjectRoute && !isHomeRoute && (
           <Sidebar
             collapsed={shouldCollapseSidebar ? true : sidebarCollapsed}
             onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -47,16 +48,16 @@ export function MainLayout({ children }: Props) {
           />
         )}
 
-        {/* Mobile Sidebar Overlay - Only for non-project routes */}
-        {isMobile && !isProjectRoute && sidebarOpen && (
+        {/* Mobile Sidebar Overlay - Only for non-project and non-home routes */}
+        {isMobile && !isProjectRoute && !isHomeRoute && sidebarOpen && (
           <div
             className="fixed inset-0 bg-black/50 z-40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
-        {/* Mobile Sidebar - Only for non-project routes */}
-        {isMobile && !isProjectRoute && (
+        {/* Mobile Sidebar - Only for non-project and non-home routes */}
+        {isMobile && !isProjectRoute && !isHomeRoute && (
           <div className={cn(
             "fixed left-0 top-0 h-full z-50 transition-transform duration-300 lg:hidden",
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -71,12 +72,15 @@ export function MainLayout({ children }: Props) {
 
         {/* Main Content Area */}
         <div className="flex flex-1 flex-col min-w-0">
-          {/* Global Header - For project routes, this will be positioned after the project sidebar */}
-          {!isProjectRoute && <Header />}
+          {/* Global Header - Show on all pages */}
+          <Header />
 
-          {/* Editor Area with Tabs - Simplified for project routes */}
-          <div className="flex-1 overflow-hidden">
-            {isProjectRoute ? (
+          {/* Editor Area with Tabs - Simplified for project routes and home route */}
+          <div className={cn(
+            "flex-1",
+            (isHomeRoute || isProjectRoute) ? "overflow-y-auto" : "overflow-hidden"
+          )}>
+            {isProjectRoute || isHomeRoute ? (
               children
             ) : (
               <EditorArea

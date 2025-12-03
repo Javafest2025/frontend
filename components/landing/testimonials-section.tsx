@@ -112,7 +112,7 @@ export function TestimonialsSection() {
     }
 
     return (
-        <section id="testimonials" className="py-24 bg-gradient-to-b from-muted/30 to-background" ref={ref}>
+        <section id="testimonials" className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-b from-muted/30 to-background" ref={ref}>
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
@@ -124,11 +124,11 @@ export function TestimonialsSection() {
                         <Sparkles className="h-6 w-6 text-primary mr-2" />
                         <span className="text-sm font-medium text-primary uppercase tracking-wider">Testimonials</span>
                     </div>
-                    <h2 className="text-4xl font-bold text-foreground sm:text-5xl mb-6">
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 sm:mb-6 px-4">
                         Trusted by
                         <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent"> Leading Researchers</span>
                     </h2>
-                    <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+                    <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed px-4">
                         Join thousands of researchers worldwide who are accelerating their discoveries with ScholarAI
                     </p>
                 </motion.div>
@@ -138,7 +138,7 @@ export function TestimonialsSection() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
                     transition={{ duration: 0.8, delay: 0.2 }}
-                    className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16"
+                    className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 md:gap-8 mb-12 sm:mb-16"
                 >
                     {[
                         { value: "10,000+", label: "Active Researchers" },
@@ -151,10 +151,10 @@ export function TestimonialsSection() {
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
                             transition={{ duration: 0.5, delay: index * 0.1 + 0.4 }}
-                            className="text-center p-6 rounded-xl bg-gradient-to-br from-background/20 to-muted/10 border border-primary/30 hover:border-primary/50 transition-colors backdrop-blur-md"
+                            className="text-center p-4 sm:p-5 md:p-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-background/20 to-muted/10 border border-primary/30 hover:border-primary/50 transition-colors backdrop-blur-md"
                         >
-                            <div className="text-3xl font-bold text-primary mb-2">{stat.value}</div>
-                            <div className="text-sm text-muted-foreground">{stat.label}</div>
+                            <div className="text-xl sm:text-2xl md:text-3xl font-bold text-primary mb-1 sm:mb-2">{stat.value}</div>
+                            <div className="text-xs sm:text-sm text-muted-foreground">{stat.label}</div>
                         </motion.div>
                     ))}
                 </motion.div>
@@ -167,7 +167,7 @@ export function TestimonialsSection() {
                             initial={{ opacity: 0 }}
                             animate={isInView ? { opacity: 1 } : { opacity: 0 }}
                             transition={{ duration: 0.8, delay: 0.6 }}
-                            className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8"
+                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 mb-8"
                         >
                             {getVisibleTestimonials().map((testimonial, index) => (
                                 <motion.div

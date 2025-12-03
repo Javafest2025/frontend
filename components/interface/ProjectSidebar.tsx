@@ -56,13 +56,13 @@ const PROJECT_NAV_ITEMS = [
         description: "Research paper library and management",
         loadingMessage: "Loading research library..."
     },
-    {
-        name: "Reading List",
-        href: "/reading-list",
-        icon: BookOpen,
-        description: "Curated reading list and paper recommendations",
-        loadingMessage: "Loading reading list..."
-    },
+    // {
+    //     name: "Reading List",
+    //     href: "/reading-list",
+    //     icon: BookOpen,
+    //     description: "Curated reading list and paper recommendations",
+    //     loadingMessage: "Loading reading list..."
+    // },
     {
         name: "Quick Notes",
         href: "/notes",

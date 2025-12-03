@@ -147,7 +147,7 @@ export function IntegrationsSection() {
     const isInView = useInView(ref, { once: true, amount: 0.2 })
 
     return (
-        <section id="integrations" className="py-24 bg-gradient-to-b from-background to-muted/30" ref={ref}>
+        <section id="integrations" className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-b from-background to-muted/30" ref={ref}>
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
@@ -159,11 +159,11 @@ export function IntegrationsSection() {
                         <Sparkles className="h-6 w-6 text-primary mr-2" />
                         <span className="text-sm font-medium text-primary uppercase tracking-wider">Integrations</span>
                     </div>
-                    <h2 className="text-4xl font-bold text-foreground sm:text-5xl mb-6">
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 sm:mb-6 px-4">
                         Connected to
                         <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent"> Every Source</span>
                     </h2>
-                    <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+                    <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed px-4">
                         Access the world's largest academic databases and repositories through a unified,
                         intelligent search interface powered by AI.
                     </p>
@@ -174,7 +174,7 @@ export function IntegrationsSection() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
                     transition={{ duration: 0.8, delay: 0.2 }}
-                    className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16"
+                    className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-5 md:gap-6 mb-12 sm:mb-16"
                 >
                     {[
                         { value: "500M+", label: "Papers Available", icon: FileText },
@@ -192,9 +192,9 @@ export function IntegrationsSection() {
                                 whileHover={{ scale: 1.05 }}
                                 className="text-center p-6 rounded-xl bg-gradient-to-br from-background/20 to-muted/10 border border-primary/30 hover:border-primary/50 transition-all duration-300 group backdrop-blur-md"
                             >
-                                <Icon className="h-8 w-8 text-primary mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                                <div className="text-2xl font-bold text-primary mb-1">{stat.value}</div>
-                                <div className="text-sm text-muted-foreground">{stat.label}</div>
+                                <Icon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary mx-auto mb-2 sm:mb-3 group-hover:scale-110 transition-transform" />
+                                <div className="text-xl sm:text-2xl md:text-2xl font-bold text-primary mb-1">{stat.value}</div>
+                                <div className="text-xs sm:text-sm text-muted-foreground">{stat.label}</div>
                             </motion.div>
                         )
                     })}
@@ -205,7 +205,7 @@ export function IntegrationsSection() {
                     initial={{ opacity: 0 }}
                     animate={isInView ? { opacity: 1 } : { opacity: 0 }}
                     transition={{ duration: 0.8, delay: 0.6 }}
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16"
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 mb-12 sm:mb-16"
                 >
                     {integrations.map((integration, index) => {
                         const IconComponent = integration.icon
@@ -233,17 +233,17 @@ export function IntegrationsSection() {
 
                                     <div className={`absolute inset-0 bg-gradient-to-br ${integration.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
 
-                                    <CardContent className="p-6 relative z-10">
+                                    <CardContent className="p-4 sm:p-5 md:p-6 relative z-10">
                                         {/* Logo placeholder with custom icon */}
-                                        <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-xl bg-gradient-to-br from-background to-muted/50 border border-border/50 group-hover:border-primary/30 transition-colors">
-                                            <IconComponent className={`h-8 w-8 ${integration.iconColor}`} />
+                                        <div className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 mx-auto mb-3 sm:mb-4 rounded-lg sm:rounded-xl bg-gradient-to-br from-background to-muted/50 border border-border/50 group-hover:border-primary/30 transition-colors">
+                                            <IconComponent className={`h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 ${integration.iconColor}`} />
                                         </div>
 
-                                        <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
+                                        <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
                                             {integration.name}
                                         </h3>
 
-                                        <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
+                                        <p className="text-xs sm:text-sm text-muted-foreground mb-3 leading-relaxed">
                                             {integration.description}
                                         </p>
 
@@ -297,7 +297,7 @@ export function IntegrationsSection() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
                     transition={{ duration: 0.8, delay: 1.2 }}
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16"
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 mb-12 sm:mb-16"
                 >
                     {features.map((feature, index) => {
                         const Icon = feature.icon
@@ -308,11 +308,11 @@ export function IntegrationsSection() {
                                 animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
                                 transition={{ duration: 0.5, delay: index * 0.1 + 1.4 }}
                                 whileHover={{ scale: 1.02 }}
-                                className="text-center p-6 rounded-xl bg-gradient-to-br from-background/20 to-muted/10 border border-primary/30 hover:border-primary/50 transition-all duration-300 group backdrop-blur-md"
+                                className="text-center p-4 sm:p-5 md:p-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-background/20 to-muted/10 border border-primary/30 hover:border-primary/50 transition-all duration-300 group backdrop-blur-md"
                             >
-                                <Icon className="h-8 w-8 text-primary mx-auto mb-4 group-hover:scale-110 transition-transform" />
-                                <h3 className="font-semibold text-foreground mb-2">{feature.title}</h3>
-                                <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+                                <Icon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary mx-auto mb-3 sm:mb-4 group-hover:scale-110 transition-transform" />
+                                <h3 className="text-sm sm:text-base font-semibold text-foreground mb-2">{feature.title}</h3>
+                                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
                             </motion.div>
                         )
                     })}

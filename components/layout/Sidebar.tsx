@@ -51,22 +51,22 @@ const NAV_ITEMS = [
     loadingMessage: "Loading research projects...",
     animationClass: "group-hover:animate-pulse group-hover:scale-110"
   },
-  {
-    name: "ToDo",
-    href: "/interface/todo",
-    icon: CheckSquare,
-    description: "Task management and planning",
-    loadingMessage: "Loading task management...",
-    animationClass: "group-hover:scale-110 group-hover:rotate-12"
-  },
-  {
-    name: "Notifications",
-    href: "/interface/notifications",
-    icon: Bell,
-    description: "System notifications and alerts",
-    loadingMessage: "Loading notifications...",
-    animationClass: "group-hover:animate-bounce group-hover:scale-110"
-  }
+  // {
+  //   name: "ToDo",
+  //   href: "/interface/todo",
+  //   icon: CheckSquare,
+  //   description: "Task management and planning",
+  //   loadingMessage: "Loading task management...",
+  //   animationClass: "group-hover:scale-110 group-hover:rotate-12"
+  // },
+  // {
+  //   name: "Notifications",
+  //   href: "/interface/notifications",
+  //   icon: Bell,
+  //   description: "System notifications and alerts",
+  //   loadingMessage: "Loading notifications...",
+  //   animationClass: "group-hover:animate-bounce group-hover:scale-110"
+  // }
 ]
 
 const SETTINGS_ITEMS = [

@@ -14,7 +14,7 @@ export default function AuthLayout({
 
             {/* Content with backdrop blur */}
             <div className="relative z-10">
-                <div className="absolute top-6 right-6 z-50">
+                <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50">
                     <ThemeToggle />
                 </div>
                 {children}

@@ -116,10 +116,10 @@ export function Footer() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
                     transition={{ duration: 0.8 }}
-                    className="py-16"
+                    className="py-12 sm:py-14 md:py-16"
                 >
                     <Card className="max-w-4xl mx-auto border-primary/30 bg-gradient-to-br from-background/20 to-muted/10 overflow-hidden backdrop-blur-md">
-                        <CardContent className="p-8 lg:p-12">
+                        <CardContent className="p-6 sm:p-8 md:p-10 lg:p-12">
                             <div className="text-center">
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.8 }}
@@ -132,16 +132,16 @@ export function Footer() {
                                     </div>
                                 </motion.div>
 
-                                <h3 className="text-2xl lg:text-3xl font-bold text-foreground mb-4">
+                                <h3 className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold text-foreground mb-3 sm:mb-4 px-2">
                                     Stay Updated on Our Upcoming Products
                                 </h3>
 
-                                <p className="text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
+                                <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed px-2">
                                     Be the first to know about our latest research tools, AI-powered features, and innovative solutions designed specifically for researchers. Get early access and exclusive updates delivered to your inbox.
                                 </p>
 
-                                <form onSubmit={handleNewsletterSubmit} className="max-w-md mx-auto">
-                                    <div className="flex gap-3">
+                                <form onSubmit={handleNewsletterSubmit} className="max-w-md mx-auto px-2">
+                                    <div className="flex flex-col sm:flex-row gap-3">
                                         <Input
                                             type="email"
                                             placeholder="Enter your email"
@@ -185,11 +185,11 @@ export function Footer() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
                     transition={{ duration: 0.8, delay: 0.4 }}
-                    className="py-16"
+                    className="py-12 sm:py-14 md:py-16"
                 >
-                    <div className="grid grid-cols-1 lg:grid-cols-6 gap-8 lg:gap-12">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6 sm:gap-8 lg:gap-12">
                         {/* Brand Section */}
-                        <div className="lg:col-span-2">
+                        <div className="sm:col-span-2 lg:col-span-2">
                             <motion.div
                                 initial={{ opacity: 0, x: -30 }}
                                 animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -30 }}
@@ -210,7 +210,7 @@ export function Footer() {
                                     </span>
                                 </div>
 
-                                <p className="text-muted-foreground leading-relaxed">
+                                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                                     Accelerating research with AI-powered tools that help academics discover,
                                     analyze, and synthesize knowledge faster than ever before.
                                 </p>
@@ -294,16 +294,16 @@ export function Footer() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
                     transition={{ duration: 0.6, delay: 1.2 }}
-                    className="border-t border-border/50 py-8"
+                    className="border-t border-border/50 py-6 sm:py-8"
                 >
-                    <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
-                        <div className="flex items-center space-x-6 text-sm text-muted-foreground">
+                    <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0 gap-3 sm:gap-0">
+                        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 md:space-x-6 text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
                             <span>© 2025 ScholarAI. All rights reserved.</span>
-                            <span className="hidden md:block">•</span>
-                            <span className="hidden md:block">Accelerating research with AI</span>
+                            <span className="hidden sm:block">•</span>
+                            <span className="hidden sm:block">Accelerating research with AI</span>
                         </div>
 
-                        <div className="flex items-center space-x-4 text-sm">
+                        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3 md:space-x-4 text-xs sm:text-sm">
                             <Link
                                 href="#status"
                                 className="text-muted-foreground hover:text-primary transition-colors duration-200 flex items-center"
@@ -311,7 +311,7 @@ export function Footer() {
                                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
                                 All systems operational
                             </Link>
-                            <span className="text-muted-foreground">•</span>
+                            <span className="hidden sm:block text-muted-foreground">•</span>
                             <span className="text-muted-foreground">Made with ❤️ for researchers</span>
                         </div>
                     </div>
